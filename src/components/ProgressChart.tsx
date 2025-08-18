@@ -39,6 +39,48 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
     return monthlyData
   }, [sessions])
 
+  // Calculate dynamic domains with extra headroom
+  const domains = useMemo(() => {
+    if (chartData.length === 0) return { left: [0, 50], right: [0, 1000] }
+    
+    // Extract values for left axis (minutes and miles)
+    const minutesValues = chartData.map(d => d.minutes).filter(v => v > 0)
+    const milesValues = chartData.map(d => d.miles).filter(v => v > 0)
+    const leftValues = [...minutesValues, ...milesValues]
+    
+    // Extract values for right axis (weight)
+    const weightValues = chartData.map(d => d.weight).filter(v => v > 0)
+    
+    // Calculate left domain (minutes/miles)
+    let leftMax = 50 // default
+    if (leftValues.length > 0) {
+      const dataMax = Math.max(...leftValues)
+      // Add 30% headroom above data + ensure we have at least 2 extra tick marks
+      leftMax = Math.ceil(dataMax * 1.3)
+      // Round up to next nice number
+      if (leftMax <= 10) leftMax = Math.ceil(leftMax / 2) * 2
+      else if (leftMax <= 50) leftMax = Math.ceil(leftMax / 5) * 5
+      else leftMax = Math.ceil(leftMax / 10) * 10
+    }
+    
+    // Calculate right domain (weight)
+    let rightMax = 1000 // default
+    if (weightValues.length > 0) {
+      const dataMax = Math.max(...weightValues)
+      // Add 30% headroom above data
+      rightMax = Math.ceil(dataMax * 1.3)
+      // Round up to next nice number
+      if (rightMax <= 1000) rightMax = Math.ceil(rightMax / 100) * 100
+      else if (rightMax <= 10000) rightMax = Math.ceil(rightMax / 1000) * 1000
+      else rightMax = Math.ceil(rightMax / 10000) * 10000
+    }
+    
+    return {
+      left: [0, leftMax],
+      right: [0, rightMax]
+    }
+  }, [chartData])
+
   if (chartData.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center text-gray-500">
@@ -62,19 +104,33 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
           {/* Left Y-axis for Minutes and Miles */}
           <YAxis 
             yAxisId="left"
-            domain={[0, 50]}
+            domain={domains.left}
             tick={{ fontSize: 12 }}
             tickFormatter={(value) => value.toLocaleString()}
-            label={{ value: 'Minutes / Miles', angle: -90, position: 'insideLeft' }}
+            label={{ 
+              value: 'Minutes / Miles', 
+              angle: -90, 
+              position: 'insideLeft',
+              style: { textAnchor: 'middle' },
+              offset: -10
+            }}
+            width={60}
           />
           {/* Right Y-axis for Weight */}
           <YAxis 
             yAxisId="right"
             orientation="right"
-            domain={[0, 100000]}
+            domain={domains.right}
             tick={{ fontSize: 12 }}
             tickFormatter={(value) => value.toLocaleString()}
-            label={{ value: 'Weight (lbs)', angle: 90, position: 'insideRight' }}
+            label={{ 
+              value: 'Weight (lbs)', 
+              angle: 90, 
+              position: 'insideRight',
+              style: { textAnchor: 'middle' },
+              offset: -10
+            }}
+            width={80}
           />
           <Tooltip 
             formatter={(value: number, name: string) => {
