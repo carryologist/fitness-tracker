@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { WorkoutForm } from './WorkoutForm'
 import { WorkoutTable } from './WorkoutTable'
 import { MonthlySummary } from './MonthlySummary'
 import { ProgressChart } from './ProgressChart'
 import { GoalTracker } from './GoalTracker'
+import { WorkoutModal } from './WorkoutModal'
 import { importedWorkoutData } from '@/data/imported-workouts'
+import { Plus } from 'lucide-react'
 
 export interface WorkoutSession {
   id: string
@@ -35,6 +36,7 @@ export function WorkoutDashboard() {
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Load data on component mount
   useEffect(() => {
@@ -78,6 +80,19 @@ export function WorkoutDashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Floating Action Button */}
+      <div className="fixed top-6 right-6 z-40">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 group"
+        >
+          <Plus className="w-6 h-6" />
+          <span className="hidden group-hover:block whitespace-nowrap pr-2 font-medium">
+            Add Workout
+          </span>
+        </button>
+      </div>
+
       {/* Key Metrics Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Progress Chart - Takes up 2 columns */}
@@ -114,17 +129,6 @@ export function WorkoutDashboard() {
         </div>
       </div>
 
-      {/* Add New Session Form */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Add New Session</h2>
-          <p className="text-gray-600 mt-1">Log your latest workout</p>
-        </div>
-        <div className="p-6">
-          <WorkoutForm onSubmit={addSession} />
-        </div>
-      </div>
-
       {/* Session History Table */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-6 border-b">
@@ -133,6 +137,13 @@ export function WorkoutDashboard() {
         </div>
         <WorkoutTable sessions={sessions} />
       </div>
+
+      {/* Modal */}
+      <WorkoutModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={addSession}
+      />
     </div>
   )
 }
