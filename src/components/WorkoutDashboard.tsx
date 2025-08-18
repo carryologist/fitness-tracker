@@ -97,7 +97,7 @@ const loadGoalsFromStorage = (): Goal[] => {
     if (stored) {
       const parsed = JSON.parse(stored)
       // Convert date strings back to Date objects
-      return parsed.map((goal: any) => ({
+      return parsed.map((goal: Omit<Goal, 'createdAt' | 'updatedAt'> & { createdAt: string; updatedAt: string }) => ({
         ...goal,
         createdAt: new Date(goal.createdAt),
         updatedAt: new Date(goal.updatedAt)

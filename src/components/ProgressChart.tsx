@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { WorkoutSession } from './WorkoutDashboard'
-import { format, startOfMonth, eachMonthOfInterval, min, max, startOfDay, eachDayOfInterval, endOfMonth, getMonth, getYear, addMonths, subMonths } from 'date-fns'
+import { format, startOfMonth, eachMonthOfInterval, min, max, eachDayOfInterval, endOfMonth, addMonths, subMonths } from 'date-fns'
 import { Calendar, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface ProgressChartProps {
