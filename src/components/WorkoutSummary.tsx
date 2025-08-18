@@ -158,16 +158,62 @@ export function WorkoutSummary({ sessions }: WorkoutSummaryProps) {
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {summaryStats.activityAverages.map((activity) => {
+              // Determine activity type and appropriate emoji
+              const activityLower = activity.activity.toLowerCase()
+              let emoji = '🏃' // default
+              let isCardio = false
+              let isLifting = false
+              
+              if (activityLower.includes('cycling') || activityLower.includes('bike')) {
+                emoji = '🚴'
+                isCardio = true
+              } else if (activityLower.includes('running') || activityLower.includes('run')) {
+                emoji = '🏃'
+                isCardio = true
+              } else if (activityLower.includes('lifting') || activityLower.includes('weight') || activityLower.includes('strength')) {
+                emoji = '🏋️'
+                isLifting = true
+              } else if (activityLower.includes('swimming') || activityLower.includes('swim')) {
+                emoji = '🏊'
+                isCardio = true
+              } else if (activityLower.includes('walking') || activityLower.includes('walk')) {
+                emoji = '🚶'
+                isCardio = true
+              } else if (activityLower.includes('yoga')) {
+                emoji = '🧘'
+              } else if (activityLower.includes('hiking') || activityLower.includes('hike')) {
+                emoji = '🥾'
+                isCardio = true
+              }
+              
               return (
-                <div key={activity.activity} className="bg-white rounded-lg p-3 border border-gray-200">
+                <div key={activity.activity} className="bg-white rounded-lg p-3 border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm font-medium text-gray-700">{activity.activity}</h5>
-                    <span className="text-xs text-gray-500">{activity.count} sessions</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{emoji}</span>
+                      <h5 className="text-sm font-medium text-gray-700">{activity.activity}</h5>
+                    </div>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                      {activity.count} session{activity.count !== 1 ? 's' : ''}
+                    </span>
                   </div>
                   <div className="space-y-1 text-xs text-gray-600">
-                    <div>Avg: {activity.avgMinutes} min</div>
-                    {activity.avgMiles > 0 && <div>Avg: {activity.avgMiles.toFixed(1)} mi</div>}
-                    {activity.avgWeight > 0 && <div>Avg: {activity.avgWeight.toLocaleString()} lbs</div>}
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{activity.avgMinutes} min avg</span>
+                    </div>
+                    {isCardio && activity.avgMiles > 0 && (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        <span>{activity.avgMiles.toFixed(1)} mi avg</span>
+                      </div>
+                    )}
+                    {isLifting && activity.avgWeight > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Weight className="w-3 h-3" />
+                        <span>{activity.avgWeight.toLocaleString()} lbs avg</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )

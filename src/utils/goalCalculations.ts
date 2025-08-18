@@ -56,10 +56,10 @@ export function calculateGoalProgress(goal: Goal, sessions: WorkoutSession[]): G
   
   // Calculate sessions needed to hit targets
   const sessionsNeededForQuarter = Math.max(0, 
-    goal.quarterlySessionsTarget - actualSessionsQuarter
+    Math.ceil(goal.quarterlySessionsTarget - actualSessionsQuarter)
   )
   const sessionsNeededForYear = Math.max(0, 
-    (goal.weeklySessionsTarget * 52) - actualSessionsYear
+    Math.ceil((goal.weeklySessionsTarget * 52) - actualSessionsYear)
   )
   
   // Calculate days remaining in quarter
