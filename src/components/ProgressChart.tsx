@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { WorkoutSession } from './WorkoutDashboard'
-import { format, startOfMonth, eachMonthOfInterval, min, max, startOfDay, eachDayOfInterval, endOfMonth, getMonth, getYear } from 'date-fns'
-import { Calendar, BarChart3 } from 'lucide-react'
+import { format, startOfMonth, eachMonthOfInterval, min, max, startOfDay, eachDayOfInterval, endOfMonth, getMonth, getYear, addMonths, subMonths } from 'date-fns'
+import { Calendar, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface ProgressChartProps {
   sessions: WorkoutSession[]
@@ -12,7 +12,8 @@ interface ProgressChartProps {
 
 export function ProgressChart({ sessions }: ProgressChartProps) {
   const [viewMode, setViewMode] = useState<'annual' | 'monthly'>('annual')
-  
+  const [selectedMonth, setSelectedMonth] = useState(new Date())
+
   const chartData = useMemo(() => {
     if (sessions.length === 0) return []
     
@@ -38,10 +39,9 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
         }
       })
     } else {
-      // Monthly view: aggregate by day for current month
-      const now = new Date()
-      const monthStart = startOfMonth(now)
-      const monthEnd = endOfMonth(now)
+      // Monthly view: aggregate by day for selected month
+      const monthStart = startOfMonth(selectedMonth)
+      const monthEnd = endOfMonth(selectedMonth)
       
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
       
@@ -52,14 +52,14 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
         )
         
         return {
-          period: format(day, 'MMM d'),
+          period: format(day, 'd'),
           minutes: daySessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
           miles: daySessions.reduce((sum, s) => sum + (s.miles || 0), 0),
           weight: daySessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
         }
       })
     }
-  }, [sessions, viewMode])
+  }, [sessions, viewMode, selectedMonth])
 
   // Calculate dynamic domains with extra headroom
   const domains = useMemo(() => {
@@ -112,17 +112,40 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
   }
 
   return (
-    <div className="h-80">
+    <div className="h-96">
       {/* Chart Header with Toggle */}
       <div className="flex justify-between items-center mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            {viewMode === 'annual' ? 'Annual Progress by Month' : `${format(new Date(), 'MMMM yyyy')} Daily Progress`}
-          </h3>
-          <p className="text-sm text-gray-600">
-            {viewMode === 'annual' ? 'Your fitness journey over the year' : 'This month\'s daily activity'}
-          </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {viewMode === 'annual' ? 'Annual Progress by Month' : `${format(selectedMonth, 'MMMM yyyy')} Daily Progress`}
+            </h3>
+            <p className="text-sm text-gray-600">
+              {viewMode === 'annual' ? 'Your fitness journey over the year' : 'Daily activity for the month'}
+            </p>
+          </div>
+          
+          {/* Month Navigation - only show in monthly view */}
+          {viewMode === 'monthly' && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedMonth(prev => subMonths(prev, 1))}
+                className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+                title="Previous month"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              </button>
+              <button
+                onClick={() => setSelectedMonth(prev => addMonths(prev, 1))}
+                className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+                title="Next month"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+          )}
         </div>
+        
         <div className="flex bg-gray-100 rounded-lg p-1">
           <button
             onClick={() => setViewMode('annual')}
@@ -149,15 +172,16 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
         </div>
       </div>
       
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData}>
+      <ResponsiveContainer width="100%" height="85%">
+        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
             dataKey="period" 
             tick={{ fontSize: 12 }}
-            angle={viewMode === 'monthly' ? -45 : -45}
-            textAnchor="end"
-            height={60}
+            angle={viewMode === 'monthly' ? 0 : -45}
+            textAnchor={viewMode === 'monthly' ? 'middle' : 'end'}
+            height={viewMode === 'monthly' ? 40 : 80}
+            interval={viewMode === 'monthly' ? 2 : 0}
           />
           {/* Left Y-axis for Minutes and Miles */}
           <YAxis 
