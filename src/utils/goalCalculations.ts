@@ -55,11 +55,16 @@ export function calculateGoalProgress(goal: Goal, sessions: WorkoutSession[]): G
   const expectedSessionsYear = (goal.weeklySessionsTarget * 52) * yearProgress
   
   // Calculate sessions needed to hit targets
+  // For quarterly: remaining minutes ÷ minutes per session
+  const remainingMinutesQuarter = Math.max(0, goal.quarterlyMinutesTarget - actualMinutesQuarter)
   const sessionsNeededForQuarter = Math.max(0, 
-    Math.ceil(goal.quarterlySessionsTarget - actualSessionsQuarter)
+    Math.ceil(remainingMinutesQuarter / goal.minutesPerSession)
   )
+  
+  // For annual: remaining minutes ÷ minutes per session  
+  const remainingMinutesYear = Math.max(0, goal.annualMinutesTarget - actualMinutesYear)
   const sessionsNeededForYear = Math.max(0, 
-    Math.ceil((goal.weeklySessionsTarget * 52) - actualSessionsYear)
+    Math.ceil(remainingMinutesYear / goal.minutesPerSession)
   )
   
   // Calculate days remaining in quarter
