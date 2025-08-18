@@ -211,7 +211,11 @@ export function WorkoutDashboard() {
             <p className="text-gray-600 mt-1">Recent performance</p>
           </div>
           <div className="p-6">
-            <MonthlySummary sessions={sessions} onMonthSelect={handleMonthSelect} />
+            <MonthlySummary 
+              sessions={sessions} 
+              onMonthSelect={handleMonthSelect}
+              selectedMonth={chartViewMode === 'monthly' ? selectedChartMonth : undefined}
+            />
           </div>
         </div>
       </div>

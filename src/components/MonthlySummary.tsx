@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 interface MonthlySummaryProps {
   sessions: WorkoutSession[]
   onMonthSelect?: (month: Date) => void
+  selectedMonth?: Date // New prop to track which month is currently being charted
 }
 
 interface MonthlyData {
@@ -18,7 +19,7 @@ interface MonthlyData {
   sessions: number
 }
 
-export function MonthlySummary({ sessions, onMonthSelect }: MonthlySummaryProps) {
+export function MonthlySummary({ sessions, onMonthSelect, selectedMonth }: MonthlySummaryProps) {
   const monthlyData = useMemo(() => {
     const monthlyMap = new Map<string, MonthlyData>()
     
@@ -70,27 +71,33 @@ export function MonthlySummary({ sessions, onMonthSelect }: MonthlySummaryProps)
             </tr>
           </thead>
           <tbody>
-            {monthlyData.slice(0, 6).map((data, index) => (
-              <tr 
-                key={index} 
-                onClick={() => onMonthSelect?.(data.monthDate)}
-                className={`border-b border-gray-100 transition-colors ${
-                  onMonthSelect ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
-                } ${
-                  index === 0 ? 'bg-blue-50 font-medium' : ''
-                }`}
-                title={onMonthSelect ? `Click to view ${data.month} daily chart` : undefined}
-              >
-                <td className="py-3 text-gray-900">
-                  {data.month}
-                  {index === 0 && <span className="ml-2 text-xs text-blue-600 font-medium">LATEST</span>}
-                </td>
-                <td className="py-3 text-right text-gray-900">{data.sessions}</td>
-                <td className="py-3 text-right text-gray-900">{data.minutes.toLocaleString()}</td>
-                <td className="py-3 text-right text-gray-900">{data.miles.toFixed(0)}</td>
-                <td className="py-3 text-right text-gray-900">{data.weight.toLocaleString()}</td>
-              </tr>
-            ))}
+            {monthlyData.slice(0, 6).map((data, index) => {
+              // Check if this month matches the selected month for charting
+              const isSelectedMonth = selectedMonth && 
+                format(data.monthDate, 'yyyy-MM') === format(selectedMonth, 'yyyy-MM')
+              
+              return (
+                <tr 
+                  key={index} 
+                  onClick={() => onMonthSelect?.(data.monthDate)}
+                  className={`border-b border-gray-100 transition-colors ${
+                    onMonthSelect ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
+                  } ${
+                    isSelectedMonth ? 'bg-blue-100 font-medium border-blue-200' : ''
+                  }`}
+                  title={onMonthSelect ? `Click to view ${data.month} daily chart` : undefined}
+                >
+                  <td className="py-3 text-gray-900">
+                    {data.month}
+                    {isSelectedMonth && <span className="ml-2 text-xs text-blue-600 font-medium">CHARTED</span>}
+                  </td>
+                  <td className="py-3 text-right text-gray-900">{data.sessions}</td>
+                  <td className="py-3 text-right text-gray-900">{data.minutes.toLocaleString()}</td>
+                  <td className="py-3 text-right text-gray-900">{data.miles.toFixed(0)}</td>
+                  <td className="py-3 text-right text-gray-900">{data.weight.toLocaleString()}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -107,21 +114,9 @@ export function MonthlySummary({ sessions, onMonthSelect }: MonthlySummaryProps)
           </div>
           <div className="text-center p-3 bg-green-50 rounded-lg">
             <div className="text-2xl font-bold text-green-600">
-              {Math.round(monthlyData.reduce((sum, data) => sum + data.minutes, 0) / 60)}
+              {monthlyData.reduce((sum, data) => sum + data.minutes, 0).toLocaleString()}
             </div>
-            <div className="text-xs text-gray-600 uppercase tracking-wide">Hours</div>
-          </div>
-          <div className="text-center p-3 bg-purple-50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">
-              {monthlyData.reduce((sum, data) => sum + data.miles, 0).toFixed(0)}
-            </div>
-            <div className="text-xs text-gray-600 uppercase tracking-wide">Miles</div>
-          </div>
-          <div className="text-center p-3 bg-orange-50 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600">
-              {Math.round(monthlyData.reduce((sum, data) => sum + data.weight, 0) / 1000)}K
-            </div>
-            <div className="text-xs text-gray-600 uppercase tracking-wide">Lbs Lifted</div>
+            <div className="text-xs text-gray-600 uppercase tracking-wide">Minutes</div>
           </div>
         </div>
       </div>
