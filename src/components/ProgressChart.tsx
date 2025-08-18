@@ -30,7 +30,7 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
       
       return {
         month: format(month, 'MMM yyyy'),
-        minutes: monthSessions.reduce((sum, s) => sum + s.minutes, 0),
+        minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
         miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
         weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
       }
@@ -38,32 +38,6 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
     
     return monthlyData
   }, [sessions])
-
-  // Calculate domains for better scaling
-  const domains = useMemo(() => {
-    if (chartData.length === 0) return { left: [0, 100], right: [0, 1000] }
-    
-    const minutes = chartData.map(d => d.minutes)
-    const miles = chartData.map(d => d.miles)
-    const weights = chartData.map(d => d.weight)
-    
-    // Left axis: minutes and miles (similar scales)
-    const leftValues = [...minutes, ...miles].filter(v => v > 0)
-    const leftMin = leftValues.length > 0 ? Math.min(...leftValues) : 0
-    const leftMax = leftValues.length > 0 ? Math.max(...leftValues) : 100
-    const leftPadding = Math.max(1, (leftMax - leftMin) * 0.1)
-    
-    // Right axis: weight only
-    const weightValues = weights.filter(v => v > 0)
-    const weightMin = weightValues.length > 0 ? Math.min(...weightValues) : 0
-    const weightMax = weightValues.length > 0 ? Math.max(...weightValues) : 1000
-    const weightPadding = Math.max(10, (weightMax - weightMin) * 0.1)
-    
-    return {
-      left: [Math.max(0, leftMin - leftPadding), leftMax + leftPadding],
-      right: [Math.max(0, weightMin - weightPadding), weightMax + weightPadding]
-    }
-  }, [chartData])
 
   if (chartData.length === 0) {
     return (
@@ -88,16 +62,18 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
           {/* Left Y-axis for Minutes and Miles */}
           <YAxis 
             yAxisId="left"
-            domain={domains.left}
+            domain={[0, 50]}
             tick={{ fontSize: 12 }}
+            tickFormatter={(value) => value.toLocaleString()}
             label={{ value: 'Minutes / Miles', angle: -90, position: 'insideLeft' }}
           />
           {/* Right Y-axis for Weight */}
           <YAxis 
             yAxisId="right"
             orientation="right"
-            domain={domains.right}
+            domain={[0, 100000]}
             tick={{ fontSize: 12 }}
+            tickFormatter={(value) => value.toLocaleString()}
             label={{ value: 'Weight (lbs)', angle: 90, position: 'insideRight' }}
           />
           <Tooltip 
