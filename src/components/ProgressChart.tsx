@@ -1,43 +1,65 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { WorkoutSession } from './WorkoutDashboard'
-import { format, startOfMonth, eachMonthOfInterval, min, max } from 'date-fns'
+import { format, startOfMonth, eachMonthOfInterval, min, max, startOfDay, eachDayOfInterval, endOfMonth, getMonth, getYear } from 'date-fns'
+import { Calendar, BarChart3 } from 'lucide-react'
 
 interface ProgressChartProps {
   sessions: WorkoutSession[]
 }
 
 export function ProgressChart({ sessions }: ProgressChartProps) {
+  const [viewMode, setViewMode] = useState<'annual' | 'monthly'>('annual')
+  
   const chartData = useMemo(() => {
     if (sessions.length === 0) return []
     
-    // Get date range
-    const dates = sessions.map(s => s.date)
-    const minDate = min(dates)
-    const maxDate = max(dates)
-    
-    // Generate all months in range
-    const months = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) })
-    
-    // Aggregate data by month
-    const monthlyData = months.map(month => {
-      const monthKey = format(month, 'yyyy-MM')
-      const monthSessions = sessions.filter(session => 
-        format(session.date, 'yyyy-MM') === monthKey
-      )
+    if (viewMode === 'annual') {
+      // Annual view: aggregate by month
+      const dates = sessions.map(s => s.date)
+      const minDate = min(dates)
+      const maxDate = max(dates)
       
-      return {
-        month: format(month, 'MMM yyyy'),
-        minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
-        miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
-        weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-      }
-    })
-    
-    return monthlyData
-  }, [sessions])
+      const months = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) })
+      
+      return months.map(month => {
+        const monthKey = format(month, 'yyyy-MM')
+        const monthSessions = sessions.filter(session => 
+          format(session.date, 'yyyy-MM') === monthKey
+        )
+        
+        return {
+          period: format(month, 'MMM yyyy'),
+          minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
+          miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
+          weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+        }
+      })
+    } else {
+      // Monthly view: aggregate by day for current month
+      const now = new Date()
+      const monthStart = startOfMonth(now)
+      const monthEnd = endOfMonth(now)
+      
+      const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
+      
+      return days.map(day => {
+        const dayKey = format(day, 'yyyy-MM-dd')
+        const daySessions = sessions.filter(session => 
+          format(session.date, 'yyyy-MM-dd') === dayKey
+        )
+        
+        return {
+          period: format(day, 'MMM d'),
+          minutes: daySessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
+          miles: daySessions.reduce((sum, s) => sum + (s.miles || 0), 0),
+          weight: daySessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+        }
+      })
+    }
+  }, [sessions, viewMode])
 
   // Calculate dynamic domains with extra headroom
   const domains = useMemo(() => {
@@ -91,13 +113,49 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
 
   return (
     <div className="h-80">
+      {/* Chart Header with Toggle */}
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            {viewMode === 'annual' ? 'Annual Progress by Month' : `${format(new Date(), 'MMMM yyyy')} Daily Progress`}
+          </h3>
+          <p className="text-sm text-gray-600">
+            {viewMode === 'annual' ? 'Your fitness journey over the year' : 'This month\'s daily activity'}
+          </p>
+        </div>
+        <div className="flex bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('annual')}
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+              viewMode === 'annual' 
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Annual
+          </button>
+          <button
+            onClick={() => setViewMode('monthly')}
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+              viewMode === 'monthly' 
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            Monthly
+          </button>
+        </div>
+      </div>
+      
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
-            dataKey="month" 
+            dataKey="period" 
             tick={{ fontSize: 12 }}
-            angle={-45}
+            angle={viewMode === 'monthly' ? -45 : -45}
             textAnchor="end"
             height={60}
           />

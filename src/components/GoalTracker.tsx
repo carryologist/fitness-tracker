@@ -105,7 +105,7 @@ export function GoalTracker({ goals, sessions, onAddGoal, onEditGoal }: GoalTrac
           </div>
           
           <div className="text-xs text-gray-500">
-            {percentage.toFixed(1)}% of expected progress
+            {Math.round(percentage)}% of expected progress
           </div>
         </div>
       </div>
