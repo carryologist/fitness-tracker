@@ -6,6 +6,7 @@ import { MonthlySummary } from './MonthlySummary'
 import { ProgressChart } from './ProgressChart'
 import { GoalTracker } from './GoalTracker'
 import { WorkoutModal } from './WorkoutModal'
+import { GoalModal } from './GoalModal'
 import { importedWorkoutData } from '@/data/imported-workouts'
 import { Plus } from 'lucide-react'
 
@@ -22,14 +23,60 @@ export interface WorkoutSession {
 
 export interface Goal {
   id: string
-  type: 'QUARTERLY' | 'ANNUAL'
+  name: string
   year: number
-  quarter?: number
-  targetMinutes?: number
-  targetSessions?: number
-  targetSessionsPerWeek?: number
-  targetWeeksPerQuarter?: number
-  targetAnnualGoal?: number
+  
+  // Annual targets
+  annualWeightTarget: number // Total lbs for the year
+  weeklyMinutesTarget: number // Minutes per week
+  weeklySessionsTarget: number // Sessions per week
+  
+  // Calculated fields (derived from above)
+  annualMinutesTarget: number // weeklyMinutesTarget * 52
+  quarterlyWeightTarget: number // annualWeightTarget / 4
+  quarterlyMinutesTarget: number // annualMinutesTarget / 4
+  quarterlySessionsTarget: number // weeklySessionsTarget * 13
+  
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface GoalProgress {
+  // Current period progress
+  currentQuarter: number
+  currentYear: number
+  
+  // Actual progress
+  actualWeightLifted: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  actualMinutes: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  actualSessions: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  
+  // Expected progress (linear)
+  expectedWeightLifted: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  expectedMinutes: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  expectedSessions: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  
+  // Sessions needed
+  sessionsNeededForQuarter: number
+  sessionsNeededForYear: number
 }
 
 export function WorkoutDashboard() {
@@ -37,6 +84,8 @@ export function WorkoutDashboard() {
   const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
+  const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
 
   // Load data on component mount
   useEffect(() => {
@@ -68,6 +117,40 @@ export function WorkoutDashboard() {
       id: Date.now().toString()
     }
     setSessions(prev => [newSession, ...prev])
+  }
+
+  const handleAddGoal = () => {
+    setEditingGoal(undefined)
+    setIsGoalModalOpen(true)
+  }
+
+  const handleEditGoal = (goal: Goal) => {
+    setEditingGoal(goal)
+    setIsGoalModalOpen(true)
+  }
+
+  const handleGoalSubmit = (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const now = new Date()
+    
+    if (editingGoal) {
+      // Update existing goal
+      const updatedGoal: Goal = {
+        ...goalData,
+        id: editingGoal.id,
+        createdAt: editingGoal.createdAt,
+        updatedAt: now
+      }
+      setGoals(prev => prev.map(g => g.id === editingGoal.id ? updatedGoal : g))
+    } else {
+      // Create new goal
+      const newGoal: Goal = {
+        ...goalData,
+        id: Date.now().toString(),
+        createdAt: now,
+        updatedAt: now
+      }
+      setGoals(prev => [newGoal, ...prev])
+    }
   }
 
   if (loading) {
@@ -126,7 +209,12 @@ export function WorkoutDashboard() {
           <p className="text-gray-600 mt-1">Track your fitness targets</p>
         </div>
         <div className="p-6">
-          <GoalTracker goals={goals} sessions={sessions} />
+          <GoalTracker 
+            goals={goals} 
+            sessions={sessions} 
+            onAddGoal={handleAddGoal}
+            onEditGoal={handleEditGoal}
+          />
         </div>
       </div>
 
@@ -144,6 +232,14 @@ export function WorkoutDashboard() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={addSession}
+      />
+      
+      {/* Goal Modal */}
+      <GoalModal 
+        isOpen={isGoalModalOpen}
+        onClose={() => setIsGoalModalOpen(false)}
+        onSubmit={handleGoalSubmit}
+        existingGoal={editingGoal}
       />
     </div>
   )
