@@ -78,6 +78,9 @@ export interface GoalProgress {
   // Sessions needed
   sessionsNeededForQuarter: number
   sessionsNeededForYear: number
+  
+  // Time remaining
+  daysRemainingInQuarter: number
 }
 
 // localStorage helpers for goals

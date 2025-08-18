@@ -62,6 +62,9 @@ export function calculateGoalProgress(goal: Goal, sessions: WorkoutSession[]): G
     (goal.weeklySessionsTarget * 52) - actualSessionsYear
   )
   
+  // Calculate days remaining in quarter
+  const daysRemainingInQuarter = Math.max(0, differenceInDays(quarterEnd, now))
+  
   return {
     currentQuarter,
     currentYear,
@@ -90,7 +93,8 @@ export function calculateGoalProgress(goal: Goal, sessions: WorkoutSession[]): G
       yearToDate: expectedSessionsYear
     },
     sessionsNeededForQuarter,
-    sessionsNeededForYear
+    sessionsNeededForYear,
+    daysRemainingInQuarter
   }
 }
 

@@ -212,8 +212,8 @@ export function GoalTracker({ goals, sessions, onAddGoal, onEditGoal }: GoalTrac
             <div className="text-sm text-gray-600">more sessions needed for quarterly goal</div>
           </div>
           <div className="bg-white rounded-lg p-4">
-            <div className="text-2xl font-bold text-blue-600">{progress.sessionsNeededForYear}</div>
-            <div className="text-sm text-gray-600">more sessions needed for annual goal</div>
+            <div className="text-2xl font-bold text-orange-600">{progress.daysRemainingInQuarter}</div>
+            <div className="text-sm text-gray-600">days remaining in quarter</div>
           </div>
         </div>
       </div>
