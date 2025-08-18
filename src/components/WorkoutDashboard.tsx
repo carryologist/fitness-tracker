@@ -5,6 +5,7 @@ import { WorkoutTable } from './WorkoutTable'
 import { MonthlySummary } from './MonthlySummary'
 import { ProgressChart } from './ProgressChart'
 import { GoalTracker } from './GoalTracker'
+import { WorkoutSummary } from './WorkoutSummary'
 import { WorkoutModal } from './WorkoutModal'
 import { GoalModal } from './GoalModal'
 import { importedWorkoutData } from '@/data/imported-workouts'
@@ -277,7 +278,18 @@ export function WorkoutDashboard() {
         </div>
       </div>
 
-      {/* Session History Table */}
+      {/* Workout Summary */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6 border-b">
+          <h2 className="text-xl font-semibold text-gray-900">Workout Statistics</h2>
+          <p className="text-gray-600 mt-1">Summary of your training patterns</p>
+        </div>
+        <div className="p-6">
+          <WorkoutSummary sessions={sessions} />
+        </div>
+      </div>
+
+      {/* Workout History */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-6 border-b">
           <h2 className="text-xl font-semibold text-gray-900">Workout History</h2>
