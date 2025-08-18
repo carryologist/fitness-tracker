@@ -98,15 +98,18 @@ export function createGoal(
   name: string,
   year: number,
   annualWeightTarget: number,
-  weeklyMinutesTarget: number,
+  minutesPerSession: number,
   weeklySessionsTarget: number
 ): Omit<Goal, 'id' | 'createdAt' | 'updatedAt'> {
+  const weeklyMinutesTarget = minutesPerSession * weeklySessionsTarget
+  
   return {
     name,
     year,
     annualWeightTarget,
-    weeklyMinutesTarget,
+    minutesPerSession,
     weeklySessionsTarget,
+    weeklyMinutesTarget,
     annualMinutesTarget: weeklyMinutesTarget * 52,
     quarterlyWeightTarget: annualWeightTarget / 4,
     quarterlyMinutesTarget: (weeklyMinutesTarget * 52) / 4,

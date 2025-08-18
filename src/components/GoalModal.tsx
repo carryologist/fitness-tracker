@@ -17,7 +17,7 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
     name: existingGoal?.name || '',
     year: existingGoal?.year || new Date().getFullYear(),
     annualWeightTarget: existingGoal?.annualWeightTarget || 500000,
-    weeklyMinutesTarget: existingGoal?.weeklyMinutesTarget || 225, // 45 * 5
+    minutesPerSession: existingGoal?.minutesPerSession || 45,
     weeklySessionsTarget: existingGoal?.weeklySessionsTarget || 5
   })
 
@@ -28,13 +28,20 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
       formData.name,
       formData.year,
       formData.annualWeightTarget,
-      formData.weeklyMinutesTarget,
+      formData.minutesPerSession,
       formData.weeklySessionsTarget
     )
     
     onSubmit(goal)
     onClose()
   }
+
+  // Calculate derived values for display
+  const weeklyMinutes = formData.minutesPerSession * formData.weeklySessionsTarget
+  const annualMinutes = weeklyMinutes * 52
+  const quarterlyWeight = formData.annualWeightTarget / 4
+  const quarterlyMinutes = annualMinutes / 4
+  const quarterlySessions = formData.weeklySessionsTarget * 13
 
   if (!isOpen) return null
 
@@ -85,25 +92,28 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
               Annual Weight Target (lbs)
             </label>
             <input
-              type="number"
-              value={formData.annualWeightTarget}
-              onChange={(e) => setFormData(prev => ({ ...prev, annualWeightTarget: parseInt(e.target.value) }))}
+              type="text"
+              value={formData.annualWeightTarget.toLocaleString()}
+              onChange={(e) => {
+                const numericValue = parseInt(e.target.value.replace(/,/g, '')) || 0
+                setFormData(prev => ({ ...prev, annualWeightTarget: numericValue }))
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="500000"
+              placeholder="500,000"
               required
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Minutes per Week
+              Minutes per Session
             </label>
             <input
               type="number"
-              value={formData.weeklyMinutesTarget}
-              onChange={(e) => setFormData(prev => ({ ...prev, weeklyMinutesTarget: parseInt(e.target.value) }))}
+              value={formData.minutesPerSession}
+              onChange={(e) => setFormData(prev => ({ ...prev, minutesPerSession: parseInt(e.target.value) }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="225"
+              placeholder="45"
               required
             />
           </div>
@@ -125,10 +135,11 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
           <div className="bg-gray-50 p-3 rounded-md">
             <h3 className="text-sm font-medium text-gray-700 mb-2">Calculated Targets:</h3>
             <div className="text-xs text-gray-600 space-y-1">
-              <div>Annual Minutes: {(formData.weeklyMinutesTarget * 52).toLocaleString()}</div>
-              <div>Quarterly Weight: {(formData.annualWeightTarget / 4).toLocaleString()} lbs</div>
-              <div>Quarterly Minutes: {((formData.weeklyMinutesTarget * 52) / 4).toLocaleString()}</div>
-              <div>Quarterly Sessions: {formData.weeklySessionsTarget * 13}</div>
+              <div>Weekly Minutes: {weeklyMinutes.toLocaleString()}</div>
+              <div>Annual Minutes: {annualMinutes.toLocaleString()}</div>
+              <div>Quarterly Weight: {quarterlyWeight.toLocaleString()} lbs</div>
+              <div>Quarterly Minutes: {quarterlyMinutes.toLocaleString()}</div>
+              <div>Quarterly Sessions: {quarterlySessions}</div>
             </div>
           </div>
 

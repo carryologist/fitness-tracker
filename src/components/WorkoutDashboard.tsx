@@ -28,10 +28,11 @@ export interface Goal {
   
   // Annual targets
   annualWeightTarget: number // Total lbs for the year
-  weeklyMinutesTarget: number // Minutes per week
+  minutesPerSession: number // Minutes per individual session
   weeklySessionsTarget: number // Sessions per week
   
   // Calculated fields (derived from above)
+  weeklyMinutesTarget: number // minutesPerSession * weeklySessionsTarget
   annualMinutesTarget: number // weeklyMinutesTarget * 52
   quarterlyWeightTarget: number // annualWeightTarget / 4
   quarterlyMinutesTarget: number // annualMinutesTarget / 4
