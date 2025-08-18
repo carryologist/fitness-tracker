@@ -48,7 +48,7 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
   }
 
   return (
-    <div className="h-64">
+    <div className="h-80">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -59,39 +59,54 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
             textAnchor="end"
             height={60}
           />
-          <YAxis tick={{ fontSize: 12 }} />
+          {/* Left Y-axis for Minutes and Weight */}
+          <YAxis 
+            yAxisId="left"
+            tick={{ fontSize: 12 }}
+            label={{ value: 'Minutes / Weight (lbs)', angle: -90, position: 'insideLeft' }}
+          />
+          {/* Right Y-axis for Miles */}
+          <YAxis 
+            yAxisId="right"
+            orientation="right"
+            tick={{ fontSize: 12 }}
+            label={{ value: 'Miles', angle: 90, position: 'insideRight' }}
+          />
           <Tooltip 
             formatter={(value: number, name: string) => {
               if (name === 'minutes') return [value.toLocaleString(), 'Minutes']
               if (name === 'miles') return [value.toFixed(1), 'Miles']
-              if (name === 'weight') return [value.toLocaleString(), 'Weight Lifted']
+              if (name === 'weight') return [value.toLocaleString(), 'Weight Lifted (lbs)']
               return [value, name]
             }}
           />
           <Legend />
           <Line 
+            yAxisId="left"
             type="monotone" 
             dataKey="minutes" 
             stroke="#3B82F6" 
-            strokeWidth={2}
+            strokeWidth={3}
             name="Minutes"
-            dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
+            dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }}
           />
           <Line 
+            yAxisId="right"
             type="monotone" 
             dataKey="miles" 
             stroke="#10B981" 
-            strokeWidth={2}
+            strokeWidth={3}
             name="Miles"
-            dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
+            dot={{ fill: '#10B981', strokeWidth: 2, r: 5 }}
           />
           <Line 
+            yAxisId="left"
             type="monotone" 
             dataKey="weight" 
             stroke="#F59E0B" 
-            strokeWidth={2}
-            name="Weight Lifted"
-            dot={{ fill: '#F59E0B', strokeWidth: 2, r: 4 }}
+            strokeWidth={3}
+            name="Weight Lifted (lbs)"
+            dot={{ fill: '#F59E0B', strokeWidth: 2, r: 5 }}
           />
         </LineChart>
       </ResponsiveContainer>

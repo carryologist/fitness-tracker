@@ -53,58 +53,65 @@ export function MonthlySummary({ sessions }: MonthlySummaryProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Recent Months Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b">
-              <th className="text-left py-2 font-medium text-gray-700">Month</th>
-              <th className="text-right py-2 font-medium text-gray-700">Sessions</th>
-              <th className="text-right py-2 font-medium text-gray-700">Minutes</th>
-              <th className="text-right py-2 font-medium text-gray-700">Miles</th>
-              <th className="text-right py-2 font-medium text-gray-700">Weight</th>
+            <tr className="border-b border-gray-200">
+              <th className="text-left py-3 font-semibold text-gray-700">Month</th>
+              <th className="text-right py-3 font-semibold text-gray-700">Sessions</th>
+              <th className="text-right py-3 font-semibold text-gray-700">Minutes</th>
+              <th className="text-right py-3 font-semibold text-gray-700">Miles</th>
+              <th className="text-right py-3 font-semibold text-gray-700">Weight</th>
             </tr>
           </thead>
           <tbody>
-            {monthlyData.map((data, index) => (
-              <tr key={index} className="border-b border-gray-100">
-                <td className="py-2 text-gray-900">{data.month}</td>
-                <td className="py-2 text-right text-gray-900">{data.sessions}</td>
-                <td className="py-2 text-right text-gray-900">{data.minutes.toLocaleString()}</td>
-                <td className="py-2 text-right text-gray-900">{data.miles.toFixed(0)}</td>
-                <td className="py-2 text-right text-gray-900">{data.weight.toLocaleString()}</td>
+            {monthlyData.slice(0, 6).map((data, index) => (
+              <tr key={index} className={`border-b border-gray-100 hover:bg-gray-50 ${
+                index === 0 ? 'bg-blue-50 font-medium' : ''
+              }`}>
+                <td className="py-3 text-gray-900">
+                  {data.month}
+                  {index === 0 && <span className="ml-2 text-xs text-blue-600 font-medium">LATEST</span>}
+                </td>
+                <td className="py-3 text-right text-gray-900">{data.sessions}</td>
+                <td className="py-3 text-right text-gray-900">{data.minutes.toLocaleString()}</td>
+                <td className="py-3 text-right text-gray-900">{data.miles.toFixed(0)}</td>
+                <td className="py-3 text-right text-gray-900">{data.weight.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       
-      {/* Totals */}
-      <div className="pt-4 border-t">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <div className="text-gray-500">Total Sessions</div>
-            <div className="font-semibold text-lg">
+      {/* Key Totals - More prominent */}
+      <div className="pt-4 border-t border-gray-200">
+        <h4 className="text-sm font-semibold text-gray-700 mb-3">All-Time Totals</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center p-3 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">
               {monthlyData.reduce((sum, data) => sum + data.sessions, 0)}
             </div>
+            <div className="text-xs text-gray-600 uppercase tracking-wide">Sessions</div>
           </div>
-          <div>
-            <div className="text-gray-500">Total Minutes</div>
-            <div className="font-semibold text-lg">
-              {monthlyData.reduce((sum, data) => sum + data.minutes, 0).toLocaleString()}
+          <div className="text-center p-3 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">
+              {Math.round(monthlyData.reduce((sum, data) => sum + data.minutes, 0) / 60)}
             </div>
+            <div className="text-xs text-gray-600 uppercase tracking-wide">Hours</div>
           </div>
-          <div>
-            <div className="text-gray-500">Total Miles</div>
-            <div className="font-semibold text-lg">
+          <div className="text-center p-3 bg-purple-50 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">
               {monthlyData.reduce((sum, data) => sum + data.miles, 0).toFixed(0)}
             </div>
+            <div className="text-xs text-gray-600 uppercase tracking-wide">Miles</div>
           </div>
-          <div>
-            <div className="text-gray-500">Total Weight</div>
-            <div className="font-semibold text-lg">
-              {monthlyData.reduce((sum, data) => sum + data.weight, 0).toLocaleString()}
+          <div className="text-center p-3 bg-orange-50 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600">
+              {Math.round(monthlyData.reduce((sum, data) => sum + data.weight, 0) / 1000)}K
             </div>
+            <div className="text-xs text-gray-600 uppercase tracking-wide">Lbs Lifted</div>
           </div>
         </div>
       </div>
