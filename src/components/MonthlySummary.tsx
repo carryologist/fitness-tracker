@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { WorkoutSession } from './WorkoutDashboard'
-import { format, getMonth, getYear } from 'date-fns'
+import { format } from 'date-fns'
 
 interface MonthlySummaryProps {
   sessions: WorkoutSession[]

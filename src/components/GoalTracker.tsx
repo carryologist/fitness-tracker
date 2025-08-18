@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { WorkoutSession, Goal } from './WorkoutDashboard'
-import { format, getQuarter, getYear, startOfQuarter, endOfQuarter, startOfYear, endOfYear, isWithinInterval } from 'date-fns'
+import { getQuarter, getYear, startOfQuarter, endOfQuarter, startOfYear, endOfYear, isWithinInterval } from 'date-fns'
 
 interface GoalTrackerProps {
   goals: Goal[]
