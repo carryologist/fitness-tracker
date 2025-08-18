@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { WorkoutSession } from './WorkoutDashboard'
 import { format, startOfMonth, eachMonthOfInterval, min, max, startOfDay, eachDayOfInterval, endOfMonth, getMonth, getYear, addMonths, subMonths } from 'date-fns'
@@ -8,11 +8,38 @@ import { Calendar, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface ProgressChartProps {
   sessions: WorkoutSession[]
+  initialViewMode?: 'annual' | 'monthly'
+  initialSelectedMonth?: Date
+  onMonthChange?: (month: Date) => void
 }
 
-export function ProgressChart({ sessions }: ProgressChartProps) {
-  const [viewMode, setViewMode] = useState<'annual' | 'monthly'>('annual')
-  const [selectedMonth, setSelectedMonth] = useState(new Date())
+export function ProgressChart({ 
+  sessions, 
+  initialViewMode = 'annual',
+  initialSelectedMonth = new Date(),
+  onMonthChange
+}: ProgressChartProps) {
+  const [viewMode, setViewMode] = useState<'annual' | 'monthly'>(initialViewMode)
+  const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
+  
+  // Update selected month when prop changes
+  React.useEffect(() => {
+    setSelectedMonth(initialSelectedMonth)
+    if (initialViewMode === 'monthly') {
+      setViewMode('monthly')
+    }
+  }, [initialSelectedMonth, initialViewMode])
+  
+  // Notify parent when month changes
+  const handleMonthChange = (newMonth: Date) => {
+    setSelectedMonth(newMonth)
+    onMonthChange?.(newMonth)
+  }
+  
+  // Helper functions for month navigation limits
+  const currentMonth = new Date()
+  const isCurrentOrFutureMonth = selectedMonth >= startOfMonth(currentMonth)
+  const canGoNext = !isCurrentOrFutureMonth
 
   const chartData = useMemo(() => {
     if (sessions.length === 0) return []
@@ -129,18 +156,23 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
           {viewMode === 'monthly' && (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setSelectedMonth(prev => subMonths(prev, 1))}
+                onClick={() => handleMonthChange(subMonths(selectedMonth, 1))}
                 className="p-1 rounded-md hover:bg-gray-100 transition-colors"
                 title="Previous month"
               >
                 <ChevronLeft className="w-4 h-4 text-gray-600" />
               </button>
               <button
-                onClick={() => setSelectedMonth(prev => addMonths(prev, 1))}
-                className="p-1 rounded-md hover:bg-gray-100 transition-colors"
-                title="Next month"
+                onClick={() => canGoNext && handleMonthChange(addMonths(selectedMonth, 1))}
+                className={`p-1 rounded-md transition-colors ${
+                  canGoNext 
+                    ? 'hover:bg-gray-100 text-gray-600' 
+                    : 'text-gray-300 cursor-not-allowed'
+                }`}
+                title={canGoNext ? "Next month" : "Cannot go beyond current month"}
+                disabled={!canGoNext}
               >
-                <ChevronRight className="w-4 h-4 text-gray-600" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           )}

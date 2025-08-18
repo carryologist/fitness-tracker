@@ -6,17 +6,19 @@ import { format } from 'date-fns'
 
 interface MonthlySummaryProps {
   sessions: WorkoutSession[]
+  onMonthSelect?: (month: Date) => void
 }
 
 interface MonthlyData {
   month: string
+  monthDate: Date
   minutes: number
   miles: number
   weight: number
   sessions: number
 }
 
-export function MonthlySummary({ sessions }: MonthlySummaryProps) {
+export function MonthlySummary({ sessions, onMonthSelect }: MonthlySummaryProps) {
   const monthlyData = useMemo(() => {
     const monthlyMap = new Map<string, MonthlyData>()
     
@@ -27,6 +29,7 @@ export function MonthlySummary({ sessions }: MonthlySummaryProps) {
       if (!monthlyMap.has(monthKey)) {
         monthlyMap.set(monthKey, {
           month: monthName,
+          monthDate: session.date,
           minutes: 0,
           miles: 0,
           weight: 0,
@@ -68,9 +71,16 @@ export function MonthlySummary({ sessions }: MonthlySummaryProps) {
           </thead>
           <tbody>
             {monthlyData.slice(0, 6).map((data, index) => (
-              <tr key={index} className={`border-b border-gray-100 hover:bg-gray-50 ${
-                index === 0 ? 'bg-blue-50 font-medium' : ''
-              }`}>
+              <tr 
+                key={index} 
+                onClick={() => onMonthSelect?.(data.monthDate)}
+                className={`border-b border-gray-100 transition-colors ${
+                  onMonthSelect ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
+                } ${
+                  index === 0 ? 'bg-blue-50 font-medium' : ''
+                }`}
+                title={onMonthSelect ? `Click to view ${data.month} daily chart` : undefined}
+              >
                 <td className="py-3 text-gray-900">
                   {data.month}
                   {index === 0 && <span className="ml-2 text-xs text-blue-600 font-medium">LATEST</span>}

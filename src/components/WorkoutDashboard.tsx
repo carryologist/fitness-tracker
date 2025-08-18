@@ -87,6 +87,14 @@ export function WorkoutDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
+  const [chartViewMode, setChartViewMode] = useState<'annual' | 'monthly'>('annual')
+  const [selectedChartMonth, setSelectedChartMonth] = useState(new Date())
+
+  // Handle month selection from Monthly Summary
+  const handleMonthSelect = (month: Date) => {
+    setSelectedChartMonth(month)
+    setChartViewMode('monthly')
+  }
 
   // Load data on component mount
   useEffect(() => {
@@ -187,7 +195,12 @@ export function WorkoutDashboard() {
             <p className="text-gray-600 mt-1">Your fitness journey visualized</p>
           </div>
           <div className="p-6">
-            <ProgressChart sessions={sessions} />
+            <ProgressChart 
+              sessions={sessions} 
+              initialViewMode={chartViewMode}
+              initialSelectedMonth={selectedChartMonth}
+              onMonthChange={setSelectedChartMonth}
+            />
           </div>
         </div>
 
@@ -198,7 +211,7 @@ export function WorkoutDashboard() {
             <p className="text-gray-600 mt-1">Recent performance</p>
           </div>
           <div className="p-6">
-            <MonthlySummary sessions={sessions} />
+            <MonthlySummary sessions={sessions} onMonthSelect={handleMonthSelect} />
           </div>
         </div>
       </div>
