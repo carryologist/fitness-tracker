@@ -1,173 +1,181 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { Save, Plus, Minus } from 'lucide-react';
-import { Set, Exercise, WorkoutData } from '@/types/workout';
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { WorkoutSession } from './WorkoutDashboard'
 
-interface WorkoutFormProps {
-  type: 'strength' | 'cardio';
-  onSave: (workout: WorkoutData) => void;
+interface WorkoutFormData {
+  date: string
+  source: string
+  activity: string
+  minutes: number
+  miles?: number
+  weightLifted?: number
+  notes?: string
 }
 
-export default function WorkoutForm({ type, onSave }: WorkoutFormProps) {
-  const [workoutName, setWorkoutName] = useState('');
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [currentExercise, setCurrentExercise] = useState('');
+interface WorkoutFormProps {
+  onSubmit: (session: Omit<WorkoutSession, 'id'>) => void
+}
 
-  const addExercise = () => {
-    if (currentExercise.trim()) {
-      setExercises([...exercises, { name: currentExercise, sets: [{}] }]);
-      setCurrentExercise('');
+const SOURCES = ['Peloton', 'Cannondale', 'Tonal', 'Gym', 'Outdoor', 'Home']
+const ACTIVITIES = ['Cycling', 'Weight Lifting', 'Running', 'Swimming', 'Yoga', 'Other']
+
+export function WorkoutForm({ onSubmit }: WorkoutFormProps) {
+  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<WorkoutFormData>({
+    defaultValues: {
+      date: new Date().toISOString().split('T')[0],
+      source: '',
+      activity: '',
+      minutes: 0,
+      miles: undefined,
+      weightLifted: undefined,
+      notes: ''
     }
-  };
+  })
 
-  const addSet = (exerciseIndex: number) => {
-    const newExercises = [...exercises];
-    newExercises[exerciseIndex].sets.push({});
-    setExercises(newExercises);
-  };
+  const activity = watch('activity')
+  const source = watch('source')
 
-  const updateSet = (exerciseIndex: number, setIndex: number, field: keyof Set, value: number) => {
-    const newExercises = [...exercises];
-    newExercises[exerciseIndex].sets[setIndex] = {
-      ...newExercises[exerciseIndex].sets[setIndex],
-      [field]: value
-    };
-    setExercises(newExercises);
-  };
+  // Show miles field for cardio activities
+  const showMiles = activity === 'Cycling' || activity === 'Running' || activity === 'Swimming'
+  // Show weight lifted for strength activities or Tonal
+  const showWeight = activity === 'Weight Lifting' || source === 'Tonal'
 
-  const removeSet = (exerciseIndex: number, setIndex: number) => {
-    const newExercises = [...exercises];
-    newExercises[exerciseIndex].sets.splice(setIndex, 1);
-    setExercises(newExercises);
-  };
-
-  const handleSave = () => {
-    const workout = {
-      name: workoutName,
-      type,
-      exercises,
-      date: new Date().toISOString()
-    };
-    onSave(workout);
-  };
+  const onFormSubmit = (data: WorkoutFormData) => {
+    const session: Omit<WorkoutSession, 'id'> = {
+      date: new Date(data.date),
+      source: data.source,
+      activity: data.activity,
+      minutes: data.minutes,
+      miles: showMiles ? data.miles : undefined,
+      weightLifted: showWeight ? data.weightLifted : undefined,
+      notes: data.notes || undefined
+    }
+    
+    onSubmit(session)
+    reset()
+  }
 
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">
-        {type === 'strength' ? 'Strength Training' : 'Cardio'} Workout
-      </h2>
+    <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Date */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Date
+        </label>
+        <input
+          type="date"
+          {...register('date', { required: 'Date is required' })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date.message}</p>}
+      </div>
 
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Workout Name
+      {/* Source */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Source
+        </label>
+        <select
+          {...register('source', { required: 'Source is required' })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Select source...</option>
+          {SOURCES.map(source => (
+            <option key={source} value={source}>{source}</option>
+          ))}
+        </select>
+        {errors.source && <p className="text-red-500 text-xs mt-1">{errors.source.message}</p>}
+      </div>
+
+      {/* Activity */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Activity
+        </label>
+        <select
+          {...register('activity', { required: 'Activity is required' })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Select activity...</option>
+          {ACTIVITIES.map(activity => (
+            <option key={activity} value={activity}>{activity}</option>
+          ))}
+        </select>
+        {errors.activity && <p className="text-red-500 text-xs mt-1">{errors.activity.message}</p>}
+      </div>
+
+      {/* Minutes */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Minutes
+        </label>
+        <input
+          type="number"
+          min="1"
+          {...register('minutes', { 
+            required: 'Minutes is required',
+            min: { value: 1, message: 'Must be at least 1 minute' }
+          })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {errors.minutes && <p className="text-red-500 text-xs mt-1">{errors.minutes.message}</p>}
+      </div>
+
+      {/* Miles (conditional) */}
+      {showMiles && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Miles
+          </label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            {...register('miles')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      )}
+
+      {/* Weight Lifted (conditional) */}
+      {showWeight && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Weight Lifted (lbs)
+          </label>
+          <input
+            type="number"
+            min="0"
+            {...register('weightLifted')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      )}
+
+      {/* Notes */}
+      <div className="md:col-span-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Notes (optional)
         </label>
         <input
           type="text"
-          value={workoutName}
-          onChange={(e) => setWorkoutName(e.target.value)}
+          {...register('notes')}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Enter workout name"
+          placeholder="Any additional notes..."
         />
       </div>
 
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Add Exercise
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={currentExercise}
-            onChange={(e) => setCurrentExercise(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Exercise name"
-            onKeyPress={(e) => e.key === 'Enter' && addExercise()}
-          />
-          <button
-            onClick={addExercise}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-        </div>
+      {/* Submit Button */}
+      <div className="md:col-span-2 lg:col-span-4">
+        <button
+          type="submit"
+          className="w-full md:w-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          Add Session
+        </button>
       </div>
-
-      {exercises.map((exercise, exerciseIndex) => (
-        <div key={exerciseIndex} className="mb-6 p-4 border border-gray-200 rounded-lg">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">{exercise.name}</h3>
-          
-          {exercise.sets.map((set, setIndex) => (
-            <div key={setIndex} className="flex gap-2 mb-2 items-center">
-              <span className="text-sm text-gray-600 w-12">Set {setIndex + 1}:</span>
-              
-              {type === 'strength' ? (
-                <>
-                  <input
-                    type="number"
-                    placeholder="Reps"
-                    value={set.reps || ''}
-                    onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', parseInt(e.target.value))}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                  />
-                  <span className="text-xs text-gray-500">reps</span>
-                  <input
-                    type="number"
-                    placeholder="Weight"
-                    value={set.weight || ''}
-                    onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', parseFloat(e.target.value))}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                  />
-                  <span className="text-xs text-gray-500">lbs</span>
-                </>
-              ) : (
-                <>
-                  <input
-                    type="number"
-                    placeholder="Duration"
-                    value={set.duration || ''}
-                    onChange={(e) => updateSet(exerciseIndex, setIndex, 'duration', parseInt(e.target.value))}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                  />
-                  <span className="text-xs text-gray-500">min</span>
-                  <input
-                    type="number"
-                    placeholder="Distance"
-                    value={set.distance || ''}
-                    onChange={(e) => updateSet(exerciseIndex, setIndex, 'distance', parseFloat(e.target.value))}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                  />
-                  <span className="text-xs text-gray-500">miles</span>
-                </>
-              )}
-              
-              <button
-                onClick={() => removeSet(exerciseIndex, setIndex)}
-                className="p-1 text-red-600 hover:text-red-800"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-          
-          <button
-            onClick={() => addSet(exerciseIndex)}
-            className="mt-2 px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center"
-          >
-            <Plus className="h-3 w-3 mr-1" />
-            Add Set
-          </button>
-        </div>
-      ))}
-
-      <button
-        onClick={handleSave}
-        disabled={!workoutName || exercises.length === 0}
-        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center"
-      >
-        <Save className="h-4 w-4 mr-2" />
-        Save Workout
-      </button>
-    </div>
-  );
+    </form>
+  )
 }

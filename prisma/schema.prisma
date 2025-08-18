@@ -11,70 +11,56 @@ datasource db {
   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  workouts  Workout[]
-  exercises Exercise[]
+// Simple workout session model matching your Google Sheets structure
+model WorkoutSession {
+  id           String   @id @default(cuid())
+  date         DateTime
+  source       String   // "Peloton", "Cannondale", "Tonal", etc.
+  activity     String   // "Cycling", "Weight Lifting", etc.
+  minutes      Int      // Duration in minutes
+  miles        Float?   // Distance for cardio activities
+  weightLifted Float?   // Total weight lifted for strength training
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("workout_sessions")
 }
 
-model Exercise {
-  id          String      @id @default(cuid())
-  name        String
-  type        ExerciseType
-  description String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  userId      String
-  
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workoutExercises WorkoutExercise[]
+// Goal tracking for quarterly and annual targets
+model Goal {
+  id                    String   @id @default(cuid())
+  type                  GoalType // QUARTERLY or ANNUAL
+  year                  Int
+  quarter               Int?     // For quarterly goals (1-4)
+  targetMinutes         Int?
+  targetSessions        Int?
+  targetSessionsPerWeek Int?
+  targetWeeksPerQuarter Int?
+  targetAnnualGoal      Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("goals")
 }
 
-model Workout {
-  id        String   @id @default(cuid())
-  name      String
-  date      DateTime
-  duration  Int?     // in minutes
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    String
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercises WorkoutExercise[]
+// Monthly summaries (auto-calculated from workout sessions)
+model MonthlySummary {
+  id            String   @id @default(cuid())
+  year          Int
+  month         Int      // 1-12
+  totalMinutes  Int
+  totalMiles    Float
+  totalSessions Int
+  averageWeight Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([year, month])
+  @@map("monthly_summaries")
 }
 
-model WorkoutExercise {
-  id         String @id @default(cuid())
-  workoutId  String
-  exerciseId String
-  sets       Set[]
-  
-  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-}
-
-model Set {
-  id                String  @id @default(cuid())
-  workoutExerciseId String
-  reps              Int?
-  weight            Float?  // in lbs or kg
-  duration          Int?    // in seconds for cardio
-  distance          Float?  // in miles or km for cardio
-  restTime          Int?    // in seconds
-  notes             String?
-  
-  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
-}
-
-enum ExerciseType {
-  STRENGTH
-  CARDIO
-  FLEXIBILITY
-  SPORTS
+enum GoalType {
+  QUARTERLY
+  ANNUAL
 }
