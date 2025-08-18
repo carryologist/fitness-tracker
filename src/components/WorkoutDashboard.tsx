@@ -6,6 +6,7 @@ import { WorkoutTable } from './WorkoutTable'
 import { MonthlySummary } from './MonthlySummary'
 import { ProgressChart } from './ProgressChart'
 import { GoalTracker } from './GoalTracker'
+import { importedWorkoutData } from '@/data/imported-workouts'
 
 export interface WorkoutSession {
   id: string
@@ -42,47 +43,16 @@ export function WorkoutDashboard() {
 
   const loadData = async () => {
     try {
-      // For now, we'll use mock data until we set up the API
-      const mockSessions: WorkoutSession[] = [
-        {
-          id: '1',
-          date: new Date('2025-01-03'),
-          source: 'Peloton',
-          activity: 'Cycling',
-          minutes: 30,
-          miles: 10.3,
-          notes: ''
-        },
-        {
-          id: '2',
-          date: new Date('2025-01-04'),
-          source: 'Peloton',
-          activity: 'Cycling',
-          minutes: 30,
-          miles: 10.19,
-          notes: ''
-        },
-        {
-          id: '3',
-          date: new Date('2025-01-05'),
-          source: 'Cannondale',
-          activity: 'Cycling',
-          minutes: 32,
-          miles: 5.8,
-          notes: ''
-        },
-        {
-          id: '4',
-          date: new Date('2025-02-04'),
-          source: 'Tonal',
-          activity: 'Weight Lifting',
-          minutes: 22,
-          weightLifted: 5350,
-          notes: ''
-        }
-      ]
+      // Convert imported data to WorkoutSession format
+      const convertedSessions: WorkoutSession[] = importedWorkoutData.map(session => ({
+        ...session,
+        date: new Date(session.date),
+        miles: session.miles ?? undefined,
+        weightLifted: session.weightLifted ?? undefined,
+        notes: session.notes ?? undefined
+      }))
       
-      setSessions(mockSessions)
+      setSessions(convertedSessions)
       setLoading(false)
     } catch (error) {
       console.error('Error loading data:', error)
