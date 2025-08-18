@@ -139,9 +139,9 @@ export function ProgressChart({
   }
 
   return (
-    <div className="h-96">
+    <div className="flex flex-col h-full min-h-0">
       {/* Chart Header with Toggle */}
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4 flex-shrink-0">
         <div className="flex items-center gap-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
@@ -204,86 +204,88 @@ export function ProgressChart({
         </div>
       </div>
       
-      <ResponsiveContainer width="100%" height="85%">
-        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey="period" 
-            tick={{ fontSize: 12 }}
-            angle={viewMode === 'monthly' ? 0 : -45}
-            textAnchor={viewMode === 'monthly' ? 'middle' : 'end'}
-            height={viewMode === 'monthly' ? 40 : 80}
-            interval={viewMode === 'monthly' ? 2 : 0}
-          />
-          {/* Left Y-axis for Minutes and Miles */}
-          <YAxis 
-            yAxisId="left"
-            domain={domains.left}
-            tick={{ fontSize: 12 }}
-            tickFormatter={(value) => value.toLocaleString()}
-            label={{ 
-              value: 'Minutes / Miles', 
-              angle: -90, 
-              position: 'insideLeft',
-              style: { textAnchor: 'middle' },
-              offset: -10
-            }}
-            width={60}
-          />
-          {/* Right Y-axis for Weight */}
-          <YAxis 
-            yAxisId="right"
-            orientation="right"
-            domain={domains.right}
-            tick={{ fontSize: 12 }}
-            tickFormatter={(value) => value.toLocaleString()}
-            label={{ 
-              value: 'Weight (lbs)', 
-              angle: 90, 
-              position: 'insideRight',
-              style: { textAnchor: 'middle' },
-              offset: -10
-            }}
-            width={80}
-          />
-          <Tooltip 
-            formatter={(value: number, name: string) => {
-              if (name === 'minutes') return [value.toLocaleString(), 'Minutes']
-              if (name === 'miles') return [value.toFixed(1), 'Miles']
-              if (name === 'weight') return [value.toLocaleString(), 'Weight Lifted (lbs)']
-              return [value, name]
-            }}
-          />
-          <Legend />
-          <Line 
-            yAxisId="left"
-            type="monotone" 
-            dataKey="minutes" 
-            stroke="#3B82F6" 
-            strokeWidth={3}
-            name="Minutes"
-            dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }}
-          />
-          <Line 
-            yAxisId="left"
-            type="monotone" 
-            dataKey="miles" 
-            stroke="#10B981" 
-            strokeWidth={3}
-            name="Miles"
-            dot={{ fill: '#10B981', strokeWidth: 2, r: 5 }}
-          />
-          <Line 
-            yAxisId="right"
-            type="monotone" 
-            dataKey="weight" 
-            stroke="#F59E0B" 
-            strokeWidth={3}
-            name="Weight Lifted (lbs)"
-            dot={{ fill: '#F59E0B', strokeWidth: 2, r: 5 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div className="flex-1 min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="period" 
+              tick={{ fontSize: 12 }}
+              angle={viewMode === 'monthly' ? 0 : -45}
+              textAnchor={viewMode === 'monthly' ? 'middle' : 'end'}
+              height={viewMode === 'monthly' ? 40 : 80}
+              interval={viewMode === 'monthly' ? 2 : 0}
+            />
+            {/* Left Y-axis for Minutes and Miles */}
+            <YAxis 
+              yAxisId="left"
+              domain={domains.left}
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value) => value.toLocaleString()}
+              label={{ 
+                value: 'Minutes / Miles', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { textAnchor: 'middle' },
+                offset: -10
+              }}
+              width={60}
+            />
+            {/* Right Y-axis for Weight */}
+            <YAxis 
+              yAxisId="right"
+              orientation="right"
+              domain={domains.right}
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value) => value.toLocaleString()}
+              label={{ 
+                value: 'Weight (lbs)', 
+                angle: 90, 
+                position: 'insideRight',
+                style: { textAnchor: 'middle' },
+                offset: -10
+              }}
+              width={80}
+            />
+            <Tooltip 
+              formatter={(value: number, name: string) => {
+                if (name === 'minutes') return [value.toLocaleString(), 'Minutes']
+                if (name === 'miles') return [value.toFixed(1), 'Miles']
+                if (name === 'weight') return [value.toLocaleString(), 'Weight Lifted (lbs)']
+                return [value, name]
+              }}
+            />
+            <Legend />
+            <Line 
+              yAxisId="left"
+              type="monotone" 
+              dataKey="minutes" 
+              stroke="#3B82F6" 
+              strokeWidth={3}
+              name="Minutes"
+              dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }}
+            />
+            <Line 
+              yAxisId="left"
+              type="monotone" 
+              dataKey="miles" 
+              stroke="#10B981" 
+              strokeWidth={3}
+              name="Miles"
+              dot={{ fill: '#10B981', strokeWidth: 2, r: 5 }}
+            />
+            <Line 
+              yAxisId="right"
+              type="monotone" 
+              dataKey="weight" 
+              stroke="#F59E0B" 
+              strokeWidth={3}
+              name="Weight Lifted (lbs)"
+              dot={{ fill: '#F59E0B', strokeWidth: 2, r: 5 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

@@ -80,6 +80,35 @@ export interface GoalProgress {
   sessionsNeededForYear: number
 }
 
+// localStorage helpers for goals
+const GOALS_STORAGE_KEY = 'fitness-tracker-goals'
+
+const saveGoalsToStorage = (goals: Goal[]) => {
+  try {
+    localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(goals))
+  } catch (error) {
+    console.error('Error saving goals to localStorage:', error)
+  }
+}
+
+const loadGoalsFromStorage = (): Goal[] => {
+  try {
+    const stored = localStorage.getItem(GOALS_STORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Convert date strings back to Date objects
+      return parsed.map((goal: any) => ({
+        ...goal,
+        createdAt: new Date(goal.createdAt),
+        updatedAt: new Date(goal.updatedAt)
+      }))
+    }
+  } catch (error) {
+    console.error('Error loading goals from localStorage:', error)
+  }
+  return []
+}
+
 export function WorkoutDashboard() {
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
@@ -113,6 +142,11 @@ export function WorkoutDashboard() {
       }))
       
       setSessions(convertedSessions)
+      
+      // Load goals from localStorage
+      const savedGoals = loadGoalsFromStorage()
+      setGoals(savedGoals)
+      
       setLoading(false)
     } catch (error) {
       console.error('Error loading data:', error)
@@ -149,7 +183,9 @@ export function WorkoutDashboard() {
         createdAt: editingGoal.createdAt,
         updatedAt: now
       }
-      setGoals(prev => prev.map(g => g.id === editingGoal.id ? updatedGoal : g))
+      const newGoals = goals.map(g => g.id === editingGoal.id ? updatedGoal : g)
+      setGoals(newGoals)
+      saveGoalsToStorage(newGoals) // Save to localStorage
     } else {
       // Create new goal
       const newGoal: Goal = {
@@ -158,7 +194,9 @@ export function WorkoutDashboard() {
         createdAt: now,
         updatedAt: now
       }
-      setGoals(prev => [newGoal, ...prev])
+      const newGoals = [newGoal, ...goals]
+      setGoals(newGoals)
+      saveGoalsToStorage(newGoals) // Save to localStorage
     }
   }
 
@@ -189,12 +227,12 @@ export function WorkoutDashboard() {
       {/* Key Metrics Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Progress Chart - Takes up 2 columns */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-lg">
-          <div className="p-6 border-b">
+        <div className="lg:col-span-2 bg-white rounded-lg shadow-lg flex flex-col">
+          <div className="p-6 border-b flex-shrink-0">
             <h2 className="text-2xl font-bold text-gray-900">Progress Over Time</h2>
             <p className="text-gray-600 mt-1">Your fitness journey visualized</p>
           </div>
-          <div className="p-6">
+          <div className="p-6 flex-1 min-h-[500px]">
             <ProgressChart 
               sessions={sessions} 
               initialViewMode={chartViewMode}
