@@ -41,27 +41,27 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
 
   // Calculate domains for better scaling
   const domains = useMemo(() => {
-    if (chartData.length === 0) return { left: [0, 100], right: [0, 10] }
+    if (chartData.length === 0) return { left: [0, 100], right: [0, 1000] }
     
     const minutes = chartData.map(d => d.minutes)
     const miles = chartData.map(d => d.miles)
     const weights = chartData.map(d => d.weight)
     
-    // Left axis: minutes and weight
-    const leftValues = [...minutes, ...weights].filter(v => v > 0)
+    // Left axis: minutes and miles (similar scales)
+    const leftValues = [...minutes, ...miles].filter(v => v > 0)
     const leftMin = leftValues.length > 0 ? Math.min(...leftValues) : 0
     const leftMax = leftValues.length > 0 ? Math.max(...leftValues) : 100
-    const leftPadding = (leftMax - leftMin) * 0.1
+    const leftPadding = Math.max(1, (leftMax - leftMin) * 0.1)
     
-    // Right axis: miles
-    const milesValues = miles.filter(v => v > 0)
-    const milesMin = milesValues.length > 0 ? Math.min(...milesValues) : 0
-    const milesMax = milesValues.length > 0 ? Math.max(...milesValues) : 10
-    const milesPadding = (milesMax - milesMin) * 0.1
+    // Right axis: weight only
+    const weightValues = weights.filter(v => v > 0)
+    const weightMin = weightValues.length > 0 ? Math.min(...weightValues) : 0
+    const weightMax = weightValues.length > 0 ? Math.max(...weightValues) : 1000
+    const weightPadding = Math.max(10, (weightMax - weightMin) * 0.1)
     
     return {
       left: [Math.max(0, leftMin - leftPadding), leftMax + leftPadding],
-      right: [Math.max(0, milesMin - milesPadding), milesMax + milesPadding]
+      right: [Math.max(0, weightMin - weightPadding), weightMax + weightPadding]
     }
   }, [chartData])
 
@@ -85,20 +85,20 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
             textAnchor="end"
             height={60}
           />
-          {/* Left Y-axis for Minutes and Weight */}
+          {/* Left Y-axis for Minutes and Miles */}
           <YAxis 
             yAxisId="left"
             domain={domains.left}
             tick={{ fontSize: 12 }}
-            label={{ value: 'Minutes / Weight (lbs)', angle: -90, position: 'insideLeft' }}
+            label={{ value: 'Minutes / Miles', angle: -90, position: 'insideLeft' }}
           />
-          {/* Right Y-axis for Miles */}
+          {/* Right Y-axis for Weight */}
           <YAxis 
             yAxisId="right"
             orientation="right"
             domain={domains.right}
             tick={{ fontSize: 12 }}
-            label={{ value: 'Miles', angle: 90, position: 'insideRight' }}
+            label={{ value: 'Weight (lbs)', angle: 90, position: 'insideRight' }}
           />
           <Tooltip 
             formatter={(value: number, name: string) => {
@@ -119,7 +119,7 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
             dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }}
           />
           <Line 
-            yAxisId="right"
+            yAxisId="left"
             type="monotone" 
             dataKey="miles" 
             stroke="#10B981" 
@@ -128,7 +128,7 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
             dot={{ fill: '#10B981', strokeWidth: 2, r: 5 }}
           />
           <Line 
-            yAxisId="left"
+            yAxisId="right"
             type="monotone" 
             dataKey="weight" 
             stroke="#F59E0B" 
