@@ -39,6 +39,32 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
     return monthlyData
   }, [sessions])
 
+  // Calculate domains for better scaling
+  const domains = useMemo(() => {
+    if (chartData.length === 0) return { left: [0, 100], right: [0, 10] }
+    
+    const minutes = chartData.map(d => d.minutes)
+    const miles = chartData.map(d => d.miles)
+    const weights = chartData.map(d => d.weight)
+    
+    // Left axis: minutes and weight
+    const leftValues = [...minutes, ...weights].filter(v => v > 0)
+    const leftMin = leftValues.length > 0 ? Math.min(...leftValues) : 0
+    const leftMax = leftValues.length > 0 ? Math.max(...leftValues) : 100
+    const leftPadding = (leftMax - leftMin) * 0.1
+    
+    // Right axis: miles
+    const milesValues = miles.filter(v => v > 0)
+    const milesMin = milesValues.length > 0 ? Math.min(...milesValues) : 0
+    const milesMax = milesValues.length > 0 ? Math.max(...milesValues) : 10
+    const milesPadding = (milesMax - milesMin) * 0.1
+    
+    return {
+      left: [Math.max(0, leftMin - leftPadding), leftMax + leftPadding],
+      right: [Math.max(0, milesMin - milesPadding), milesMax + milesPadding]
+    }
+  }, [chartData])
+
   if (chartData.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center text-gray-500">
@@ -62,6 +88,7 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
           {/* Left Y-axis for Minutes and Weight */}
           <YAxis 
             yAxisId="left"
+            domain={domains.left}
             tick={{ fontSize: 12 }}
             label={{ value: 'Minutes / Weight (lbs)', angle: -90, position: 'insideLeft' }}
           />
@@ -69,6 +96,7 @@ export function ProgressChart({ sessions }: ProgressChartProps) {
           <YAxis 
             yAxisId="right"
             orientation="right"
+            domain={domains.right}
             tick={{ fontSize: 12 }}
             label={{ value: 'Miles', angle: 90, position: 'insideRight' }}
           />

@@ -84,11 +84,12 @@ export function WorkoutDashboard() {
       <div className="fixed top-6 right-6 z-40">
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 group"
+          className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 group hover:rounded-2xl"
         >
           <Plus className="w-6 h-6" />
-          <span className="hidden group-hover:block whitespace-nowrap pr-2 font-medium">
-            Add Workout
+          <span className="font-medium transition-all duration-200 group-hover:pr-2">
+            <span className="group-hover:hidden">Add</span>
+            <span className="hidden group-hover:inline whitespace-nowrap">Add Workout</span>
           </span>
         </button>
       </div>
