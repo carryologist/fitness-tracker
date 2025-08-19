@@ -29,17 +29,24 @@ model WorkoutSession {
 
 // Goal tracking for quarterly and annual targets
 model Goal {
-  id                    String   @id @default(cuid())
-  type                  GoalType // QUARTERLY or ANNUAL
-  year                  Int
-  quarter               Int?     // For quarterly goals (1-4)
-  targetMinutes         Int?
-  targetSessions        Int?
-  targetSessionsPerWeek Int?
-  targetWeeksPerQuarter Int?
-  targetAnnualGoal      Int?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                      String   @id @default(cuid())
+  name                    String
+  year                    Int
+  
+  // Annual targets
+  annualWeightTarget      Float    // Total lbs for the year
+  minutesPerSession       Int      // Minutes per individual session
+  weeklySessionsTarget    Int      // Sessions per week
+  
+  // Calculated fields (derived from above)
+  weeklyMinutesTarget     Int      // minutesPerSession * weeklySessionsTarget
+  annualMinutesTarget     Int      // weeklyMinutesTarget * 52
+  quarterlyWeightTarget   Float    // annualWeightTarget / 4
+  quarterlyMinutesTarget  Int      // annualMinutesTarget / 4
+  quarterlySessionsTarget Int      // weeklySessionsTarget * 13
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   @@map("goals")
 }
@@ -58,9 +65,4 @@ model MonthlySummary {
 
   @@unique([year, month])
   @@map("monthly_summaries")
-}
-
-enum GoalType {
-  QUARTERLY
-  ANNUAL
 }

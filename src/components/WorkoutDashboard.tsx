@@ -84,7 +84,7 @@ export interface GoalProgress {
   daysRemainingInQuarter: number
 }
 
-// localStorage helpers for goals
+// API helpers for goals with localStorage fallback
 const GOALS_STORAGE_KEY = 'fitness-tracker-goals'
 
 const saveGoalsToStorage = (goals: Goal[]) => {
@@ -111,6 +111,49 @@ const loadGoalsFromStorage = (): Goal[] => {
     console.error('Error loading goals from localStorage:', error)
   }
   return []
+}
+
+// API functions for cross-device persistence
+const fetchGoalsFromAPI = async (): Promise<Goal[]> => {
+  try {
+    const response = await fetch('/api/goals')
+    if (!response.ok) throw new Error('Failed to fetch goals')
+    const data = await response.json()
+    return data.goals.map((goal: any) => ({
+      ...goal,
+      createdAt: new Date(goal.createdAt),
+      updatedAt: new Date(goal.updatedAt)
+    }))
+  } catch (error) {
+    console.error('Error fetching goals from API:', error)
+    // Fallback to localStorage
+    return loadGoalsFromStorage()
+  }
+}
+
+const saveGoalToAPI = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>, existingId?: string): Promise<Goal | null> => {
+  try {
+    const url = '/api/goals'
+    const method = existingId ? 'PUT' : 'POST'
+    const body = existingId ? { ...goalData, id: existingId } : goalData
+    
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    
+    if (!response.ok) throw new Error('Failed to save goal')
+    const data = await response.json()
+    return {
+      ...data.goal,
+      createdAt: new Date(data.goal.createdAt),
+      updatedAt: new Date(data.goal.updatedAt)
+    }
+  } catch (error) {
+    console.error('Error saving goal to API:', error)
+    return null
+  }
 }
 
 export function WorkoutDashboard() {
@@ -147,9 +190,12 @@ export function WorkoutDashboard() {
       
       setSessions(convertedSessions)
       
-      // Load goals from localStorage
-      const savedGoals = loadGoalsFromStorage()
+      // Load goals from API (with localStorage fallback)
+      const savedGoals = await fetchGoalsFromAPI()
       setGoals(savedGoals)
+      
+      // Also save to localStorage for offline access
+      saveGoalsToStorage(savedGoals)
       
       setLoading(false)
     } catch (error) {
@@ -176,32 +222,53 @@ export function WorkoutDashboard() {
     setIsGoalModalOpen(true)
   }
 
-  const handleGoalSubmit = (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleGoalSubmit = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date()
     
     if (editingGoal) {
-      // Update existing goal
-      const updatedGoal: Goal = {
-        ...goalData,
-        id: editingGoal.id,
-        createdAt: editingGoal.createdAt,
-        updatedAt: now
+      // Update existing goal via API
+      const updatedGoal = await saveGoalToAPI(goalData, editingGoal.id)
+      
+      if (updatedGoal) {
+        const newGoals = goals.map(g => g.id === editingGoal.id ? updatedGoal : g)
+        setGoals(newGoals)
+        saveGoalsToStorage(newGoals) // Backup to localStorage
+      } else {
+        // Fallback to localStorage if API fails
+        const fallbackGoal: Goal = {
+          ...goalData,
+          id: editingGoal.id,
+          createdAt: editingGoal.createdAt,
+          updatedAt: now
+        }
+        const newGoals = goals.map(g => g.id === editingGoal.id ? fallbackGoal : g)
+        setGoals(newGoals)
+        saveGoalsToStorage(newGoals)
       }
-      const newGoals = goals.map(g => g.id === editingGoal.id ? updatedGoal : g)
-      setGoals(newGoals)
-      saveGoalsToStorage(newGoals) // Save to localStorage
     } else {
-      // Create new goal
-      const newGoal: Goal = {
-        ...goalData,
-        id: Date.now().toString(),
-        createdAt: now,
-        updatedAt: now
+      // Create new goal via API
+      const newGoal = await saveGoalToAPI(goalData)
+      
+      if (newGoal) {
+        const newGoals = [newGoal, ...goals]
+        setGoals(newGoals)
+        saveGoalsToStorage(newGoals) // Backup to localStorage
+      } else {
+        // Fallback to localStorage if API fails
+        const fallbackGoal: Goal = {
+          ...goalData,
+          id: Date.now().toString(),
+          createdAt: now,
+          updatedAt: now
+        }
+        const newGoals = [fallbackGoal, ...goals]
+        setGoals(newGoals)
+        saveGoalsToStorage(newGoals)
       }
-      const newGoals = [newGoal, ...goals]
-      setGoals(newGoals)
-      saveGoalsToStorage(newGoals) // Save to localStorage
     }
+    
+    setEditingGoal(null)
+    setIsGoalModalOpen(false)
   }
 
   if (loading) {
