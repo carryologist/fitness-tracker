@@ -141,13 +141,13 @@ export function ProgressChart({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Chart Header with Toggle */}
-      <div className="flex justify-between items-center mb-4 flex-shrink-0">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 flex-shrink-0 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">
               {viewMode === 'annual' ? 'Annual Progress by Month' : `${format(selectedMonth, 'MMMM yyyy')} Daily Progress`}
             </h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-xs sm:text-sm text-gray-600">
               {viewMode === 'annual' ? 'Your fitness journey over the year' : 'Daily activity for the month'}
             </p>
           </div>
@@ -178,27 +178,27 @@ export function ProgressChart({
           )}
         </div>
         
-        <div className="flex bg-gray-100 rounded-lg p-1">
+        <div className="flex bg-gray-100 rounded-lg p-1 self-start sm:self-auto">
           <button
             onClick={() => setViewMode('annual')}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${
               viewMode === 'annual' 
                 ? 'bg-white text-gray-900 shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
             Annual
           </button>
           <button
             onClick={() => setViewMode('monthly')}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${
               viewMode === 'monthly' 
                 ? 'bg-white text-gray-900 shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <Calendar className="w-4 h-4" />
+            <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
             Monthly
           </button>
         </div>
@@ -206,46 +206,46 @@ export function ProgressChart({
       
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
+          <LineChart data={chartData} margin={{ top: 5, right: 15, left: 10, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
               dataKey="period" 
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 10 }}
               angle={viewMode === 'monthly' ? 0 : -45}
               textAnchor={viewMode === 'monthly' ? 'middle' : 'end'}
-              height={viewMode === 'monthly' ? 40 : 80}
+              height={viewMode === 'monthly' ? 30 : 60}
               interval={viewMode === 'monthly' ? 2 : 0}
             />
             {/* Left Y-axis for Minutes and Miles */}
             <YAxis 
               yAxisId="left"
               domain={domains.left}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 10 }}
               tickFormatter={(value) => value.toLocaleString()}
               label={{ 
                 value: 'Minutes / Miles', 
                 angle: -90, 
                 position: 'insideLeft',
-                style: { textAnchor: 'middle' },
-                offset: -10
+                style: { textAnchor: 'middle', fontSize: '10px' },
+                offset: -5
               }}
-              width={60}
+              width={50}
             />
             {/* Right Y-axis for Weight */}
             <YAxis 
               yAxisId="right"
               orientation="right"
               domain={domains.right}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 10 }}
               tickFormatter={(value) => value.toLocaleString()}
               label={{ 
                 value: 'Weight (lbs)', 
                 angle: 90, 
                 position: 'insideRight',
-                style: { textAnchor: 'middle' },
-                offset: -10
+                style: { textAnchor: 'middle', fontSize: '10px' },
+                offset: -5
               }}
-              width={80}
+              width={60}
             />
             <Tooltip 
               formatter={(value: number, name: string) => {

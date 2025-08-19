@@ -215,13 +215,13 @@ export function WorkoutDashboard() {
   return (
     <div className="space-y-8">
       {/* Floating Action Button */}
-      <div className="fixed top-6 right-6 z-40">
+      <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-40 safe-area-inset-top">
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 group"
+          className="bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 group min-w-[60px] sm:min-w-auto"
         >
-          <Plus className="w-6 h-6" />
-          <span className="font-medium transition-all duration-200 group-hover:pr-2">
+          <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
+          <span className="font-medium transition-all duration-200 group-hover:pr-2 hidden sm:inline">
             <span className="group-hover:hidden">Add</span>
             <span className="hidden group-hover:inline whitespace-nowrap">Add Workout</span>
           </span>
