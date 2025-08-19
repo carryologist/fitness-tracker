@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
-import { execSync } from 'child_process'
 
 const prisma = new PrismaClient()
 
@@ -9,27 +8,69 @@ export async function GET() {
   try {
     console.log('🚀 Starting database migration...')
     
-    // Step 1: Push schema to database (creates tables)
-    console.log('📋 Creating database tables...')
-    try {
-      execSync('npx prisma db push --accept-data-loss', { 
-        stdio: 'pipe',
-        cwd: process.cwd()
-      })
-      console.log('✅ Database tables created successfully')
-    } catch (schemaError) {
-      console.error('❌ Schema push failed:', schemaError)
-      return NextResponse.json({
-        success: false,
-        error: `Schema migration failed: ${schemaError}`,
-        message: 'Failed to create database tables. Check database connection.'
-      }, { status: 500 })
-    }
-    
-    // Step 2: Test connection
-    console.log('🔌 Testing database connection...')
+    // Step 1: Connect to database
+    console.log('🔌 Connecting to database...')
     await prisma.$connect()
     console.log('✅ Database connected successfully')
+    
+    // Step 2: Create tables using raw SQL
+    console.log('📋 Creating database tables...')
+    
+    // Create goals table
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "goals" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "year" INTEGER NOT NULL,
+        "annualWeightTarget" DOUBLE PRECISION NOT NULL,
+        "minutesPerSession" INTEGER NOT NULL,
+        "weeklySessionsTarget" INTEGER NOT NULL,
+        "weeklyMinutesTarget" INTEGER NOT NULL,
+        "annualMinutesTarget" INTEGER NOT NULL,
+        "quarterlyWeightTarget" DOUBLE PRECISION NOT NULL,
+        "quarterlyMinutesTarget" INTEGER NOT NULL,
+        "quarterlySessionsTarget" INTEGER NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "goals_pkey" PRIMARY KEY ("id")
+      )
+    `
+    
+    // Create workout_sessions table
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "workout_sessions" (
+        "id" TEXT NOT NULL,
+        "date" TIMESTAMP(3) NOT NULL,
+        "source" TEXT NOT NULL,
+        "activity" TEXT NOT NULL,
+        "minutes" INTEGER NOT NULL,
+        "miles" DOUBLE PRECISION,
+        "weightLifted" DOUBLE PRECISION,
+        "notes" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "workout_sessions_pkey" PRIMARY KEY ("id")
+      )
+    `
+    
+    // Create monthly_summaries table
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "monthly_summaries" (
+        "id" TEXT NOT NULL,
+        "year" INTEGER NOT NULL,
+        "month" INTEGER NOT NULL,
+        "totalMinutes" INTEGER NOT NULL,
+        "totalMiles" DOUBLE PRECISION NOT NULL,
+        "totalSessions" INTEGER NOT NULL,
+        "averageWeight" DOUBLE PRECISION,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "monthly_summaries_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "monthly_summaries_year_month_key" UNIQUE ("year", "month")
+      )
+    `
+    
+    console.log('✅ Database tables created successfully')
     
     // Step 3: Test table creation with a sample goal
     console.log('🧪 Testing goal creation...')
@@ -62,9 +103,8 @@ export async function GET() {
       success: true,
       message: 'Database migration completed successfully! 🎉',
       details: {
-        schemaApplied: true,
+        tablesCreated: ['goals', 'workout_sessions', 'monthly_summaries'],
         connected: true,
-        tablesCreated: true,
         testPassed: true
       }
     })
