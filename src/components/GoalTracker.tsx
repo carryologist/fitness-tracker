@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { WorkoutSession, Goal } from './WorkoutDashboard'
 import { calculateGoalProgress } from '../utils/goalCalculations'
 import { Plus, Edit3, Target, TrendingUp, Calendar, Clock } from 'lucide-react'

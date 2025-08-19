@@ -119,7 +119,7 @@ const fetchGoalsFromAPI = async (): Promise<Goal[]> => {
     const response = await fetch('/api/goals')
     if (!response.ok) throw new Error('Failed to fetch goals')
     const data = await response.json()
-    return data.goals.map((goal: any) => ({
+    return data.goals.map((goal: Goal & { createdAt: string; updatedAt: string }) => ({
       ...goal,
       createdAt: new Date(goal.createdAt),
       updatedAt: new Date(goal.updatedAt)
@@ -267,7 +267,7 @@ export function WorkoutDashboard() {
       }
     }
     
-    setEditingGoal(null)
+    setEditingGoal(undefined)
     setIsGoalModalOpen(false)
   }
 

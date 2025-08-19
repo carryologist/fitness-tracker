@@ -6,8 +6,7 @@ import {
   startOfYear, 
   endOfYear, 
   isWithinInterval,
-  differenceInDays,
-  differenceInWeeks
+  differenceInDays
 } from 'date-fns'
 import { WorkoutSession, Goal, GoalProgress } from '../components/WorkoutDashboard'
 
