@@ -21,6 +21,18 @@ export interface WorkoutSession {
   notes?: string
 }
 
+// Type for API payload returned by /api/workouts
+interface WorkoutApiSession {
+  id: string
+  date: string
+  source: string
+  activity: string
+  minutes: number
+  miles?: number | null
+  weightLifted?: number | null
+  notes?: string | null
+}
+
 export interface Goal {
   id: string
   name: string
@@ -186,11 +198,11 @@ export function WorkoutDashboard() {
         throw new Error(`Failed to fetch workouts: ${response.status}`)
       }
       
-      const data = await response.json()
+      const data = (await response.json()) as { workouts: WorkoutApiSession[] }
       console.log(`✅ Loaded ${data.workouts.length} workouts from API`)
       
       // Convert API data to WorkoutSession format
-      const convertedSessions: WorkoutSession[] = data.workouts.map((session: any) => ({
+      const convertedSessions: WorkoutSession[] = data.workouts.map((session) => ({
         id: session.id,
         date: new Date(session.date),
         source: session.source,
