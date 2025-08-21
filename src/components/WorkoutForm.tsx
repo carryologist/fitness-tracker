@@ -21,9 +21,15 @@ const SOURCES = ['Peloton', 'Cannondale', 'Tonal', 'Gym', 'Outdoor', 'Home']
 const ACTIVITIES = ['Cycling', 'Weight Lifting', 'Running', 'Swimming', 'Yoga', 'Other']
 
 export function WorkoutForm({ onSubmit }: WorkoutFormProps) {
+  // Get today's date in local timezone
+  const today = new Date()
+  const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000))
+    .toISOString()
+    .split('T')[0]
+  
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<WorkoutFormData>({
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: localDate,
       source: '',
       activity: '',
       minutes: 0,

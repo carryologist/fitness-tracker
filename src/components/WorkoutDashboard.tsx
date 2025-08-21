@@ -8,7 +8,6 @@ import { GoalTracker } from './GoalTracker'
 import { WorkoutSummary } from './WorkoutSummary'
 import { WorkoutModal } from './WorkoutModal'
 import { GoalModal } from './GoalModal'
-import { importedWorkoutData } from '@/data/imported-workouts'
 import { Plus } from 'lucide-react'
 
 export interface WorkoutSession {
@@ -179,10 +178,24 @@ export function WorkoutDashboard() {
 
   const loadData = async () => {
     try {
-      // Convert imported data to WorkoutSession format
-      const convertedSessions: WorkoutSession[] = importedWorkoutData.map(session => ({
-        ...session,
+      console.log('🔄 Loading workout data from API...')
+      
+      // Fetch workouts from API
+      const response = await fetch('/api/workouts')
+      if (!response.ok) {
+        throw new Error(`Failed to fetch workouts: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log(`✅ Loaded ${data.workouts.length} workouts from API`)
+      
+      // Convert API data to WorkoutSession format
+      const convertedSessions: WorkoutSession[] = data.workouts.map((session: any) => ({
+        id: session.id,
         date: new Date(session.date),
+        source: session.source,
+        activity: session.activity,
+        minutes: session.minutes,
         miles: session.miles ?? undefined,
         weightLifted: session.weightLifted ?? undefined,
         notes: session.notes ?? undefined
@@ -199,17 +212,68 @@ export function WorkoutDashboard() {
       
       setLoading(false)
     } catch (error) {
-      console.error('Error loading data:', error)
+      console.error('💥 Error loading data from API:', error)
+      
+      // Fallback to empty data instead of imported data
+      console.log('⚠️ Using empty data as fallback')
+      setSessions([])
+      setGoals([])
       setLoading(false)
     }
   }
 
-  const addSession = (session: Omit<WorkoutSession, 'id'>) => {
-    const newSession = {
-      ...session,
-      id: Date.now().toString()
+  const addSession = async (session: Omit<WorkoutSession, 'id'>) => {
+    try {
+      console.log('💪 Creating new workout via API:', session)
+      
+      // Create workout via API
+      const response = await fetch('/api/workouts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          date: session.date.toISOString(),
+          source: session.source,
+          activity: session.activity,
+          minutes: session.minutes,
+          miles: session.miles,
+          weightLifted: session.weightLifted,
+          notes: session.notes
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to create workout: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('✅ Workout created successfully:', data.workout.id)
+      
+      // Add to local state with proper ID from database
+      const newSession: WorkoutSession = {
+        id: data.workout.id,
+        date: new Date(data.workout.date),
+        source: data.workout.source,
+        activity: data.workout.activity,
+        minutes: data.workout.minutes,
+        miles: data.workout.miles ?? undefined,
+        weightLifted: data.workout.weightLifted ?? undefined,
+        notes: data.workout.notes ?? undefined
+      }
+      
+      setSessions(prev => [newSession, ...prev])
+    } catch (error) {
+      console.error('💥 Error creating workout:', error)
+      
+      // Fallback to local-only creation
+      console.log('⚠️ Falling back to local-only workout creation')
+      const newSession = {
+        ...session,
+        id: `local_${Date.now()}`
+      }
+      setSessions(prev => [newSession, ...prev])
     }
-    setSessions(prev => [newSession, ...prev])
   }
 
   const handleAddGoal = () => {
