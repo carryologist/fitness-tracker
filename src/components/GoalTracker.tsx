@@ -56,9 +56,9 @@ export function GoalTracker({ goals, sessions, onAddGoal, onEditGoal }: GoalTrac
     unit: string
     period: string
   }) => {
-    const percentage = expected > 0 ? (actual / expected) * 100 : 0
-    const isAhead = actual >= expected
-    const isOnTrack = percentage >= 90
+    const percentage = expected > 0 ? Math.min((actual / expected) * 100, 999) : 0
+    const isAhead = actual >= expected && expected > 0
+    const isOnTrack = percentage >= 90 && percentage < 999
     
     return (
       <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -84,15 +84,27 @@ export function GoalTracker({ goals, sessions, onAddGoal, onEditGoal }: GoalTrac
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span>Actual Progress</span>
-            <span className="font-medium">{actual.toLocaleString()} {unit}</span>
+            <span className="font-medium">
+              {actual >= 1000000 
+                ? `${(actual / 1000000).toFixed(1)}M` 
+                : actual.toLocaleString()} {unit}
+            </span>
           </div>
           <div className="flex justify-between text-sm text-gray-600">
             <span>Expected Progress</span>
-            <span>{Math.round(expected).toLocaleString()} {unit}</span>
+            <span>
+              {expected >= 1000000 
+                ? `${(expected / 1000000).toFixed(1)}M` 
+                : Math.round(expected).toLocaleString()} {unit}
+            </span>
           </div>
           <div className="flex justify-between text-sm text-gray-600">
             <span>Total Target</span>
-            <span>{target.toLocaleString()} {unit}</span>
+            <span>
+              {target >= 1000000 
+                ? `${(target / 1000000).toFixed(1)}M` 
+                : target.toLocaleString()} {unit}
+            </span>
           </div>
           
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -105,7 +117,7 @@ export function GoalTracker({ goals, sessions, onAddGoal, onEditGoal }: GoalTrac
           </div>
           
           <div className="text-xs text-gray-500">
-            {Math.round(percentage)}% of expected progress
+            {percentage >= 999 ? 'Infinity' : Math.round(percentage)}% of expected progress
           </div>
         </div>
       </div>
