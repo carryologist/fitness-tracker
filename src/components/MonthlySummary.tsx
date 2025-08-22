@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { WorkoutSession } from './WorkoutDashboard'
-import { format } from 'date-fns'
+import { format, startOfMonth } from 'date-fns'
 import { formatNumber } from '../utils/numberFormat'
 
 interface MonthlySummaryProps {
@@ -21,45 +21,45 @@ interface MonthlyData {
 }
 
 export function MonthlySummary({ sessions, onMonthSelect, selectedMonth }: MonthlySummaryProps) {
-  const monthlyData = useMemo(() => {
-    const monthlyMap = new Map<string, MonthlyData>()
-    
-    sessions.forEach(session => {
-      const monthKey = format(session.date, 'yyyy-MM')
-      const monthName = format(session.date, 'MMMM')
-      
-      if (!monthlyMap.has(monthKey)) {
-        monthlyMap.set(monthKey, {
-          month: monthName,
-          monthDate: session.date,
-          minutes: 0,
-          miles: 0,
-          weight: 0,
-          sessions: 0
-        })
+  const { yearData } = useMemo(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+
+    // Aggregate sessions for current year only
+    const monthlyAgg: Record<number, MonthlyData> = {}
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(year, i, 1)
+      monthlyAgg[i] = {
+        month: format(d, 'MMMM'),
+        monthDate: d,
+        minutes: 0,
+        miles: 0,
+        weight: 0,
+        sessions: 0,
       }
-      
-      const data = monthlyMap.get(monthKey)!
+    }
+
+    sessions.forEach((session) => {
+      if (session.date.getFullYear() !== year) return
+      const idx = session.date.getMonth()
+      const data = monthlyAgg[idx]
       data.minutes += session.minutes
       data.miles += session.miles || 0
       data.weight += session.weightLifted || 0
       data.sessions += 1
     })
-    
-    return Array.from(monthlyMap.values()).reverse() // Most recent first
+
+    const yearData = Array.from({ length: 12 }, (_, i) => monthlyAgg[i])
+
+    return { yearData }
   }, [sessions])
 
-  if (monthlyData.length === 0) {
-    return (
-      <div className="text-center text-gray-500 py-4">
-        No data available
-      </div>
-    )
-  }
+  const now = new Date()
+  const nowMonthIdx = now.getMonth()
 
   return (
-    <div className="space-y-6">
-      {/* Recent Months Table */}
+    <div className="space-y-6 h-full">
+      {/* Recent Months Table (now 12 months) */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -72,54 +72,41 @@ export function MonthlySummary({ sessions, onMonthSelect, selectedMonth }: Month
             </tr>
           </thead>
           <tbody>
-            {monthlyData.slice(0, 6).map((data, index) => {
-              // Check if this month matches the selected month for charting
-              const isSelectedMonth = selectedMonth && 
+            {yearData.map((data, index) => {
+              const isFuture = index > nowMonthIdx
+              const isSelectedMonth = selectedMonth &&
                 format(data.monthDate, 'yyyy-MM') === format(selectedMonth, 'yyyy-MM')
-              
+
+              const dash = '—'
+              const sessionsText = isFuture ? dash : data.sessions
+              const minutesText = isFuture ? dash : formatNumber(data.minutes)
+              const milesText = isFuture ? dash : formatNumber(data.miles)
+              const weightText = isFuture ? dash : formatNumber(data.weight)
+
               return (
-                <tr 
-                  key={index} 
-                  onClick={() => onMonthSelect?.(data.monthDate)}
+                <tr
+                  key={index}
+                  onClick={() => !isFuture && onMonthSelect?.(data.monthDate)}
                   className={`border-b border-gray-100 transition-colors ${
-                    onMonthSelect ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
+                    !isFuture && onMonthSelect ? 'hover:bg-blue-50 cursor-pointer' : 'opacity-70'
                   } ${
                     isSelectedMonth ? 'bg-blue-100 font-medium border-blue-200' : ''
                   }`}
-                  title={onMonthSelect ? `Click to view ${data.month} daily chart` : undefined}
+                  title={!isFuture && onMonthSelect ? `Click to view ${data.month} daily chart` : undefined}
                 >
                   <td className="py-3 text-gray-900">
                     {data.month}
                     {isSelectedMonth && <span className="ml-2 text-xs text-blue-600 font-medium">CHARTED</span>}
                   </td>
-                  <td className="py-3 text-right text-gray-900">{data.sessions}</td>
-                  <td className="py-3 text-right text-gray-900">{formatNumber(data.minutes)}</td>
-                  <td className="py-3 text-right text-gray-900">{formatNumber(data.miles)}</td>
-                  <td className="py-3 text-right text-gray-900">{formatNumber(data.weight)}</td>
+                  <td className="py-3 text-right text-gray-900">{sessionsText}</td>
+                  <td className="py-3 text-right text-gray-900">{minutesText}</td>
+                  <td className="py-3 text-right text-gray-900">{milesText}</td>
+                  <td className="py-3 text-right text-gray-900">{weightText}</td>
                 </tr>
               )
             })}
           </tbody>
         </table>
-      </div>
-      
-      {/* Key Totals - More prominent */}
-      <div className="pt-4 border-t border-gray-200">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">All-Time Totals</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">
-              {monthlyData.reduce((sum, data) => sum + data.sessions, 0)}
-            </div>
-            <div className="text-xs text-gray-600 uppercase tracking-wide">Sessions</div>
-          </div>
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">
-              {formatNumber(monthlyData.reduce((sum, data) => sum + data.minutes, 0))}
-            </div>
-            <div className="text-xs text-gray-600 uppercase tracking-wide">Minutes</div>
-          </div>
-        </div>
       </div>
     </div>
   )
