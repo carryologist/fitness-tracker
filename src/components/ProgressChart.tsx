@@ -45,7 +45,25 @@ export function ProgressChart({
   const chartData = useMemo(() => {
     if (sessions.length === 0) return []
 
-    if (viewMode === 'custom' && selectedMonthKeys.length > 0) {
+    // If exactly one month is selected and view is custom, show daily data for that month
+    if (viewMode === 'custom' && selectedMonthKeys.length === 1) {
+      const onlyMonth = selectedMonths[0]
+      const monthStart = startOfMonth(onlyMonth)
+      const monthEnd = endOfMonth(onlyMonth)
+      const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
+      return days.map(day => {
+        const dayKey = format(day, 'yyyy-MM-dd')
+        const daySessions = sessions.filter(session => format(session.date, 'yyyy-MM-dd') === dayKey)
+        return {
+          period: format(day, 'd'),
+          minutes: daySessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
+          miles: daySessions.reduce((sum, s) => sum + (s.miles || 0), 0),
+          weight: daySessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+        }
+      })
+    }
+
+    if (viewMode === 'custom' && selectedMonthKeys.length > 1) {
       const dates = sessions.map(s => s.date)
       const minDate = min(dates)
       const maxDate = max(dates)
@@ -94,7 +112,7 @@ export function ProgressChart({
         }
       })
     }
-  }, [sessions, viewMode, selectedMonth, selectedMonthKeys])
+  }, [sessions, viewMode, selectedMonth, selectedMonthKeys, selectedMonths])
 
   const domains = useMemo(() => {
     if (chartData.length === 0) return { left: [0, 50], right: [0, 1000] }

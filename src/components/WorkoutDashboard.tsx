@@ -187,10 +187,18 @@ export function WorkoutDashboard() {
       const next = exists ? prev.filter(m => m.toISOString().slice(0,7) !== key) : [...prev, month]
       if (next.length === 0) {
         setChartViewMode('annual')
+      } else if (next.length === 1) {
+        // When exactly one month is selected, show Monthly view for that month
+        setSelectedChartMonth(next[0])
       }
       return next
     })
   }
+
+  // Compute effective view mode based on selected months
+  const effectiveViewMode: 'annual' | 'monthly' | 'custom' = selectedMonths.length === 0
+    ? chartViewMode
+    : (selectedMonths.length === 1 ? 'monthly' : 'custom')
 
   // Load data on component mount
   useEffect(() => {
@@ -436,7 +444,7 @@ export function WorkoutDashboard() {
           <div className="p-6 flex-1 min-h-[500px]">
             <ProgressChart 
               sessions={sessions} 
-              initialViewMode={selectedMonths.length > 0 ? 'custom' : chartViewMode}
+              initialViewMode={effectiveViewMode}
               initialSelectedMonth={selectedChartMonth}
               selectedMonths={selectedMonths}
               onMonthChange={setSelectedChartMonth}
