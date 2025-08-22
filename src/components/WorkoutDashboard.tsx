@@ -177,11 +177,19 @@ export function WorkoutDashboard() {
   const [editingSession, setEditingSession] = useState<WorkoutSession | undefined>(undefined)
   const [chartViewMode, setChartViewMode] = useState<'annual' | 'monthly'>('annual')
   const [selectedChartMonth, setSelectedChartMonth] = useState(new Date())
+  const [selectedMonths, setSelectedMonths] = useState<Date[]>([])
 
-  // Handle month selection from Monthly Summary
-  const handleMonthSelect = (month: Date) => {
-    setSelectedChartMonth(month)
-    setChartViewMode('monthly')
+  // Toggle a month selection; if none selected after toggle, default to annual view
+  const toggleMonth = (month: Date) => {
+    setSelectedMonths(prev => {
+      const key = month.toISOString().slice(0, 7)
+      const exists = prev.some(m => m.toISOString().slice(0,7) === key)
+      const next = exists ? prev.filter(m => m.toISOString().slice(0,7) !== key) : [...prev, month]
+      if (next.length === 0) {
+        setChartViewMode('annual')
+      }
+      return next
+    })
   }
 
   // Load data on component mount
@@ -428,8 +436,9 @@ export function WorkoutDashboard() {
           <div className="p-6 flex-1 min-h-[500px]">
             <ProgressChart 
               sessions={sessions} 
-              initialViewMode={chartViewMode}
+              initialViewMode={selectedMonths.length > 0 ? 'custom' : chartViewMode}
               initialSelectedMonth={selectedChartMonth}
+              selectedMonths={selectedMonths}
               onMonthChange={setSelectedChartMonth}
             />
           </div>
@@ -444,8 +453,8 @@ export function WorkoutDashboard() {
           <div className="p-6">
             <MonthlySummary 
               sessions={sessions} 
-              onMonthSelect={handleMonthSelect}
-              selectedMonth={chartViewMode === 'monthly' ? selectedChartMonth : undefined}
+              onToggleMonth={toggleMonth}
+              selectedMonths={selectedMonths}
             />
           </div>
         </div>

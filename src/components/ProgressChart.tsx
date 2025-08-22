@@ -9,8 +9,9 @@ import { formatNumber } from '../utils/numberFormat'
 
 interface ProgressChartProps {
   sessions: WorkoutSession[]
-  initialViewMode?: 'annual' | 'monthly'
+  initialViewMode?: 'annual' | 'monthly' | 'custom'
   initialSelectedMonth?: Date
+  selectedMonths?: Date[]
   onMonthChange?: (month: Date) => void
 }
 
@@ -18,47 +19,59 @@ export function ProgressChart({
   sessions, 
   initialViewMode = 'annual',
   initialSelectedMonth = new Date(),
+  selectedMonths = [],
   onMonthChange
 }: ProgressChartProps) {
-  const [viewMode, setViewMode] = useState<'annual' | 'monthly'>(initialViewMode)
+  const [viewMode, setViewMode] = useState<'annual' | 'monthly' | 'custom'>(initialViewMode)
   const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
   
-  // Update selected month when prop changes
   React.useEffect(() => {
     setSelectedMonth(initialSelectedMonth)
-    if (initialViewMode === 'monthly') {
-      setViewMode('monthly')
-    }
+    if (initialViewMode === 'monthly') setViewMode('monthly')
+    if (initialViewMode === 'custom') setViewMode('custom')
   }, [initialSelectedMonth, initialViewMode])
   
-  // Notify parent when month changes
   const handleMonthChange = (newMonth: Date) => {
     setSelectedMonth(newMonth)
     onMonthChange?.(newMonth)
   }
   
-  // Helper functions for month navigation limits
   const currentMonth = new Date()
   const isCurrentOrFutureMonth = selectedMonth >= startOfMonth(currentMonth)
   const canGoNext = !isCurrentOrFutureMonth
 
+  const selectedMonthKeys = useMemo(() => selectedMonths.map(d => format(d, 'yyyy-MM')), [selectedMonths])
+
   const chartData = useMemo(() => {
     if (sessions.length === 0) return []
-    
-    if (viewMode === 'annual') {
-      // Annual view: aggregate by month
+
+    if (viewMode === 'custom' && selectedMonthKeys.length > 0) {
       const dates = sessions.map(s => s.date)
       const minDate = min(dates)
       const maxDate = max(dates)
-      
       const months = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) })
-      
+      return months
+        .filter(m => selectedMonthKeys.includes(format(m, 'yyyy-MM')))
+        .map(month => {
+          const monthKey = format(month, 'yyyy-MM')
+          const monthSessions = sessions.filter(session => format(session.date, 'yyyy-MM') === monthKey)
+          return {
+            period: format(month, 'MMM yyyy'),
+            minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
+            miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
+            weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+          }
+        })
+    }
+    
+    if (viewMode === 'annual') {
+      const dates = sessions.map(s => s.date)
+      const minDate = min(dates)
+      const maxDate = max(dates)
+      const months = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) })
       return months.map(month => {
         const monthKey = format(month, 'yyyy-MM')
-        const monthSessions = sessions.filter(session => 
-          format(session.date, 'yyyy-MM') === monthKey
-        )
-        
+        const monthSessions = sessions.filter(session => format(session.date, 'yyyy-MM') === monthKey)
         return {
           period: format(month, 'MMM yyyy'),
           minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
@@ -67,18 +80,12 @@ export function ProgressChart({
         }
       })
     } else {
-      // Monthly view: aggregate by day for selected month
       const monthStart = startOfMonth(selectedMonth)
       const monthEnd = endOfMonth(selectedMonth)
-      
       const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
-      
       return days.map(day => {
         const dayKey = format(day, 'yyyy-MM-dd')
-        const daySessions = sessions.filter(session => 
-          format(session.date, 'yyyy-MM-dd') === dayKey
-        )
-        
+        const daySessions = sessions.filter(session => format(session.date, 'yyyy-MM-dd') === dayKey)
         return {
           period: format(day, 'd'),
           minutes: daySessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
@@ -87,48 +94,31 @@ export function ProgressChart({
         }
       })
     }
-  }, [sessions, viewMode, selectedMonth])
+  }, [sessions, viewMode, selectedMonth, selectedMonthKeys])
 
-  // Calculate dynamic domains with extra headroom
   const domains = useMemo(() => {
     if (chartData.length === 0) return { left: [0, 50], right: [0, 1000] }
-    
-    // Extract values for left axis (minutes and miles)
     const minutesValues = chartData.map(d => d.minutes).filter(v => v > 0)
     const milesValues = chartData.map(d => d.miles).filter(v => v > 0)
     const leftValues = [...minutesValues, ...milesValues]
-    
-    // Extract values for right axis (weight)
     const weightValues = chartData.map(d => d.weight).filter(v => v > 0)
-    
-    // Calculate left domain (minutes/miles)
-    let leftMax = 50 // default
+    let leftMax = 50
     if (leftValues.length > 0) {
       const dataMax = Math.max(...leftValues)
-      // Add 30% headroom above data + ensure we have at least 2 extra tick marks
       leftMax = Math.ceil(dataMax * 1.3)
-      // Round up to next nice number
       if (leftMax <= 10) leftMax = Math.ceil(leftMax / 2) * 2
       else if (leftMax <= 50) leftMax = Math.ceil(leftMax / 5) * 5
       else leftMax = Math.ceil(leftMax / 10) * 10
     }
-    
-    // Calculate right domain (weight)
-    let rightMax = 1000 // default
+    let rightMax = 1000
     if (weightValues.length > 0) {
       const dataMax = Math.max(...weightValues)
-      // Add 30% headroom above data
       rightMax = Math.ceil(dataMax * 1.3)
-      // Round up to next nice number
       if (rightMax <= 1000) rightMax = Math.ceil(rightMax / 100) * 100
       else if (rightMax <= 10000) rightMax = Math.ceil(rightMax / 1000) * 1000
       else rightMax = Math.ceil(rightMax / 10000) * 10000
     }
-    
-    return {
-      left: [0, leftMax],
-      right: [0, rightMax]
-    }
+    return { left: [0, leftMax], right: [0, rightMax] }
   }, [chartData])
 
   if (chartData.length === 0) {
@@ -141,149 +131,53 @@ export function ProgressChart({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Chart Header with Toggle */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 flex-shrink-0 gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <div>
             <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-              {viewMode === 'annual' ? 'Annual Progress by Month' : `${format(selectedMonth, 'MMMM yyyy')} Daily Progress`}
+              {viewMode === 'annual' ? 'Annual Progress by Month' : viewMode === 'custom' ? 'Custom Period' : `${format(selectedMonth, 'MMMM yyyy')} Daily Progress`}
             </h3>
             <p className="text-xs sm:text-sm text-gray-600">
-              {viewMode === 'annual' ? 'Your fitness journey over the year' : 'Daily activity for the month'}
+              {viewMode === 'annual' ? 'Your fitness journey over the year' : viewMode === 'custom' ? 'Aggregated over selected months' : 'Daily activity for the month'}
             </p>
           </div>
-          
-          {/* Month Navigation - only show in monthly view */}
           {viewMode === 'monthly' && (
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleMonthChange(subMonths(selectedMonth, 1))}
-                className="p-1 rounded-md hover:bg-gray-100 transition-colors"
-                title="Previous month"
-              >
+              <button onClick={() => handleMonthChange(subMonths(selectedMonth, 1))} className="p-1 rounded-md hover:bg-gray-100 transition-colors" title="Previous month">
                 <ChevronLeft className="w-4 h-4 text-gray-600" />
               </button>
-              <button
-                onClick={() => canGoNext && handleMonthChange(addMonths(selectedMonth, 1))}
-                className={`p-1 rounded-md transition-colors ${
-                  canGoNext 
-                    ? 'hover:bg-gray-100 text-gray-600' 
-                    : 'text-gray-300 cursor-not-allowed'
-                }`}
-                title={canGoNext ? "Next month" : "Cannot go beyond current month"}
-                disabled={!canGoNext}
-              >
+              <button onClick={() => canGoNext && handleMonthChange(addMonths(selectedMonth, 1))} className={`p-1 rounded-md transition-colors ${canGoNext ? 'hover:bg-gray-100 text-gray-600' : 'text-gray-300 cursor-not-allowed'}`} title={canGoNext ? "Next month" : "Cannot go beyond current month"} disabled={!canGoNext}>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           )}
         </div>
-        
         <div className="flex bg-gray-100 rounded-lg p-1 self-start sm:self-auto">
-          <button
-            onClick={() => setViewMode('annual')}
-            className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${
-              viewMode === 'annual' 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
+          <button onClick={() => setViewMode('annual')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'annual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
             <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
             Annual
           </button>
-          <button
-            onClick={() => setViewMode('monthly')}
-            className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${
-              viewMode === 'monthly' 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
+          <button onClick={() => setViewMode('monthly')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
             <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
             Monthly
           </button>
+          <button onClick={() => setViewMode('custom')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'custom' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+            Custom
+          </button>
         </div>
       </div>
-      
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 5, right: 15, left: 10, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="period" 
-              tick={{ fontSize: 10 }}
-              angle={viewMode === 'monthly' ? 0 : -45}
-              textAnchor={viewMode === 'monthly' ? 'middle' : 'end'}
-              height={viewMode === 'monthly' ? 30 : 60}
-              interval={viewMode === 'monthly' ? 2 : 0}
-            />
-            {/* Left Y-axis for Minutes and Miles */}
-            <YAxis 
-              yAxisId="left"
-              domain={domains.left}
-              tick={{ fontSize: 10 }}
-              tickFormatter={(value) => formatNumber(value as number)}
-              label={{ 
-                value: 'Minutes / Miles', 
-                angle: -90, 
-                position: 'insideLeft',
-                style: { textAnchor: 'middle', fontSize: '10px' },
-                offset: -5
-              }}
-              width={50}
-            />
-            {/* Right Y-axis for Weight */}
-            <YAxis 
-              yAxisId="right"
-              orientation="right"
-              domain={domains.right}
-              tick={{ fontSize: 10 }}
-              tickFormatter={(value) => formatNumber(value as number)}
-              label={{ 
-                value: 'Weight (lbs)', 
-                angle: 90, 
-                position: 'insideRight',
-                style: { textAnchor: 'middle', fontSize: '10px' },
-                offset: -5
-              }}
-              width={60}
-            />
-            <Tooltip 
-              formatter={(value: number, name: string) => {
-                if (name === 'minutes') return [formatNumber(value), 'Minutes']
-                if (name === 'miles') return [formatNumber(value), 'Miles']
-                if (name === 'weight') return [formatNumber(value), 'Weight Lifted (lbs)']
-                return [formatNumber(value), name]
-              }}
-            />
+            <XAxis dataKey="period" tick={{ fontSize: 10 }} angle={viewMode === 'monthly' ? 0 : -45} textAnchor={viewMode === 'monthly' ? 'middle' : 'end'} height={viewMode === 'monthly' ? 30 : 60} interval={viewMode === 'monthly' ? 2 : 0} />
+            <YAxis yAxisId="left" domain={domains.left} tick={{ fontSize: 10 }} tickFormatter={(value) => formatNumber(value as number)} label={{ value: 'Minutes / Miles', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px' }, offset: -5 }} width={50} />
+            <YAxis yAxisId="right" orientation="right" domain={domains.right} tick={{ fontSize: 10 }} tickFormatter={(value) => formatNumber(value as number)} label={{ value: 'Weight (lbs)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle', fontSize: '10px' }, offset: -5 }} width={60} />
+            <Tooltip formatter={(value: number, name: string) => { if (name === 'minutes') return [formatNumber(value), 'Minutes']; if (name === 'miles') return [formatNumber(value), 'Miles']; if (name === 'weight') return [formatNumber(value), 'Weight Lifted (lbs)']; return [formatNumber(value), name] }} />
             <Legend />
-            <Line 
-              yAxisId="left"
-              type="monotone" 
-              dataKey="minutes" 
-              stroke="#3B82F6" 
-              strokeWidth={3}
-              name="Minutes"
-              dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }}
-            />
-            <Line 
-              yAxisId="left"
-              type="monotone" 
-              dataKey="miles" 
-              stroke="#10B981" 
-              strokeWidth={3}
-              name="Miles"
-              dot={{ fill: '#10B981', strokeWidth: 2, r: 5 }}
-            />
-            <Line 
-              yAxisId="right"
-              type="monotone" 
-              dataKey="weight" 
-              stroke="#F59E0B" 
-              strokeWidth={3}
-              name="Weight Lifted (lbs)"
-              dot={{ fill: '#F59E0B', strokeWidth: 2, r: 5 }}
-            />
+            <Line yAxisId="left" type="monotone" dataKey="minutes" stroke="#3B82F6" strokeWidth={3} name="Minutes" dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }} />
+            <Line yAxisId="left" type="monotone" dataKey="miles" stroke="#10B981" strokeWidth={3} name="Miles" dot={{ fill: '#10B981', strokeWidth: 2, r: 5 }} />
+            <Line yAxisId="right" type="monotone" dataKey="weight" stroke="#F59E0B" strokeWidth={3} name="Weight Lifted (lbs)" dot={{ fill: '#F59E0B', strokeWidth: 2, r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
