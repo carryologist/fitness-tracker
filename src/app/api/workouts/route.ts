@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { NextRequest, NextResponse } from 'next/server'
 
 const prisma = new PrismaClient()
 
@@ -114,6 +114,50 @@ export async function DELETE(request: NextRequest) {
     console.error('💥 Error deleting workout:', error)
     return NextResponse.json(
       { error: 'Failed to delete workout' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id, date, source, activity, minutes, miles, weightLifted, notes } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Workout ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const updateData: {
+      date?: Date
+      source?: string
+      activity?: string
+      minutes?: number
+      miles?: number | null
+      weightLifted?: number | null
+      notes?: string | null
+    } = {}
+    if (date) updateData.date = new Date(date)
+    if (source !== undefined) updateData.source = String(source)
+    if (activity !== undefined) updateData.activity = String(activity)
+    if (minutes !== undefined) updateData.minutes = parseInt(minutes)
+    if (miles !== undefined) updateData.miles = miles === null ? null : parseFloat(miles)
+    if (weightLifted !== undefined) updateData.weightLifted = weightLifted === null ? null : parseFloat(weightLifted)
+    if (notes !== undefined) updateData.notes = notes || null
+
+    const updated = await prisma.workoutSession.update({
+      where: { id },
+      data: updateData
+    })
+
+    return NextResponse.json({ workout: updated })
+  } catch (error) {
+    console.error('💥 Error updating workout:', error)
+    return NextResponse.json(
+      { error: 'Failed to update workout' },
       { status: 500 }
     )
   }

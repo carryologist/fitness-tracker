@@ -1,7 +1,6 @@
-'use client'
-
 import { useForm } from 'react-hook-form'
 import { WorkoutSession } from './WorkoutDashboard'
+import { useEffect, useMemo } from 'react'
 
 interface WorkoutFormData {
   date: string
@@ -15,29 +14,48 @@ interface WorkoutFormData {
 
 interface WorkoutFormProps {
   onSubmit: (session: Omit<WorkoutSession, 'id'>) => void
+  initial?: Partial<WorkoutSession>
+  submitLabel?: string
 }
 
 const SOURCES = ['Peloton', 'Cannondale', 'Tonal', 'Gym', 'Outdoor', 'Home']
 const ACTIVITIES = ['Cycling', 'Weight Lifting', 'Running', 'Swimming', 'Yoga', 'Other']
 
-export function WorkoutForm({ onSubmit }: WorkoutFormProps) {
-  // Get today's date in local timezone
-  const today = new Date()
-  const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000))
+function toLocalDateInputValue(d: Date) {
+  const today = new Date(d.getTime() - (d.getTimezoneOffset() * 60000))
     .toISOString()
     .split('T')[0]
-  
+  return today
+}
+
+export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps) {
+  // Default to today, or initial date if provided
+  const today = useMemo(() => new Date(), [])
+  const defaultDate = toLocalDateInputValue(initial?.date ?? today)
+
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<WorkoutFormData>({
     defaultValues: {
-      date: localDate,
-      source: '',
-      activity: '',
-      minutes: 0,
-      miles: undefined,
-      weightLifted: undefined,
-      notes: ''
+      date: defaultDate,
+      source: initial?.source ?? '',
+      activity: initial?.activity ?? '',
+      minutes: initial?.minutes ?? 0,
+      miles: initial?.miles,
+      weightLifted: initial?.weightLifted,
+      notes: initial?.notes ?? ''
     }
   })
+
+  useEffect(() => {
+    reset({
+      date: toLocalDateInputValue(initial?.date ?? today),
+      source: initial?.source ?? '',
+      activity: initial?.activity ?? '',
+      minutes: initial?.minutes ?? 0,
+      miles: initial?.miles,
+      weightLifted: initial?.weightLifted,
+      notes: initial?.notes ?? ''
+    })
+  }, [initial, reset, today])
 
   const activity = watch('activity')
   const source = watch('source')
@@ -178,7 +196,7 @@ export function WorkoutForm({ onSubmit }: WorkoutFormProps) {
           type="submit"
           className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
         >
-          Add Workout Session
+          {submitLabel ?? 'Add Workout Session'}
         </button>
       </div>
     </form>

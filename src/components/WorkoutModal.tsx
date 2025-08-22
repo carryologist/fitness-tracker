@@ -8,15 +8,19 @@ interface WorkoutModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (session: Omit<WorkoutSession, 'id'>) => void
+  initial?: Partial<WorkoutSession>
+  submitLabel?: string
 }
 
-export function WorkoutModal({ isOpen, onClose, onSubmit }: WorkoutModalProps) {
+export function WorkoutModal({ isOpen, onClose, onSubmit, initial, submitLabel }: WorkoutModalProps) {
   const handleSubmit = (session: Omit<WorkoutSession, 'id'>) => {
     onSubmit(session)
     onClose()
   }
 
   if (!isOpen) return null
+
+  const isEditing = Boolean(initial?.date || initial?.source || initial?.activity)
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -32,8 +36,8 @@ export function WorkoutModal({ isOpen, onClose, onSubmit }: WorkoutModalProps) {
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Add New Session</h2>
-              <p className="text-gray-600 mt-1">Log your latest workout</p>
+              <h2 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Session' : 'Add New Session'}</h2>
+              <p className="text-gray-600 mt-1">{isEditing ? 'Update your workout' : 'Log your latest workout'}</p>
             </div>
             <button
               onClick={onClose}
@@ -45,7 +49,7 @@ export function WorkoutModal({ isOpen, onClose, onSubmit }: WorkoutModalProps) {
           
           {/* Form */}
           <div className="p-6">
-            <WorkoutForm onSubmit={handleSubmit} />
+            <WorkoutForm onSubmit={handleSubmit} initial={initial} submitLabel={submitLabel} />
           </div>
           
           {/* Footer */}

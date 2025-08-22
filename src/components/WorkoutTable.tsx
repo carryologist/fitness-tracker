@@ -3,16 +3,18 @@
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { WorkoutSession } from './WorkoutDashboard'
-import { ChevronUp, ChevronDown, Filter } from 'lucide-react'
+import { ChevronUp, ChevronDown, Filter, Pencil, Trash2 } from 'lucide-react'
 
 interface WorkoutTableProps {
   sessions: WorkoutSession[]
+  onEdit?: (session: WorkoutSession) => void
+  onDelete?: (id: string) => void
 }
 
 type SortField = 'date' | 'source' | 'activity' | 'minutes' | 'miles' | 'weightLifted'
 type SortDirection = 'asc' | 'desc'
 
-export function WorkoutTable({ sessions }: WorkoutTableProps) {
+export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) {
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [filters, setFilters] = useState({
@@ -183,6 +185,7 @@ export function WorkoutTable({ sessions }: WorkoutTableProps) {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Notes
               </th>
+              <th className="px-6 py-3" />
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -208,6 +211,31 @@ export function WorkoutTable({ sessions }: WorkoutTableProps) {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-900">
                   {session.notes || '-'}
+                </td>
+                <td className="px-6 py-4 text-right whitespace-nowrap">
+                  <div className="flex items-center gap-2 justify-end">
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(session)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        title="Edit"
+                      >
+                        <Pencil className="w-4 h-4" /> Edit
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        onClick={() => {
+                          if (confirm('Delete this workout? This cannot be undone.')) onDelete(session.id)
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-white border border-red-300 text-red-600 rounded hover:bg-red-50"
+                        title="Delete"
+                        aria-label="Delete workout"
+                      >
+                        <Trash2 className="w-4 h-4" /> Delete
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

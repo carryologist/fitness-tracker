@@ -174,6 +174,7 @@ export function WorkoutDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
+  const [editingSession, setEditingSession] = useState<WorkoutSession | undefined>(undefined)
   const [chartViewMode, setChartViewMode] = useState<'annual' | 'monthly'>('annual')
   const [selectedChartMonth, setSelectedChartMonth] = useState(new Date())
 
@@ -285,6 +286,51 @@ export function WorkoutDashboard() {
         id: `local_${Date.now()}`
       }
       setSessions(prev => [newSession, ...prev])
+    }
+  }
+
+  const updateSession = async (id: string, data: Omit<WorkoutSession, 'id'>) => {
+    try {
+      const payload = {
+        id,
+        date: data.date.toISOString(),
+        source: data.source,
+        activity: data.activity,
+        minutes: data.minutes,
+        miles: data.miles,
+        weightLifted: data.weightLifted,
+        notes: data.notes,
+      }
+      const response = await fetch('/api/workouts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!response.ok) throw new Error(`Failed to update workout: ${response.status}`)
+      const result = await response.json()
+      const updated = result.workout as { id: string; date: string; source: string; activity: string; minutes: number; miles?: number | null; weightLifted?: number | null; notes?: string | null }
+      setSessions(prev => prev.map(s => s.id === id ? {
+        id: updated.id,
+        date: new Date(updated.date),
+        source: updated.source,
+        activity: updated.activity,
+        minutes: updated.minutes,
+        miles: updated.miles ?? undefined,
+        weightLifted: updated.weightLifted ?? undefined,
+        notes: updated.notes ?? undefined
+      } : s))
+    } catch (e) {
+      console.error('Error updating workout:', e)
+    }
+  }
+
+  const deleteSession = async (id: string) => {
+    try {
+      const response = await fetch(`/api/workouts?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error(`Failed to delete workout: ${response.status}`)
+      setSessions(prev => prev.filter(s => s.id !== id))
+    } catch (e) {
+      console.error('Error deleting workout:', e)
     }
   }
 
@@ -438,16 +484,22 @@ export function WorkoutDashboard() {
           <h2 className="text-xl font-semibold text-gray-900">Workout History</h2>
           <p className="text-gray-600 mt-1">All your recorded sessions</p>
         </div>
-        <WorkoutTable sessions={sessions} />
+        <WorkoutTable
+          sessions={sessions}
+          onEdit={(s) => { setEditingSession(s); setIsModalOpen(true) }}
+          onDelete={(id) => deleteSession(id)}
+        />
       </div>
 
       {/* Modal */}
-      <WorkoutModal 
+      <WorkoutModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={addSession}
+        onClose={() => { setIsModalOpen(false); setEditingSession(undefined) }}
+        onSubmit={(data) => editingSession ? updateSession(editingSession.id, data) : addSession(data)}
+        initial={editingSession}
+        submitLabel={editingSession ? 'Save Changes' : 'Add Workout Session'}
       />
-      
+
       {/* Goal Modal */}
       <GoalModal 
         isOpen={isGoalModalOpen}
