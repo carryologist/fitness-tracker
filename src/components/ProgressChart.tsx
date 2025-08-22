@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { WorkoutSession } from './WorkoutDashboard'
 import { format, startOfMonth, eachMonthOfInterval, min, max, eachDayOfInterval, endOfMonth, addMonths, subMonths } from 'date-fns'
 import { Calendar, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
+import { formatNumber } from '../utils/numberFormat'
 
 interface ProgressChartProps {
   sessions: WorkoutSession[]
@@ -221,7 +222,7 @@ export function ProgressChart({
               yAxisId="left"
               domain={domains.left}
               tick={{ fontSize: 10 }}
-              tickFormatter={(value) => value.toLocaleString()}
+              tickFormatter={(value) => formatNumber(value as number)}
               label={{ 
                 value: 'Minutes / Miles', 
                 angle: -90, 
@@ -237,7 +238,7 @@ export function ProgressChart({
               orientation="right"
               domain={domains.right}
               tick={{ fontSize: 10 }}
-              tickFormatter={(value) => value.toLocaleString()}
+              tickFormatter={(value) => formatNumber(value as number)}
               label={{ 
                 value: 'Weight (lbs)', 
                 angle: 90, 
@@ -249,10 +250,10 @@ export function ProgressChart({
             />
             <Tooltip 
               formatter={(value: number, name: string) => {
-                if (name === 'minutes') return [value.toLocaleString(), 'Minutes']
-                if (name === 'miles') return [value.toFixed(1), 'Miles']
-                if (name === 'weight') return [value.toLocaleString(), 'Weight Lifted (lbs)']
-                return [value, name]
+                if (name === 'minutes') return [formatNumber(value), 'Minutes']
+                if (name === 'miles') return [formatNumber(value), 'Miles']
+                if (name === 'weight') return [formatNumber(value), 'Weight Lifted (lbs)']
+                return [formatNumber(value), name]
               }}
             />
             <Legend />

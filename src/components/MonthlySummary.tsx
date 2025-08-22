@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { WorkoutSession } from './WorkoutDashboard'
 import { format } from 'date-fns'
+import { formatNumber } from '../utils/numberFormat'
 
 interface MonthlySummaryProps {
   sessions: WorkoutSession[]
@@ -92,9 +93,9 @@ export function MonthlySummary({ sessions, onMonthSelect, selectedMonth }: Month
                     {isSelectedMonth && <span className="ml-2 text-xs text-blue-600 font-medium">CHARTED</span>}
                   </td>
                   <td className="py-3 text-right text-gray-900">{data.sessions}</td>
-                  <td className="py-3 text-right text-gray-900">{data.minutes.toLocaleString()}</td>
-                  <td className="py-3 text-right text-gray-900">{data.miles.toFixed(0)}</td>
-                  <td className="py-3 text-right text-gray-900">{data.weight.toLocaleString()}</td>
+                  <td className="py-3 text-right text-gray-900">{formatNumber(data.minutes)}</td>
+                  <td className="py-3 text-right text-gray-900">{formatNumber(data.miles)}</td>
+                  <td className="py-3 text-right text-gray-900">{formatNumber(data.weight)}</td>
                 </tr>
               )
             })}
@@ -114,7 +115,7 @@ export function MonthlySummary({ sessions, onMonthSelect, selectedMonth }: Month
           </div>
           <div className="text-center p-3 bg-green-50 rounded-lg">
             <div className="text-2xl font-bold text-green-600">
-              {monthlyData.reduce((sum, data) => sum + data.minutes, 0).toLocaleString()}
+              {formatNumber(monthlyData.reduce((sum, data) => sum + data.minutes, 0))}
             </div>
             <div className="text-xs text-gray-600 uppercase tracking-wide">Minutes</div>
           </div>

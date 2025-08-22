@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { WorkoutSession } from './WorkoutDashboard'
 import { Activity, Clock, MapPin, Weight, TrendingUp, Calendar } from 'lucide-react'
+import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutSummaryProps {
   sessions: WorkoutSession[]
@@ -125,7 +126,7 @@ export function WorkoutSummary({ sessions }: WorkoutSummaryProps) {
             icon={<Clock className="w-4 h-4" />}
             title="Avg Minutes"
             subtitle="per session"
-            value={summaryStats.avgMinutesPerSession}
+            value={formatNumber(summaryStats.avgMinutesPerSession)}
             color="green"
           />
           {summaryStats.avgMilesPerSession > 0 && (
@@ -133,7 +134,7 @@ export function WorkoutSummary({ sessions }: WorkoutSummaryProps) {
               icon={<MapPin className="w-4 h-4" />}
               title="Avg Miles"
               subtitle="per cardio session"
-              value={summaryStats.avgMilesPerSession.toFixed(1)}
+              value={formatNumber(summaryStats.avgMilesPerSession)}
               color="purple"
             />
           )}
@@ -142,7 +143,7 @@ export function WorkoutSummary({ sessions }: WorkoutSummaryProps) {
               icon={<Weight className="w-4 h-4" />}
               title="Avg Weight"
               subtitle="per lifting session"
-              value={`${summaryStats.avgWeightPerSession.toLocaleString()} lbs`}
+              value={`${formatNumber(summaryStats.avgWeightPerSession)} lbs`}
               color="orange"
             />
           )}
@@ -200,18 +201,18 @@ export function WorkoutSummary({ sessions }: WorkoutSummaryProps) {
                   <div className="space-y-1 text-xs text-gray-600">
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      <span>{activity.avgMinutes} min avg</span>
+                      <span>{formatNumber(activity.avgMinutes)} min avg</span>
                     </div>
                     {isCardio && activity.avgMiles > 0 && (
                       <div className="flex items-center gap-1">
                         <MapPin className="w-3 h-3" />
-                        <span>{activity.avgMiles.toFixed(1)} mi avg</span>
+                        <span>{formatNumber(activity.avgMiles)} mi avg</span>
                       </div>
                     )}
                     {isLifting && activity.avgWeight > 0 && (
                       <div className="flex items-center gap-1">
                         <Weight className="w-3 h-3" />
-                        <span>{activity.avgWeight.toLocaleString()} lbs avg</span>
+                        <span>{formatNumber(activity.avgWeight)} lbs avg</span>
                       </div>
                     )}
                   </div>
