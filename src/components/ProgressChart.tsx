@@ -24,28 +24,48 @@ export function ProgressChart({
 }: ProgressChartProps) {
   const [viewMode, setViewMode] = useState<'annual' | 'monthly' | 'custom'>(initialViewMode)
   const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
+
+  const selectedMonthKeys = useMemo(() => selectedMonths.map(d => format(d, 'yyyy-MM')), [selectedMonths])
   
   React.useEffect(() => {
     setSelectedMonth(initialSelectedMonth)
-    if (initialViewMode === 'monthly') setViewMode('monthly')
-    if (initialViewMode === 'custom') setViewMode('custom')
-  }, [initialSelectedMonth, initialViewMode])
-  
+    if (initialViewMode === 'custom' && selectedMonthKeys.length === 0) {
+      setViewMode('annual')
+    } else {
+      setViewMode(initialViewMode)
+    }
+  }, [initialSelectedMonth, initialViewMode, selectedMonthKeys.length])
+
   const handleMonthChange = (newMonth: Date) => {
     setSelectedMonth(newMonth)
     onMonthChange?.(newMonth)
   }
-  
+
   const currentMonth = new Date()
   const isCurrentOrFutureMonth = selectedMonth >= startOfMonth(currentMonth)
   const canGoNext = !isCurrentOrFutureMonth
 
-  const selectedMonthKeys = useMemo(() => selectedMonths.map(d => format(d, 'yyyy-MM')), [selectedMonths])
-
   const chartData = useMemo(() => {
     if (sessions.length === 0) return []
 
-    // If exactly one month is selected and view is custom, show daily data for that month
+    // Fallback: no custom months selected => treat as annual
+    if (viewMode === 'custom' && selectedMonthKeys.length === 0) {
+      const dates = sessions.map(s => s.date)
+      const minDate = min(dates)
+      const maxDate = max(dates)
+      const months = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) })
+      return months.map(month => {
+        const monthKey = format(month, 'yyyy-MM')
+        const monthSessions = sessions.filter(session => format(session.date, 'yyyy-MM') === monthKey)
+        return {
+          period: format(month, 'MMM yyyy'),
+          minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
+          miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
+          weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+        }
+      })
+    }
+
     if (viewMode === 'custom' && selectedMonthKeys.length === 1) {
       const onlyMonth = selectedMonths[0]
       const monthStart = startOfMonth(onlyMonth)
@@ -81,7 +101,7 @@ export function ProgressChart({
           }
         })
     }
-    
+
     if (viewMode === 'annual') {
       const dates = sessions.map(s => s.date)
       const minDate = min(dates)
