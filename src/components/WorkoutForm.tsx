@@ -28,6 +28,12 @@ function toLocalDateInputValue(d: Date) {
   return today
 }
 
+function parseLocalDateInput(s: string) {
+  const [y, m, d] = s.split('-').map((v) => parseInt(v, 10))
+  if (!y || !m || !d) return new Date(NaN)
+  return new Date(y, m - 1, d)
+}
+
 export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps) {
   // Default to today, or initial date if provided
   const today = useMemo(() => new Date(), [])
@@ -67,7 +73,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
 
   const onFormSubmit = (data: WorkoutFormData) => {
     const session: Omit<WorkoutSession, 'id'> = {
-      date: new Date(data.date),
+      date: parseLocalDateInput(data.date),
       source: data.source,
       activity: data.activity,
       minutes: data.minutes,
