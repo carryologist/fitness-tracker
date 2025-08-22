@@ -55,13 +55,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const incoming = new Date(date)
-    const normalized = new Date(Date.UTC(incoming.getUTCFullYear(), incoming.getUTCMonth(), incoming.getUTCDate()))
-    
     // Create workout in database
     const newWorkout = await prisma.workoutSession.create({
       data: {
-        date: normalized,
+        date: new Date(date),
         source: source,
         activity: activity,
         minutes: parseInt(minutes),
@@ -143,10 +140,7 @@ export async function PUT(request: NextRequest) {
       weightLifted?: number | null
       notes?: string | null
     } = {}
-    if (date) {
-      const incoming = new Date(date)
-      updateData.date = new Date(Date.UTC(incoming.getUTCFullYear(), incoming.getUTCMonth(), incoming.getUTCDate()))
-    }
+    if (date) updateData.date = new Date(date)
     if (source !== undefined) updateData.source = String(source)
     if (activity !== undefined) updateData.activity = String(activity)
     if (minutes !== undefined) updateData.minutes = parseInt(minutes)
