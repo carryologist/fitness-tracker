@@ -13,6 +13,7 @@ interface ProgressChartProps {
   initialSelectedMonth?: Date
   selectedMonths?: Date[]
   onMonthChange?: (month: Date) => void
+  onViewModeChange?: (mode: 'annual' | 'monthly' | 'custom') => void
 }
 
 export function ProgressChart({ 
@@ -20,12 +21,18 @@ export function ProgressChart({
   initialViewMode = 'annual',
   initialSelectedMonth = new Date(),
   selectedMonths = [],
-  onMonthChange
+  onMonthChange,
+  onViewModeChange
 }: ProgressChartProps) {
   const [viewMode, setViewMode] = useState<'annual' | 'monthly' | 'custom'>(initialViewMode)
   const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
 
   const selectedMonthKeys = useMemo(() => selectedMonths.map(d => format(d, 'yyyy-MM')), [selectedMonths])
+  
+  const handleViewModeChange = (mode: 'annual' | 'monthly' | 'custom') => {
+    setViewMode(mode)
+    onViewModeChange?.(mode)
+  }
   
   React.useEffect(() => {
     setSelectedMonth(initialSelectedMonth)
@@ -191,15 +198,15 @@ export function ProgressChart({
           )}
         </div>
         <div className="flex bg-gray-100 rounded-lg p-1 self-start sm:self-auto">
-          <button onClick={() => setViewMode('annual')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'annual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+          <button onClick={() => handleViewModeChange('annual')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'annual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
             <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
             Annual
           </button>
-          <button onClick={() => setViewMode('monthly')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+          <button onClick={() => handleViewModeChange('monthly')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
             <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
             Monthly
           </button>
-          <button onClick={() => setViewMode('custom')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'custom' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+          <button onClick={() => handleViewModeChange('custom')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'custom' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
             Custom
           </button>
         </div>

@@ -179,6 +179,14 @@ export function WorkoutDashboard() {
   const [selectedChartMonth, setSelectedChartMonth] = useState(new Date())
   const [selectedMonths, setSelectedMonths] = useState<Date[]>([])
 
+  // Handle view mode changes from ProgressChart
+  const handleViewModeChange = (mode: 'annual' | 'monthly' | 'custom') => {
+    if (mode === 'annual') {
+      setSelectedMonths([])
+    }
+    setChartViewMode(mode === 'custom' ? 'annual' : mode)
+  }
+
   // Toggle a month selection; if none selected after toggle, default to annual view
   const toggleMonth = (month: Date) => {
     setSelectedMonths(prev => {
@@ -448,6 +456,7 @@ export function WorkoutDashboard() {
               initialSelectedMonth={selectedChartMonth}
               selectedMonths={selectedMonths}
               onMonthChange={setSelectedChartMonth}
+              onViewModeChange={handleViewModeChange}
             />
           </div>
         </div>

@@ -18,9 +18,6 @@ interface WorkoutFormProps {
   submitLabel?: string
 }
 
-const SOURCES = ['Peloton', 'Cannondale', 'Tonal', 'Gym', 'Outdoor', 'Home']
-const ACTIVITIES = ['Cycling', 'Weight Lifting', 'Running', 'Swimming', 'Yoga', 'Other']
-
 function toLocalDateInputValue(d: Date) {
   const today = new Date(d.getTime() - (d.getTimezoneOffset() * 60000))
     .toISOString()
@@ -39,7 +36,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
   const today = useMemo(() => new Date(), [])
   const defaultDate = toLocalDateInputValue(initial?.date ?? today)
 
-  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<WorkoutFormData>({
+  const { register, handleSubmit, watch, reset, formState: { errors }, setValue } = useForm<WorkoutFormData>({
     defaultValues: {
       date: defaultDate,
       source: initial?.source ?? '',
@@ -65,11 +62,33 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
 
   const activity = watch('activity')
   const source = watch('source')
+  const minutes = watch('minutes')
+  const miles = watch('miles')
+  const weightLifted = watch('weightLifted')
 
+  const sources = ['Peloton', 'Tonal', 'Cannondale', 'Gym', 'Other']
+  
+  // Define source-to-activity mapping
+  const sourceActivityMap: Record<string, string[]> = {
+    'Peloton': ['Cycling', 'Outdoor cycling', 'Weight lifting', 'Walking', 'Running', 'Yoga'],
+    'Tonal': ['Weight lifting'],
+    'Cannondale': ['Outdoor cycling'],
+    'Gym': ['Weight lifting', 'Running', 'Swimming'],
+    'Other': ['Other']
+  };
+  
+  // Get filtered activities based on selected source
+  const getFilteredActivities = () => {
+    if (!source) return [];
+    return sourceActivityMap[source] || [];
+  };
+  
+  const activities = getFilteredActivities();
+  
   // Show miles field for cardio activities
-  const showMiles = activity === 'Cycling' || activity === 'Running' || activity === 'Swimming'
+  const showMiles = activity === 'Cycling' || activity === 'Outdoor cycling' || activity === 'Running' || activity === 'Swimming' || activity === 'Walking';
   // Show weight lifted for strength activities or Tonal
-  const showWeight = activity === 'Weight Lifting' || source === 'Tonal'
+  const showWeight = activity === 'Weight lifting' || source === 'Tonal'
 
   const onFormSubmit = (data: WorkoutFormData) => {
     const session: Omit<WorkoutSession, 'id'> = {
@@ -85,6 +104,18 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
     onSubmit(session)
     reset()
   }
+
+  const handleValueChange = (field: 'minutes' | 'miles' | 'weightLifted', value: string) => {
+    // Allow any number of decimal places in input
+    if (value === '') {
+      setValue(field, 0);
+    } else {
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue)) {
+        setValue(field, numValue);
+      }
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -108,11 +139,15 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
         </label>
         <select
           {...register('source', { required: 'Source is required' })}
+          onChange={(e) => {
+            setValue('source', e.target.value);
+            setValue('activity', ''); // Reset activity when source changes
+          }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="">Select source...</option>
-          {SOURCES.map(source => (
-            <option key={source} value={source}>{source}</option>
+          <option value="">Select source</option>
+          {sources.map(src => (
+            <option key={src} value={src}>{src}</option>
           ))}
         </select>
         {errors.source && <p className="text-red-500 text-xs mt-1">{errors.source.message}</p>}
@@ -125,11 +160,12 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
         </label>
         <select
           {...register('activity', { required: 'Activity is required' })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={!source}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
         >
-          <option value="">Select activity...</option>
-          {ACTIVITIES.map(activity => (
-            <option key={activity} value={activity}>{activity}</option>
+          <option value="">Select activity</option>
+          {activities.map(act => (
+            <option key={act} value={act}>{act}</option>
           ))}
         </select>
         {errors.activity && <p className="text-red-500 text-xs mt-1">{errors.activity.message}</p>}
@@ -142,11 +178,10 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
         </label>
         <input
           type="number"
-          min="1"
-          {...register('minutes', { 
-            required: 'Minutes is required',
-            min: { value: 1, message: 'Must be at least 1 minute' }
-          })}
+          step="any"
+          placeholder="Minutes"
+          value={minutes}
+          onChange={(e) => handleValueChange('minutes', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         {errors.minutes && <p className="text-red-500 text-xs mt-1">{errors.minutes.message}</p>}
@@ -160,9 +195,10 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
           </label>
           <input
             type="number"
-            step="0.1"
-            min="0"
-            {...register('miles')}
+            step="any"
+            placeholder="Miles"
+            value={miles}
+            onChange={(e) => handleValueChange('miles', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -176,8 +212,10 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
           </label>
           <input
             type="number"
-            min="0"
-            {...register('weightLifted')}
+            step="any"
+            placeholder="Weight (lbs)"
+            value={weightLifted}
+            onChange={(e) => handleValueChange('weightLifted', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
