@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react'
 import { WorkoutTable } from './WorkoutTable'
 import { MonthlySummary } from './MonthlySummary'
 import { ProgressChart } from './ProgressChart'
-import { GoalTracker } from './GoalTracker'
-import { WorkoutSummary } from './WorkoutSummary'
 import { WorkoutModal } from './WorkoutModal'
 import { GoalModal } from './GoalModal'
+import { GoalTracker } from './GoalTracker'
+import { WorkoutSummary } from './WorkoutSummary'
+import { WorkoutForm } from './WorkoutForm'
 import { Plus } from 'lucide-react'
 
 export interface WorkoutSession {
@@ -371,22 +372,6 @@ export function WorkoutDashboard() {
     await deleteSession(id)
   }
 
-  const handleAddGoal = () => {
-    setEditingGoal(undefined)
-    setIsGoalModalOpen(true)
-  }
-
-  const handleEditGoal = (goal: Goal) => {
-    setEditingGoal(goal)
-    setIsGoalModalOpen(true)
-  }
-
-  const handleDeleteGoal = async (id: string) => {
-    if (confirm('Are you sure you want to delete this goal?')) {
-      await deleteGoal(id)
-    }
-  }
-
   const handleGoalSubmit = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date()
     
@@ -510,7 +495,6 @@ export function WorkoutDashboard() {
               setEditingGoal(goal)
               setIsGoalModalOpen(true)
             }}
-            onDeleteGoal={handleDeleteGoal}
           />
         </div>
         <div className="card p-6">

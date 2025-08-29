@@ -45,10 +45,6 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  
   body {
     @apply bg-gray-50 text-gray-900 dark:bg-dark-bg dark:text-gray-50;
     font-feature-settings: "rlig" 1, "calt" 1;
