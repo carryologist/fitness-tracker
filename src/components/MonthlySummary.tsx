@@ -5,11 +5,11 @@ import { formatNumber } from '../utils/numberFormat'
 
 interface MonthlySummaryProps {
   sessions: WorkoutSession[]
-  selectedMonth: number | null
+  selectedMonths: number[]
   onMonthSelect: (month: number) => void
 }
 
-export function MonthlySummary({ sessions, selectedMonth, onMonthSelect }: MonthlySummaryProps) {
+export function MonthlySummary({ sessions, selectedMonths, onMonthSelect }: MonthlySummaryProps) {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -50,7 +50,7 @@ export function MonthlySummary({ sessions, selectedMonth, onMonthSelect }: Month
           <tbody>
             {months.map((month, index) => {
               const monthData = getMonthData(index)
-              const isSelected = selectedMonth === index
+              const isSelected = selectedMonths.includes(index)
               const hasData = monthData.sessions > 0
               
               return (
@@ -72,7 +72,7 @@ export function MonthlySummary({ sessions, selectedMonth, onMonthSelect }: Month
                           ? 'text-primary-600 dark:text-primary-400' 
                           : hasData 
                             ? 'text-gray-900 dark:text-gray-100' 
-                            : 'text-gray-400 dark:text-gray-600'
+                            : 'text-gray-400 dark:text-gray-500'
                       }`}>
                         {month}
                       </span>
@@ -84,22 +84,22 @@ export function MonthlySummary({ sessions, selectedMonth, onMonthSelect }: Month
                     </div>
                   </td>
                   <td className={`text-right py-3 px-2 ${
-                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-600'
+                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
                   }`}>
                     {formatNumber(monthData.sessions)}
                   </td>
                   <td className={`text-right py-3 px-2 ${
-                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-600'
+                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
                   }`}>
                     {formatNumber(monthData.minutes)}
                   </td>
                   <td className={`text-right py-3 px-2 ${
-                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-600'
+                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
                   }`}>
                     {formatNumber(monthData.miles)}
                   </td>
                   <td className={`text-right py-3 px-2 ${
-                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-600'
+                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
                   }`}>
                     {formatNumber(monthData.weight)}
                   </td>

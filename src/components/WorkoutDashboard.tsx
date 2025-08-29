@@ -177,7 +177,44 @@ export function WorkoutDashboard() {
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
   const [editingSession, setEditingSession] = useState<WorkoutSession | undefined>(undefined)
   const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([])
+
+  // Handle month selection
+  const handleMonthSelect = (month: number) => {
+    setSelectedMonths(prev => {
+      const isSelected = prev.includes(month)
+      if (isSelected) {
+        // Remove month
+        const newSelection = prev.filter(m => m !== month)
+        // If no months selected, go back to annual
+        if (newSelection.length === 0) {
+          setChartView('annual')
+        }
+        return newSelection
+      } else {
+        // Add month
+        const newSelection = [...prev, month]
+        // Update chart view based on selection
+        if (newSelection.length === 1) {
+          setChartView('monthly')
+        } else {
+          setChartView('custom')
+        }
+        return newSelection
+      }
+    })
+  }
+
+  // Handle view change from chart
+  const handleChartViewChange = (view: 'annual' | 'monthly' | 'custom') => {
+    setChartView(view)
+    if (view === 'annual') {
+      setSelectedMonths([])
+    } else if (view === 'monthly' && selectedMonths.length === 0) {
+      // Default to current month
+      setSelectedMonths([new Date().getMonth()])
+    }
+  }
 
   // Load sessions from localStorage on mount
   useEffect(() => {
@@ -422,13 +459,13 @@ export function WorkoutDashboard() {
           <ProgressChart 
             sessions={sessions}
             initialViewMode={chartView}
-            onViewModeChange={setChartView}
-            initialSelectedMonth={selectedMonth !== null ? new Date(new Date().getFullYear(), selectedMonth) : new Date()}
+            onViewModeChange={handleChartViewChange}
+            selectedMonths={selectedMonths.map(m => new Date(new Date().getFullYear(), m))}
           />
           <MonthlySummary 
             sessions={sessions}
-            selectedMonth={selectedMonth}
-            onMonthSelect={setSelectedMonth}
+            selectedMonths={selectedMonths}
+            onMonthSelect={handleMonthSelect}
           />
         </div>
 
