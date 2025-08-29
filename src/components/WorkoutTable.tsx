@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { WorkoutSession } from './WorkoutDashboard'
-import { ChevronUp, ChevronDown, Filter, Pencil, Trash2 } from 'lucide-react'
+import { Edit2, Trash2 } from 'lucide-react'
+import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutTableProps {
   sessions: WorkoutSession[]
@@ -17,34 +18,9 @@ type SortDirection = 'asc' | 'desc'
 export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) {
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
-  const [filters, setFilters] = useState({
-    source: '',
-    activity: '',
-    minMinutes: '',
-    maxMinutes: ''
-  })
-  const [showFilters, setShowFilters] = useState(false)
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDirection('asc')
-    }
-  }
-
-  const filteredAndSortedSessions = useMemo(() => {
-    const filtered = sessions.filter(session => {
-      const matchesSource = !filters.source || session.source.toLowerCase().includes(filters.source.toLowerCase())
-      const matchesActivity = !filters.activity || session.activity.toLowerCase().includes(filters.activity.toLowerCase())
-      const matchesMinMinutes = !filters.minMinutes || session.minutes >= parseInt(filters.minMinutes)
-      const matchesMaxMinutes = !filters.maxMinutes || session.minutes <= parseInt(filters.maxMinutes)
-      
-      return matchesSource && matchesActivity && matchesMinMinutes && matchesMaxMinutes
-    })
-
-    return filtered.sort((a, b) => {
+  const sortedSessions = useMemo(() => {
+    return sessions.sort((a, b) => {
       let aValue: string | number
       let bValue: string | number
 
@@ -81,23 +57,7 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
       return 0
     })
-  }, [sessions, sortField, sortDirection, filters])
-
-  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <th 
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {children}
-        {sortField === field && (
-          sortDirection === 'asc' ? 
-            <ChevronUp className="w-3 h-3" /> : 
-            <ChevronDown className="w-3 h-3" />
-        )}
-      </div>
-    </th>
-  )
+  }, [sessions, sortField, sortDirection])
 
   if (sessions.length === 0) {
     return (
@@ -108,140 +68,97 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filter Toggle */}
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-gray-600">
-          Showing {filteredAndSortedSessions.length} of {sessions.length} sessions
-        </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-        >
-          <Filter className="w-4 h-4" />
-          {showFilters ? 'Hide Filters' : 'Show Filters'}
-        </button>
+    <div className="overflow-x-auto">
+      <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+        Showing {sessions.length} of {sessions.length} sessions
       </div>
-
-      {/* Filters */}
-      {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Source</label>
-              <input
-                type="text"
-                placeholder="Filter by source..."
-                value={filters.source}
-                onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Activity</label>
-              <input
-                type="text"
-                placeholder="Filter by activity..."
-                value={filters.activity}
-                onChange={(e) => setFilters(prev => ({ ...prev, activity: e.target.value }))}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Min Minutes</label>
-              <input
-                type="number"
-                placeholder="Min..."
-                value={filters.minMinutes}
-                onChange={(e) => setFilters(prev => ({ ...prev, minMinutes: e.target.value }))}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Max Minutes</label>
-              <input
-                type="number"
-                placeholder="Max..."
-                value={filters.maxMinutes}
-                onChange={(e) => setFilters(prev => ({ ...prev, maxMinutes: e.target.value }))}
-                className="w-full px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-gray-200 dark:border-gray-700">
+            <th className="text-left py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Date
+            </th>
+            <th className="text-left py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Source
+            </th>
+            <th className="text-left py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Activity
+            </th>
+            <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Minutes
+            </th>
+            <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Miles
+            </th>
+            <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Weight Lifted
+            </th>
+            <th className="text-left py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Notes
+            </th>
+            <th className="text-center py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          {sortedSessions.map((session) => (
+            <tr 
+              key={session.id} 
+              className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+            >
+              <td className="py-3 px-2 text-sm text-gray-900 dark:text-gray-100">
+                {format(session.date, 'M/d/yy')}
+              </td>
+              <td className="py-3 px-2 text-sm text-gray-900 dark:text-gray-100">
+                {session.source}
+              </td>
+              <td className="py-3 px-2 text-sm text-gray-900 dark:text-gray-100">
+                {session.activity}
+              </td>
+              <td className="py-3 px-2 text-sm text-right text-gray-900 dark:text-gray-100">
+                {session.minutes}
+              </td>
+              <td className="py-3 px-2 text-sm text-right text-gray-900 dark:text-gray-100">
+                {session.miles ? session.miles.toFixed(1) : '-'}
+              </td>
+              <td className="py-3 px-2 text-sm text-right text-gray-900 dark:text-gray-100">
+                {session.weightLifted ? formatNumber(session.weightLifted) : '-'}
+              </td>
+              <td className="py-3 px-2 text-sm text-gray-600 dark:text-gray-400">
+                {session.notes || '-'}
+              </td>
+              <td className="py-3 px-2 text-center">
+                <div className="flex items-center justify-center gap-1">
+                  {onEdit && (
+                    <button
+                      onClick={() => onEdit(session)}
+                      className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                      title="Edit workout"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(session.id)}
+                      className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                      title="Delete workout"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {sessions.length === 0 && (
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          No workout sessions recorded yet.
         </div>
       )}
-
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <SortableHeader field="date">Date</SortableHeader>
-              <SortableHeader field="source">Source</SortableHeader>
-              <SortableHeader field="activity">Activity</SortableHeader>
-              <SortableHeader field="minutes">Minutes</SortableHeader>
-              <SortableHeader field="miles">Miles</SortableHeader>
-              <SortableHeader field="weightLifted">Weight Lifted</SortableHeader>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Notes
-              </th>
-              <th className="px-6 py-3" />
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredAndSortedSessions.map((session) => (
-              <tr key={session.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {format(session.date, 'M/d/yy')}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {session.source}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {session.activity}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {session.minutes}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {session.miles ? session.miles.toFixed(1) : '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {session.weightLifted ? session.weightLifted.toLocaleString() : '-'}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  {session.notes || '-'}
-                </td>
-                <td className="px-6 py-4 text-right whitespace-nowrap">
-                  <div className="flex items-center gap-2 justify-end">
-                    {onEdit && (
-                      <button
-                        onClick={() => onEdit(session)}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50"
-                        title="Edit"
-                      >
-                        <Pencil className="w-4 h-4" /> Edit
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button
-                        onClick={() => {
-                          if (confirm('Delete this workout? This cannot be undone.')) onDelete(session.id)
-                        }}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-white border border-red-300 text-red-600 rounded hover:bg-red-50"
-                        title="Delete"
-                        aria-label="Delete workout"
-                      >
-                        <Trash2 className="w-4 h-4" /> Delete
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }

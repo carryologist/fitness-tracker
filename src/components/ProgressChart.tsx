@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { WorkoutSession } from './WorkoutDashboard'
 import { format, startOfMonth, eachMonthOfInterval, min, max, eachDayOfInterval, endOfMonth, addMonths, subMonths } from 'date-fns'
+import { useTheme } from './ThemeProvider'
 import { Calendar, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
@@ -24,6 +25,8 @@ export function ProgressChart({
   onMonthChange,
   onViewModeChange
 }: ProgressChartProps) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const [viewMode, setViewMode] = useState<'annual' | 'monthly' | 'custom'>(initialViewMode)
   const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
 
@@ -174,6 +177,15 @@ export function ProgressChart({
     )
   }
 
+  const chartColors = {
+    text: isDark ? '#9ca3af' : '#6b7280',
+    grid: isDark ? '#374151' : '#e5e7eb',
+    tooltip: {
+      bg: isDark ? '#1f2937' : '#ffffff',
+      border: isDark ? '#374151' : '#e5e7eb'
+    }
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 flex-shrink-0 gap-4">
@@ -213,16 +225,69 @@ export function ProgressChart({
       </div>
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 15, left: 10, bottom: 60 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="period" tick={{ fontSize: 10 }} angle={viewMode === 'monthly' ? 0 : -45} textAnchor={viewMode === 'monthly' ? 'middle' : 'end'} height={viewMode === 'monthly' ? 30 : 60} interval={viewMode === 'monthly' ? 2 : 0} />
-            <YAxis yAxisId="left" domain={domains.left} tick={{ fontSize: 10 }} tickFormatter={(value) => formatNumber(value as number)} label={{ value: 'Minutes / Miles', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: '10px' }, offset: -5 }} width={50} />
-            <YAxis yAxisId="right" orientation="right" domain={domains.right} tick={{ fontSize: 10 }} tickFormatter={(value) => formatNumber(value as number)} label={{ value: 'Weight (lbs)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle', fontSize: '10px' }, offset: -5 }} width={60} />
-            <Tooltip formatter={(value: number, name: string) => { if (name === 'minutes') return [formatNumber(value), 'Minutes']; if (name === 'miles') return [formatNumber(value), 'Miles']; if (name === 'weight') return [formatNumber(value), 'Weight Lifted (lbs)']; return [formatNumber(value), name] }} />
-            <Legend />
-            <Line yAxisId="left" type="monotone" dataKey="minutes" stroke="#3B82F6" strokeWidth={3} name="Minutes" dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }} />
-            <Line yAxisId="left" type="monotone" dataKey="miles" stroke="#10B981" strokeWidth={3} name="Miles" dot={{ fill: '#10B981', strokeWidth: 2, r: 5 }} />
-            <Line yAxisId="right" type="monotone" dataKey="weight" stroke="#F59E0B" strokeWidth={3} name="Weight Lifted (lbs)" dot={{ fill: '#F59E0B', strokeWidth: 2, r: 5 }} />
+          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+            <XAxis 
+              dataKey="period" 
+              tick={{ fontSize: 11, fill: chartColors.text }}
+              stroke={chartColors.text}
+            />
+            <YAxis 
+              yAxisId="left"
+              tick={{ fontSize: 11, fill: chartColors.text }}
+              stroke={chartColors.text}
+              label={{ value: 'Minutes / Miles', angle: -90, position: 'insideLeft', style: { fill: chartColors.text } }}
+            />
+            <YAxis 
+              yAxisId="right" 
+              orientation="right"
+              tick={{ fontSize: 11, fill: chartColors.text }}
+              stroke={chartColors.text}
+              label={{ value: 'Weight (lbs)', angle: 90, position: 'insideRight', style: { fill: chartColors.text } }}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: chartColors.tooltip.bg,
+                border: `1px solid ${chartColors.tooltip.border}`,
+                borderRadius: '0.375rem'
+              }}
+              labelStyle={{ color: chartColors.text }}
+            />
+            <Legend 
+              wrapperStyle={{ paddingTop: '20px' }}
+              iconType="line"
+              formatter={(value) => <span style={{ color: chartColors.text }}>{value}</span>}
+            />
+            <Line 
+              yAxisId="left" 
+              type="monotone" 
+              dataKey="miles" 
+              stroke="#10b981" 
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              name="Miles"
+            />
+            <Line 
+              yAxisId="left" 
+              type="monotone" 
+              dataKey="minutes" 
+              stroke="#3b82f6" 
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              name="Minutes"
+            />
+            <Line 
+              yAxisId="right" 
+              type="monotone" 
+              dataKey="weight" 
+              stroke="#f97316" 
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              name="Weight Lifted (lbs)"
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>

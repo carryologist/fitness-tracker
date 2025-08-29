@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react'
 import { WorkoutTable } from './WorkoutTable'
 import { MonthlySummary } from './MonthlySummary'
 import { ProgressChart } from './ProgressChart'
-import { GoalTracker } from './GoalTracker'
-import { WorkoutSummary } from './WorkoutSummary'
 import { WorkoutModal } from './WorkoutModal'
 import { GoalModal } from './GoalModal'
+import { GoalTracker } from './GoalTracker'
+import { WorkoutSummary } from './WorkoutSummary'
+import { WorkoutForm } from './WorkoutForm'
+import { AddWorkoutDialog } from './AddWorkoutDialog'
 import { Plus } from 'lucide-react'
 
 export interface WorkoutSession {
@@ -175,40 +177,47 @@ export function WorkoutDashboard() {
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
   const [editingSession, setEditingSession] = useState<WorkoutSession | undefined>(undefined)
-  const [chartViewMode, setChartViewMode] = useState<'annual' | 'monthly'>('annual')
-  const [selectedChartMonth, setSelectedChartMonth] = useState(new Date())
-  const [selectedMonths, setSelectedMonths] = useState<Date[]>([])
+  const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([])
 
-  // Handle view mode changes from ProgressChart
-  const handleViewModeChange = (mode: 'annual' | 'monthly' | 'custom') => {
-    if (mode === 'annual') {
-      setSelectedMonths([])
-    }
-    setChartViewMode(mode === 'custom' ? 'annual' : mode)
-  }
-
-  // Toggle a month selection; if none selected after toggle, default to annual view
-  const toggleMonth = (month: Date) => {
+  // Handle month selection
+  const handleMonthSelect = (month: number) => {
     setSelectedMonths(prev => {
-      const key = month.toISOString().slice(0, 7)
-      const exists = prev.some(m => m.toISOString().slice(0,7) === key)
-      const next = exists ? prev.filter(m => m.toISOString().slice(0,7) !== key) : [...prev, month]
-      if (next.length === 0) {
-        setChartViewMode('annual')
-      } else if (next.length === 1) {
-        // When exactly one month is selected, show Monthly view for that month
-        setSelectedChartMonth(next[0])
+      const isSelected = prev.includes(month)
+      if (isSelected) {
+        // Remove month
+        const newSelection = prev.filter(m => m !== month)
+        // If no months selected, go back to annual
+        if (newSelection.length === 0) {
+          setChartView('annual')
+        }
+        return newSelection
+      } else {
+        // Add month
+        const newSelection = [...prev, month]
+        // Update chart view based on selection
+        if (newSelection.length === 1) {
+          setChartView('monthly')
+        } else {
+          setChartView('custom')
+        }
+        return newSelection
       }
-      return next
     })
   }
 
-  // Compute effective view mode based on selected months
-  const effectiveViewMode: 'annual' | 'monthly' | 'custom' = selectedMonths.length === 0
-    ? chartViewMode
-    : (selectedMonths.length === 1 ? 'monthly' : 'custom')
+  // Handle view change from chart
+  const handleChartViewChange = (view: 'annual' | 'monthly' | 'custom') => {
+    setChartView(view)
+    if (view === 'annual') {
+      setSelectedMonths([])
+    } else if (view === 'monthly' && selectedMonths.length === 0) {
+      // Default to current month
+      setSelectedMonths([new Date().getMonth()])
+    }
+  }
 
-  // Load data on component mount
+  // Load sessions from localStorage on mount
   useEffect(() => {
     loadData()
   }, [])
@@ -358,14 +367,17 @@ export function WorkoutDashboard() {
     }
   }
 
-  const handleAddGoal = () => {
-    setEditingGoal(undefined)
-    setIsGoalModalOpen(true)
+  const handleAddWorkout = async (workout: Omit<WorkoutSession, 'id'>) => {
+    await addSession(workout)
   }
 
-  const handleEditGoal = (goal: Goal) => {
-    setEditingGoal(goal)
-    setIsGoalModalOpen(true)
+  const handleEditWorkout = (session: WorkoutSession) => {
+    setEditingSession(session)
+    setIsModalOpen(true)
+  }
+
+  const handleDeleteWorkout = async (id: string) => {
+    await deleteSession(id)
   }
 
   const handleGoalSubmit = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -441,98 +453,89 @@ export function WorkoutDashboard() {
         </button>
       </div>
 
-      {/* Key Metrics Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Progress Chart - Takes up 2 columns */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-lg flex flex-col">
-          <div className="p-6 border-b flex-shrink-0">
-            <h2 className="text-2xl font-bold text-gray-900">Progress Over Time</h2>
-            <p className="text-gray-600 mt-1">Your fitness journey visualized</p>
-          </div>
-          <div className="p-6 flex-1 min-h-[500px]">
-            <ProgressChart 
-              sessions={sessions} 
-              initialViewMode={effectiveViewMode}
-              initialSelectedMonth={selectedChartMonth}
-              selectedMonths={selectedMonths}
-              onMonthChange={setSelectedChartMonth}
-              onViewModeChange={handleViewModeChange}
-            />
-          </div>
-        </div>
-
-        {/* Monthly Summary - 1 column */}
-        <div className="bg-white rounded-lg shadow-lg">
-          <div className="p-6 border-b">
-            <h2 className="text-xl font-bold text-gray-900">Monthly Summary</h2>
-            <p className="text-gray-600 mt-1">Recent performance</p>
-          </div>
-          <div className="p-6">
-            <MonthlySummary 
-              sessions={sessions} 
-              onToggleMonth={toggleMonth}
-              selectedMonths={selectedMonths}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Goal Tracker - Full width, prominent */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-lg">
-        <div className="p-6 border-b border-blue-100">
-          <h2 className="text-2xl font-bold text-gray-900">Goal Progress</h2>
-          <p className="text-gray-600 mt-1">Track your fitness targets</p>
-        </div>
-        <div className="p-6">
-          <GoalTracker 
-            goals={goals} 
-            sessions={sessions} 
-            onAddGoal={handleAddGoal}
-            onEditGoal={handleEditGoal}
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <ProgressChart 
+            sessions={sessions}
+            initialViewMode={chartView}
+            onViewModeChange={handleChartViewChange}
+            selectedMonths={selectedMonths.map(m => new Date(new Date().getFullYear(), m))}
+          />
+          <MonthlySummary 
+            sessions={sessions}
+            selectedMonths={selectedMonths}
+            onMonthSelect={handleMonthSelect}
           />
         </div>
-      </div>
 
-      {/* Workout Summary */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Workout Statistics</h2>
-          <p className="text-gray-600 mt-1">Summary of your training patterns</p>
+        {/* Goals and Summary Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="card p-6">
+            <GoalTracker 
+              goals={{
+                annual: {
+                  sessions: 260,
+                  minutes: 10400,
+                  miles: 520,
+                  weight: 520000
+                },
+                monthly: {
+                  sessions: 22,
+                  minutes: 867,
+                  miles: 43,
+                  weight: 43333
+                }
+              }}
+              sessions={sessions}
+            />
+          </div>
+          <div className="card p-6">
+            <WorkoutSummary sessions={sessions} />
+          </div>
         </div>
-        <div className="p-6">
-          <WorkoutSummary sessions={sessions} />
-        </div>
-      </div>
 
-      {/* Workout History */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Workout History</h2>
-          <p className="text-gray-600 mt-1">All your recorded sessions</p>
+        {/* Add Workout Form */}
+        <div className="card p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add Workout</h2>
+          <WorkoutForm onSubmit={handleAddWorkout} />
         </div>
-        <WorkoutTable
-          sessions={sessions}
-          onEdit={(s) => { setEditingSession(s); setIsModalOpen(true) }}
-          onDelete={(id) => deleteSession(id)}
+
+        {/* Workout History */}
+        <div className="card">
+          <div className="p-6 border-b border-gray-200 dark:border-dark-border">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Workout History</h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">View and manage your past workouts</p>
+          </div>
+          <div className="p-6">
+            <WorkoutTable 
+              sessions={sessions} 
+              onEdit={handleEditWorkout}
+              onDelete={handleDeleteWorkout}
+            />
+          </div>
+        </div>
+
+        {/* Add Workout Modal */}
+        <AddWorkoutDialog
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false)
+            setEditingSession(undefined)
+          }}
+          onSubmit={editingSession ? (data) => updateSession(editingSession.id, data) : addSession}
+          editingSession={editingSession}
         />
-      </div>
 
-      {/* Modal */}
-      <WorkoutModal
-        isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditingSession(undefined) }}
-        onSubmit={(data) => editingSession ? updateSession(editingSession.id, data) : addSession(data)}
-        initial={editingSession}
-        submitLabel={editingSession ? 'Save Changes' : 'Add Workout Session'}
-      />
-
-      {/* Goal Modal */}
-      <GoalModal 
-        isOpen={isGoalModalOpen}
-        onClose={() => setIsGoalModalOpen(false)}
-        onSubmit={handleGoalSubmit}
-        existingGoal={editingGoal}
-      />
+        {/* Goal Modal */}
+        <GoalModal 
+          isOpen={isGoalModalOpen}
+          onClose={() => setIsGoalModalOpen(false)}
+          onSubmit={handleGoalSubmit}
+          existingGoal={editingGoal}
+        />
+      </main>
     </div>
   )
 }

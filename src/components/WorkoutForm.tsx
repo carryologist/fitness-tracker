@@ -203,33 +203,29 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
     <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Date */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Date
         </label>
         <input
           type="date"
           {...register('date', { required: 'Date is required' })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
         />
         {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date.message}</p>}
       </div>
 
       {/* Source */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Source
         </label>
         <select
           {...register('source', { required: 'Source is required' })}
           onChange={(e) => {
-            const newSource = e.target.value;
-            setValue('source', newSource);
-            if (newSource !== 'Other') {
-              setValue('activity', ''); // Reset activity when changing to non-Other source
-              setCustomActivity('');
-            }
+            setValue('source', e.target.value);
+            setValue('activity', ''); // Reset activity when source changes
           }}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
         >
           <option value="">Select source</option>
           {sources.map(src => (
@@ -241,77 +237,25 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
 
       {/* Activity */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Activity
         </label>
-        {showCustomInput ? (
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Enter custom activity..."
-              value={customActivity}
-              onChange={(e) => {
-                setCustomActivity(e.target.value)
-                setValue('activity', e.target.value || 'Other')
-                // Show suggestions if there are matches
-                const filtered = customSuggestions.filter(s => 
-                  s.toLowerCase().includes(e.target.value.toLowerCase())
-                )
-                setShowSuggestions(filtered.length > 0 && e.target.value.length > 0)
-              }}
-              onFocus={() => {
-                const filtered = customSuggestions.filter(s => 
-                  s.toLowerCase().includes(customActivity.toLowerCase())
-                )
-                setShowSuggestions(filtered.length > 0 && customActivity.length > 0)
-              }}
-              onBlur={() => {
-                // Delay to allow clicking on suggestions
-                setTimeout(() => setShowSuggestions(false), 200)
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            {/* Suggestions dropdown */}
-            {showSuggestions && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-auto">
-                {customSuggestions
-                  .filter(s => s.toLowerCase().includes(customActivity.toLowerCase()))
-                  .map((suggestion, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setCustomActivity(suggestion)
-                        setValue('activity', suggestion)
-                        setShowSuggestions(false)
-                      }}
-                      className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <select
-            {...register('activity', { required: 'Activity is required' })}
-            disabled={!source}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          >
-            <option value="">Select activity</option>
-            {activities.map(act => (
-              <option key={act} value={act}>{act}</option>
-            ))}
-          </select>
-        )}
-        {errors.activity && !showCustomInput && <p className="text-red-500 text-xs mt-1">{errors.activity.message}</p>}
+        <select
+          {...register('activity', { required: 'Activity is required' })}
+          disabled={!source}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
+        >
+          <option value="">Select activity</option>
+          {activities.map(act => (
+            <option key={act} value={act}>{act}</option>
+          ))}
+        </select>
+        {errors.activity && <p className="text-red-500 text-xs mt-1">{errors.activity.message}</p>}
       </div>
 
       {/* Minutes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Minutes
         </label>
         <input
@@ -320,7 +264,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
           placeholder="Minutes"
           value={minutes}
           onChange={(e) => handleValueChange('minutes', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
         />
         {errors.minutes && <p className="text-red-500 text-xs mt-1">{errors.minutes.message}</p>}
       </div>
@@ -328,7 +272,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
       {/* Miles (conditional) */}
       {showMiles && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Miles
           </label>
           <input
@@ -337,7 +281,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
             placeholder="Miles"
             value={miles}
             onChange={(e) => handleValueChange('miles', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
         </div>
       )}
@@ -345,7 +289,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
       {/* Weight Lifted (conditional) */}
       {showWeight && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Weight Lifted (lbs)
           </label>
           <input
@@ -354,21 +298,21 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
             placeholder="Weight (lbs)"
             value={weightLifted}
             onChange={(e) => handleValueChange('weightLifted', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
         </div>
       )}
 
       {/* Notes */}
-      <div className="md:col-span-2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+      <div className="col-span-full">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Notes (optional)
         </label>
-        <input
-          type="text"
+        <textarea
           {...register('notes')}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Any additional notes..."
+          rows={3}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
         />
       </div>
 
