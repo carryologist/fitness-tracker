@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { WorkoutSession, Goal } from './WorkoutDashboard'
 import { calculateGoalProgress } from '../utils/goalCalculations'
-import { Plus, Edit3, Target, TrendingUp, Calendar, Clock } from 'lucide-react'
+import { Plus, Edit2, Target, Calendar, Weight } from 'lucide-react'
 
 interface GoalTrackerProps {
   goals: Goal[]
@@ -20,7 +20,11 @@ export function GoalTracker({ goals, sessions, onAddGoal, onEditGoal }: GoalTrac
     return calculateGoalProgress(activeGoal, sessions)
   }, [activeGoal, sessions])
 
-  if (!activeGoal) {
+  const formatNumber = (value: number) => {
+    return value.toLocaleString('en-US')
+  }
+
+  if (goals.length === 0) {
     return (
       <div className="text-center py-12">
         <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -37,195 +41,110 @@ export function GoalTracker({ goals, sessions, onAddGoal, onEditGoal }: GoalTrac
     )
   }
 
-  if (!progress) return null
-
-  const ProgressCard = ({ 
-    title, 
-    icon, 
-    actual, 
-    expected, 
-    target, 
-    unit, 
-    period 
-  }: {
-    title: string
-    icon: React.ReactNode
-    actual: number
-    expected: number
-    target: number
-    unit: string
-    period: string
-  }) => {
-    const percentage = expected > 0 ? Math.min((actual / expected) * 100, 999) : 0
-    const isAhead = actual >= expected && expected > 0
-    const isOnTrack = percentage >= 90 && percentage < 999
-    
+  if (!activeGoal || !progress) {
     return (
-      <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-              {icon}
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">{title}</h3>
-              <p className="text-sm text-gray-600">{period}</p>
-            </div>
-          </div>
-          <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-            isAhead ? 'bg-green-100 text-green-800' : 
-            isOnTrack ? 'bg-yellow-100 text-yellow-800' : 
-            'bg-red-100 text-red-800'
-          }`}>
-            {isAhead ? 'Ahead' : isOnTrack ? 'On Track' : 'Behind'}
-          </div>
-        </div>
-        
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span>Actual Progress</span>
-            <span className="font-medium">
-              {actual >= 1000000 
-                ? `${(actual / 1000000).toFixed(1)}M` 
-                : actual.toLocaleString()} {unit}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>Expected Progress</span>
-            <span>
-              {expected >= 1000000 
-                ? `${(expected / 1000000).toFixed(1)}M` 
-                : Math.round(expected).toLocaleString()} {unit}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>Total Target</span>
-            <span>
-              {target >= 1000000 
-                ? `${(target / 1000000).toFixed(1)}M` 
-                : target.toLocaleString()} {unit}
-            </span>
-          </div>
-          
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className={`h-2 rounded-full transition-all duration-300 ${
-                isAhead ? 'bg-green-500' : isOnTrack ? 'bg-yellow-500' : 'bg-red-500'
-              }`}
-              style={{ width: `${Math.min(percentage, 100)}%` }}
-            />
-          </div>
-          
-          <div className="text-xs text-gray-500">
-            {percentage >= 999 ? 'Infinity' : Math.round(percentage)}% of expected progress
-          </div>
-        </div>
+      <div className="text-center py-12">
+        <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Goal for {new Date().getFullYear()}</h3>
+        <p className="text-gray-600 mb-6">Create a goal for this year to track your progress</p>
+        <button
+          onClick={onAddGoal}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Create {new Date().getFullYear()} Goal
+        </button>
       </div>
     )
+  }
+
+  // Calculate progress percentages
+  const actualProgress = {
+    weight: progress.actualWeightLifted.quarterToDate,
+    minutes: progress.actualMinutes.quarterToDate,
+    sessions: progress.actualSessions.quarterToDate
+  }
+
+  const expectedProgress = {
+    weight: progress.expectedWeightLifted.quarterToDate,
+    minutes: progress.expectedMinutes.quarterToDate,
+    sessions: progress.expectedSessions.quarterToDate
+  }
+
+  const progressPercentage = {
+    weight: expectedProgress.weight > 0 ? (actualProgress.weight / expectedProgress.weight) * 100 : 0,
+    minutes: expectedProgress.minutes > 0 ? (actualProgress.minutes / expectedProgress.minutes) * 100 : 0,
+    sessions: expectedProgress.sessions > 0 ? (actualProgress.sessions / expectedProgress.sessions) * 100 : 0
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{activeGoal.name}</h2>
-          <p className="text-gray-600">Q{progress.currentQuarter} {progress.currentYear} Progress</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">{activeGoal.name}</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Q3 {activeGoal.year} Progress</p>
         </div>
         <button
           onClick={() => onEditGoal(activeGoal)}
-          className="inline-flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
         >
-          <Edit3 className="w-4 h-4" />
-          Edit Goal
+          <Edit2 className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Quarterly Progress */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
-          Quarterly Progress (Q{progress.currentQuarter})
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ProgressCard
-            title="Weight Lifted"
-            icon={<Target className="w-4 h-4" />}
-            actual={progress.actualWeightLifted.quarterToDate}
-            expected={progress.expectedWeightLifted.quarterToDate}
-            target={activeGoal.quarterlyWeightTarget}
-            unit="lbs"
-            period="This Quarter"
-          />
-          <ProgressCard
-            title="Minutes Completed"
-            icon={<Clock className="w-4 h-4" />}
-            actual={progress.actualMinutes.quarterToDate}
-            expected={progress.expectedMinutes.quarterToDate}
-            target={activeGoal.quarterlyMinutesTarget}
-            unit="min"
-            period="This Quarter"
-          />
-          <ProgressCard
-            title="Sessions Completed"
-            icon={<TrendingUp className="w-4 h-4" />}
-            actual={progress.actualSessions.quarterToDate}
-            expected={progress.expectedSessions.quarterToDate}
-            target={activeGoal.quarterlySessionsTarget}
-            unit="sessions"
-            period="This Quarter"
-          />
-        </div>
-      </div>
-
-      {/* Annual Progress */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5" />
-          Annual Progress ({progress.currentYear})
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ProgressCard
-            title="Weight Lifted"
-            icon={<Target className="w-4 h-4" />}
-            actual={progress.actualWeightLifted.yearToDate}
-            expected={progress.expectedWeightLifted.yearToDate}
-            target={activeGoal.annualWeightTarget}
-            unit="lbs"
-            period="This Year"
-          />
-          <ProgressCard
-            title="Minutes Completed"
-            icon={<Clock className="w-4 h-4" />}
-            actual={progress.actualMinutes.yearToDate}
-            expected={progress.expectedMinutes.yearToDate}
-            target={activeGoal.annualMinutesTarget}
-            unit="min"
-            period="This Year"
-          />
-          <ProgressCard
-            title="Sessions Completed"
-            icon={<TrendingUp className="w-4 h-4" />}
-            actual={progress.actualSessions.yearToDate}
-            expected={progress.expectedSessions.yearToDate}
-            target={activeGoal.weeklySessionsTarget * 52}
-            unit="sessions"
-            period="This Year"
-          />
-        </div>
-      </div>
-
-      {/* Sessions Needed */}
-      <div className="bg-blue-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-4">Sessions Needed</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg p-4">
-            <div className="text-2xl font-bold text-blue-600">{progress.sessionsNeededForQuarter}</div>
-            <div className="text-sm text-gray-600">more sessions needed for quarterly goal</div>
+      <div className="space-y-6">
+        {/* Quarterly Progress */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <h3 className="font-semibold text-gray-900 dark:text-gray-50">Quarterly Progress (Q3)</h3>
           </div>
-          <div className="bg-white rounded-lg p-4">
-            <div className="text-2xl font-bold text-orange-600">{progress.daysRemainingInQuarter}</div>
-            <div className="text-sm text-gray-600">days remaining in quarter</div>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between items-baseline mb-2">
+                <div className="flex items-center gap-2">
+                  <Weight className="w-4 h-4 text-primary-500" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Weight Lifted</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">This Quarter</span>
+                </div>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {progressPercentage.weight.toFixed(0)}% of expected progress
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Actual Progress</span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-50">
+                    {formatNumber(actualProgress.weight)} lbs
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Expected Progress</span>
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {formatNumber(expectedProgress.weight)} lbs
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Total Target</span>
+                  <span className="text-gray-900 dark:text-gray-100">
+                    {formatNumber(activeGoal.quarterlyWeightTarget)} lbs
+                  </span>
+                </div>
+                <div className="relative pt-2">
+                  <div className="overflow-hidden h-2 text-xs flex rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div
+                      style={{ width: `${Math.min(progressPercentage.weight, 100)}%` }}
+                      className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${
+                        progressPercentage.weight >= 100 ? 'bg-success-500' : 
+                        progressPercentage.weight >= 75 ? 'bg-primary-500' : 
+                        progressPercentage.weight >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

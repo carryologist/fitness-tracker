@@ -176,40 +176,10 @@ export function WorkoutDashboard() {
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
   const [editingSession, setEditingSession] = useState<WorkoutSession | undefined>(undefined)
-  const [chartViewMode, setChartViewMode] = useState<'annual' | 'monthly'>('annual')
-  const [selectedChartMonth, setSelectedChartMonth] = useState(new Date())
-  const [selectedMonths, setSelectedMonths] = useState<Date[]>([])
+  const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
 
-  // Handle view mode changes from ProgressChart
-  const handleViewModeChange = (mode: 'annual' | 'monthly' | 'custom') => {
-    if (mode === 'annual') {
-      setSelectedMonths([])
-    }
-    setChartViewMode(mode === 'custom' ? 'annual' : mode)
-  }
-
-  // Toggle a month selection; if none selected after toggle, default to annual view
-  const toggleMonth = (month: Date) => {
-    setSelectedMonths(prev => {
-      const key = month.toISOString().slice(0, 7)
-      const exists = prev.some(m => m.toISOString().slice(0,7) === key)
-      const next = exists ? prev.filter(m => m.toISOString().slice(0,7) !== key) : [...prev, month]
-      if (next.length === 0) {
-        setChartViewMode('annual')
-      } else if (next.length === 1) {
-        // When exactly one month is selected, show Monthly view for that month
-        setSelectedChartMonth(next[0])
-      }
-      return next
-    })
-  }
-
-  // Compute effective view mode based on selected months
-  const effectiveViewMode: 'annual' | 'monthly' | 'custom' = selectedMonths.length === 0
-    ? chartViewMode
-    : (selectedMonths.length === 1 ? 'monthly' : 'custom')
-
-  // Load data on component mount
+  // Load sessions from localStorage on mount
   useEffect(() => {
     loadData()
   }, [])
@@ -445,100 +415,82 @@ export function WorkoutDashboard() {
         </button>
       </div>
 
-      {/* Key Metrics Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Progress Chart - 2 columns */}
-        <div className="card">
-          <div className="p-6 border-b border-gray-200 dark:border-dark-border flex-shrink-0">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Progress Over Time</h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Your fitness journey visualized</p>
-          </div>
-          <div className="p-6 flex-1 min-h-[500px]">
-            <ProgressChart 
-              sessions={sessions} 
-              initialViewMode={effectiveViewMode}
-              initialSelectedMonth={selectedChartMonth}
-              selectedMonths={selectedMonths}
-              onMonthChange={setSelectedChartMonth}
-              onViewModeChange={handleViewModeChange}
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <ProgressChart 
+            sessions={sessions}
+            initialViewMode={chartView}
+            onViewModeChange={setChartView}
+            initialSelectedMonth={selectedMonth !== null ? new Date(new Date().getFullYear(), selectedMonth) : new Date()}
+          />
+          <MonthlySummary 
+            sessions={sessions}
+            selectedMonth={selectedMonth}
+            onMonthSelect={setSelectedMonth}
+          />
+        </div>
+
+        {/* Goals and Summary Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="card p-6">
+            <GoalTracker 
+              goals={goals}
+              sessions={sessions}
+              onAddGoal={() => {
+                setEditingGoal(undefined)
+                setIsGoalModalOpen(true)
+              }}
+              onEditGoal={(goal) => {
+                setEditingGoal(goal)
+                setIsGoalModalOpen(true)
+              }}
             />
+          </div>
+          <div className="card p-6">
+            <WorkoutSummary sessions={sessions} />
           </div>
         </div>
 
-        {/* Monthly Summary - 1 column */}
+        {/* Add Workout Form */}
+        <div className="card p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add Workout</h2>
+          <WorkoutForm onSubmit={handleAddWorkout} />
+        </div>
+
+        {/* Workout History */}
         <div className="card">
           <div className="p-6 border-b border-gray-200 dark:border-dark-border">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Summary</h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Recent performance</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Workout History</h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">View and manage your past workouts</p>
           </div>
           <div className="p-6">
-            <MonthlySummary 
+            <WorkoutTable 
               sessions={sessions} 
-              onToggleMonth={toggleMonth}
-              selectedMonths={selectedMonths}
+              onEdit={handleEditWorkout}
+              onDelete={handleDeleteWorkout}
             />
           </div>
         </div>
-      </div>
 
-      {/* Goal Tracker and Summary Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="card p-6">
-          <GoalTracker 
-            goals={goals} 
-            sessions={sessions}
-            onAddGoal={() => {
-              setEditingGoal(undefined)
-              setIsGoalModalOpen(true)
-            }}
-            onEditGoal={(goal) => {
-              setEditingGoal(goal)
-              setIsGoalModalOpen(true)
-            }}
-          />
-        </div>
-        <div className="card p-6">
-          <WorkoutSummary sessions={sessions} />
-        </div>
-      </div>
+        {/* Modal */}
+        <WorkoutModal
+          isOpen={isModalOpen}
+          onClose={() => { setIsModalOpen(false); setEditingSession(undefined) }}
+          onSubmit={(data) => editingSession ? updateSession(editingSession.id, data) : addSession(data)}
+          initial={editingSession}
+          submitLabel={editingSession ? 'Save Changes' : 'Add Workout Session'}
+        />
 
-      {/* Add Workout Form */}
-      <div className="card p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add Workout</h2>
-        <WorkoutForm onSubmit={handleAddWorkout} />
-      </div>
-
-      {/* Workout History */}
-      <div className="card">
-        <div className="p-6 border-b border-gray-200 dark:border-dark-border">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Workout History</h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">View and manage your past workouts</p>
-        </div>
-        <div className="p-6">
-          <WorkoutTable 
-            sessions={sessions} 
-            onEdit={handleEditWorkout}
-            onDelete={handleDeleteWorkout}
-          />
-        </div>
-      </div>
-
-      {/* Modal */}
-      <WorkoutModal
-        isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditingSession(undefined) }}
-        onSubmit={(data) => editingSession ? updateSession(editingSession.id, data) : addSession(data)}
-        initial={editingSession}
-        submitLabel={editingSession ? 'Save Changes' : 'Add Workout Session'}
-      />
-
-      {/* Goal Modal */}
-      <GoalModal 
-        isOpen={isGoalModalOpen}
-        onClose={() => setIsGoalModalOpen(false)}
-        onSubmit={handleGoalSubmit}
-        existingGoal={editingGoal}
-      />
+        {/* Goal Modal */}
+        <GoalModal 
+          isOpen={isGoalModalOpen}
+          onClose={() => setIsGoalModalOpen(false)}
+          onSubmit={handleGoalSubmit}
+          existingGoal={editingGoal}
+        />
+      </main>
     </div>
   )
 }
