@@ -1,272 +1,279 @@
 'use client'
 
-import { useMemo } from 'react'
-import { WorkoutSession, Goal } from './WorkoutDashboard'
-import { calculateGoalProgress } from '../utils/goalCalculations'
-import { Plus, Edit2, Target, Calendar, Weight, Clock, TrendingUp } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { WorkoutSession } from './WorkoutDashboard'
+import { Target, TrendingUp, Calendar, Activity, Dumbbell, CheckCircle } from 'lucide-react'
+import { formatNumber } from '../utils/numberFormat'
 
 interface GoalTrackerProps {
-  goals: Goal[]
   sessions: WorkoutSession[]
-  onAddGoal: () => void
-  onEditGoal: (goal: Goal) => void
+  goals: {
+    annual: {
+      sessions: number
+      minutes: number
+      miles: number
+      weight: number
+    }
+    monthly: {
+      sessions: number
+      minutes: number
+      miles: number
+      weight: number
+    }
+  }
 }
 
-export function GoalTracker({ goals, sessions, onAddGoal, onEditGoal }: GoalTrackerProps) {
-  const activeGoal = goals.find(g => g.year === new Date().getFullYear())
-  
+export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
+  const [viewMode, setViewMode] = useState<'monthly' | 'annual'>('monthly')
+  const currentDate = new Date()
+  const currentMonth = currentDate.getMonth()
+  const currentYear = currentDate.getFullYear()
+  const currentQuarter = Math.floor(currentMonth / 3) + 1
+
+  // Calculate progress for current period
   const progress = useMemo(() => {
-    if (!activeGoal) return null
-    return calculateGoalProgress(activeGoal, sessions)
-  }, [activeGoal, sessions])
+    if (viewMode === 'monthly') {
+      // Monthly progress
+      const monthSessions = sessions.filter(s => {
+        const sessionDate = new Date(s.date)
+        return sessionDate.getMonth() === currentMonth && 
+               sessionDate.getFullYear() === currentYear
+      })
 
-  const formatNumber = (value: number) => {
-    return value.toLocaleString('en-US')
-  }
+      return {
+        sessions: monthSessions.length,
+        minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
+        miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
+        weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+      }
+    } else {
+      // Annual progress
+      const yearSessions = sessions.filter(s => {
+        const sessionDate = new Date(s.date)
+        return sessionDate.getFullYear() === currentYear
+      })
 
-  if (goals.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Goals</h3>
-        <p className="text-gray-600 mb-6">Set up your fitness challenge goals to track your progress</p>
-        <button
-          onClick={onAddGoal}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create Goal
-        </button>
-      </div>
-    )
-  }
+      return {
+        sessions: yearSessions.length,
+        minutes: yearSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
+        miles: yearSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
+        weight: yearSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+      }
+    }
+  }, [sessions, currentMonth, currentYear, viewMode])
 
-  if (!activeGoal || !progress) {
-    return (
-      <div className="text-center py-12">
-        <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Goal for {new Date().getFullYear()}</h3>
-        <p className="text-gray-600 mb-6">Create a goal for this year to track your progress</p>
-        <button
-          onClick={onAddGoal}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create {new Date().getFullYear()} Goal
-        </button>
-      </div>
-    )
-  }
+  // Calculate expected progress based on current date
+  const expectedProgress = useMemo(() => {
+    const now = new Date()
+    
+    if (viewMode === 'monthly') {
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+      const daysPassed = now.getDate()
+      const monthProgress = daysPassed / daysInMonth
 
-  // Calculate progress percentages
-  const actualProgress = {
-    weight: progress.actualWeightLifted.quarterToDate,
-    minutes: progress.actualMinutes.quarterToDate,
-    sessions: progress.actualSessions.quarterToDate
-  }
+      return {
+        sessions: goals.monthly.sessions * monthProgress,
+        minutes: goals.monthly.minutes * monthProgress,
+        miles: goals.monthly.miles * monthProgress,
+        weight: goals.monthly.weight * monthProgress
+      }
+    } else {
+      const startOfYear = new Date(currentYear, 0, 1)
+      const daysPassed = Math.floor((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      const yearProgress = daysPassed / 365
 
-  const expectedProgress = {
-    weight: progress.expectedWeightLifted.quarterToDate,
-    minutes: progress.expectedMinutes.quarterToDate,
-    sessions: progress.expectedSessions.quarterToDate
-  }
+      return {
+        sessions: goals.annual.sessions * yearProgress,
+        minutes: goals.annual.minutes * yearProgress,
+        miles: goals.annual.miles * yearProgress,
+        weight: goals.annual.weight * yearProgress
+      }
+    }
+  }, [currentMonth, currentYear, goals, viewMode])
 
-  const progressPercentage = {
-    weight: expectedProgress.weight > 0 ? (actualProgress.weight / expectedProgress.weight) * 100 : 0,
-    minutes: expectedProgress.minutes > 0 ? (actualProgress.minutes / expectedProgress.minutes) * 100 : 0,
-    sessions: expectedProgress.sessions > 0 ? (actualProgress.sessions / expectedProgress.sessions) * 100 : 0
-  }
+  const currentGoals = viewMode === 'monthly' ? goals.monthly : goals.annual
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">{activeGoal.name}</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Q3 {activeGoal.year} Progress</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">
+            2025 Fitness Challenge
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Track your progress towards your {viewMode} goals
+          </p>
         </div>
-        <button
-          onClick={() => onEditGoal(activeGoal)}
-          className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-        >
-          <Edit2 className="w-4 h-4" />
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setViewMode('monthly')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              viewMode === 'monthly'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setViewMode('annual')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              viewMode === 'annual'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            Annual
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-6">
-        {/* Quarterly Progress */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <h3 className="font-semibold text-gray-900 dark:text-gray-50">Quarterly Progress (Q3)</h3>
+      {/* Progress Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Weight Lifted */}
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+              <Dumbbell className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Weight Lifted</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {progress.weight >= expectedProgress.weight ? 'On Track' : 'Behind'}
+              </p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Weight Lifted */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <div className="flex justify-between items-baseline mb-2">
-                <div className="flex items-center gap-2">
-                  <Weight className="w-4 h-4 text-primary-500" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Weight Lifted</span>
-                </div>
-                <span className="text-xs px-2 py-1 rounded-full ${
-                  progressPercentage.weight >= 100 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                  progressPercentage.weight >= 75 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
-                  'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                }">
-                  {progressPercentage.weight >= 100 ? 'On Track' : 'Behind'}
-                </span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Actual</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-50">
-                    {formatNumber(actualProgress.weight)} lbs
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Expected</span>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {formatNumber(expectedProgress.weight)} lbs
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Target</span>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {formatNumber(activeGoal.quarterlyWeightTarget)} lbs
-                  </span>
-                </div>
-                <div className="relative pt-2">
-                  <div className="overflow-hidden h-2 text-xs flex rounded-full bg-gray-200 dark:bg-gray-700">
-                    <div
-                      style={{ width: `${Math.min(progressPercentage.weight, 100)}%` }}
-                      className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${
-                        progressPercentage.weight >= 100 ? 'bg-success-500' : 
-                        progressPercentage.weight >= 75 ? 'bg-primary-500' : 
-                        progressPercentage.weight >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                    />
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
-                    {progressPercentage.weight.toFixed(0)}% of expected
-                  </div>
-                </div>
-              </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Actual</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                {formatNumber(progress.weight)} lbs
+              </span>
             </div>
-
-            {/* Minutes Completed */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <div className="flex justify-between items-baseline mb-2">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Minutes</span>
-                </div>
-                <span className="text-xs px-2 py-1 rounded-full ${
-                  progressPercentage.minutes >= 100 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                  progressPercentage.minutes >= 75 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
-                  'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                }">
-                  {progressPercentage.minutes >= 100 ? 'On Track' : 'Behind'}
-                </span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Actual</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-50">
-                    {formatNumber(actualProgress.minutes)} min
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Expected</span>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {formatNumber(expectedProgress.minutes)} min
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Target</span>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {formatNumber(activeGoal.quarterlyMinutesTarget)} min
-                  </span>
-                </div>
-                <div className="relative pt-2">
-                  <div className="overflow-hidden h-2 text-xs flex rounded-full bg-gray-200 dark:bg-gray-700">
-                    <div
-                      style={{ width: `${Math.min(progressPercentage.minutes, 100)}%` }}
-                      className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${
-                        progressPercentage.minutes >= 100 ? 'bg-success-500' : 
-                        progressPercentage.minutes >= 75 ? 'bg-blue-500' : 
-                        progressPercentage.minutes >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                    />
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
-                    {progressPercentage.minutes.toFixed(0)}% of expected
-                  </div>
-                </div>
-              </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Expected</span>
+              <span className="text-gray-700 dark:text-gray-300">
+                {formatNumber(Math.round(expectedProgress.weight))} lbs
+              </span>
             </div>
-
-            {/* Sessions Completed */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <div className="flex justify-between items-baseline mb-2">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-green-500" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sessions</span>
-                </div>
-                <span className="text-xs px-2 py-1 rounded-full ${
-                  progressPercentage.sessions >= 100 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                  progressPercentage.sessions >= 75 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
-                  'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                }">
-                  {progressPercentage.sessions >= 100 ? 'On Track' : 'Behind'}
-                </span>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Target</span>
+              <span className="text-gray-700 dark:text-gray-300">
+                {formatNumber(currentGoals.weight)} lbs
+              </span>
+            </div>
+            
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                <span>Progress</span>
+                <span>{Math.round((progress.weight / currentGoals.weight) * 100)}%</span>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Actual</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-50">
-                    {actualProgress.sessions} sessions
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Expected</span>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {Math.round(expectedProgress.sessions)} sessions
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Target</span>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {activeGoal.quarterlySessionsTarget} sessions
-                  </span>
-                </div>
-                <div className="relative pt-2">
-                  <div className="overflow-hidden h-2 text-xs flex rounded-full bg-gray-200 dark:bg-gray-700">
-                    <div
-                      style={{ width: `${Math.min(progressPercentage.sessions, 100)}%` }}
-                      className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${
-                        progressPercentage.sessions >= 100 ? 'bg-success-500' : 
-                        progressPercentage.sessions >= 75 ? 'bg-green-500' : 
-                        progressPercentage.sessions >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                    />
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
-                    {progressPercentage.sessions.toFixed(0)}% of expected
-                  </div>
-                </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min(100, (progress.weight / currentGoals.weight) * 100)}%` }}
+                />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Annual Progress */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <h3 className="font-semibold text-gray-900 dark:text-gray-50">Annual Progress (2025)</h3>
+        {/* Minutes */}
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Minutes Completed</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {progress.minutes >= expectedProgress.minutes ? 'On Track' : 'Behind'}
+              </p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Similar structure for annual metrics */}
+          
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Actual</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                {formatNumber(progress.minutes)} min
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Expected</span>
+              <span className="text-gray-700 dark:text-gray-300">
+                {formatNumber(Math.round(expectedProgress.minutes))} min
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Target</span>
+              <span className="text-gray-700 dark:text-gray-300">
+                {formatNumber(currentGoals.minutes)} min
+              </span>
+            </div>
+            
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                <span>Progress</span>
+                <span>{Math.round((progress.minutes / currentGoals.minutes) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min(100, (progress.minutes / currentGoals.minutes) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sessions */}
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Sessions Completed</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {progress.sessions >= expectedProgress.sessions ? 'On Track' : 'Behind'}
+              </p>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Actual</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                {progress.sessions} sessions
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Expected</span>
+              <span className="text-gray-700 dark:text-gray-300">
+                {Math.round(expectedProgress.sessions)} sessions
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Target</span>
+              <span className="text-gray-700 dark:text-gray-300">
+                {currentGoals.sessions} sessions
+              </span>
+            </div>
+            
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                <span>Progress</span>
+                <span>{Math.round((progress.sessions / currentGoals.sessions) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min(100, (progress.sessions / currentGoals.sessions) * 100)}%` }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

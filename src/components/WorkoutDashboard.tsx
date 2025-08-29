@@ -9,6 +9,7 @@ import { GoalModal } from './GoalModal'
 import { GoalTracker } from './GoalTracker'
 import { WorkoutSummary } from './WorkoutSummary'
 import { WorkoutForm } from './WorkoutForm'
+import { AddWorkoutDialog } from './AddWorkoutDialog'
 import { Plus } from 'lucide-react'
 
 export interface WorkoutSession {
@@ -473,16 +474,21 @@ export function WorkoutDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="card p-6">
             <GoalTracker 
-              goals={goals}
+              goals={{
+                annual: {
+                  sessions: 260,
+                  minutes: 10400,
+                  miles: 520,
+                  weight: 520000
+                },
+                monthly: {
+                  sessions: 22,
+                  minutes: 867,
+                  miles: 43,
+                  weight: 43333
+                }
+              }}
               sessions={sessions}
-              onAddGoal={() => {
-                setEditingGoal(undefined)
-                setIsGoalModalOpen(true)
-              }}
-              onEditGoal={(goal) => {
-                setEditingGoal(goal)
-                setIsGoalModalOpen(true)
-              }}
             />
           </div>
           <div className="card p-6">
@@ -511,13 +517,15 @@ export function WorkoutDashboard() {
           </div>
         </div>
 
-        {/* Modal */}
-        <WorkoutModal
+        {/* Add Workout Modal */}
+        <AddWorkoutDialog
           isOpen={isModalOpen}
-          onClose={() => { setIsModalOpen(false); setEditingSession(undefined) }}
-          onSubmit={(data) => editingSession ? updateSession(editingSession.id, data) : addSession(data)}
-          initial={editingSession}
-          submitLabel={editingSession ? 'Save Changes' : 'Add Workout Session'}
+          onClose={() => {
+            setIsModalOpen(false)
+            setEditingSession(undefined)
+          }}
+          onSubmit={editingSession ? (data) => updateSession(editingSession.id, data) : addSession}
+          editingSession={editingSession}
         />
 
         {/* Goal Modal */}
