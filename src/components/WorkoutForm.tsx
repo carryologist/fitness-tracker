@@ -1,6 +1,8 @@
+'use client'
+
+import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { WorkoutSession } from './WorkoutDashboard'
-import { useEffect, useMemo } from 'react'
 
 interface WorkoutFormData {
   date: string
@@ -25,13 +27,37 @@ function toLocalDateInputValue(d: Date) {
   return today
 }
 
-function parseLocalDateInput(s: string) {
-  const [y, m, d] = s.split('-').map((v) => parseInt(v, 10))
-  if (!y || !m || !d) return new Date(NaN)
-  return new Date(y, m - 1, d)
+function parseLocalDateInput(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number)
+  return new Date(year, month - 1, day)
 }
 
-export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps) {
+// Helper to get custom activities from localStorage
+function getStoredCustomActivities(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem('customActivities')
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+}
+
+// Helper to save custom activity to localStorage
+function saveCustomActivity(activity: string) {
+  if (typeof window === 'undefined') return
+  try {
+    const stored = getStoredCustomActivities()
+    if (!stored.includes(activity)) {
+      const updated = [...stored, activity].slice(-20) // Keep last 20 custom activities
+      localStorage.setItem('customActivities', JSON.stringify(updated))
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
+export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: WorkoutFormProps) {
   // Default to today, or initial date if provided
   const today = useMemo(() => new Date(), [])
   const defaultDate = toLocalDateInputValue(initial?.date ?? today)
@@ -65,6 +91,31 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
   const minutes = watch('minutes')
   const miles = watch('miles')
   const weightLifted = watch('weightLifted')
+  
+  // State for custom activity input
+  const [customActivity, setCustomActivity] = useState('')
+  const [showCustomInput, setShowCustomInput] = useState(false)
+  const [customSuggestions, setCustomSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  
+  // Load stored custom activities on mount
+  useEffect(() => {
+    setCustomSuggestions(getStoredCustomActivities())
+  }, [])
+  
+  // Watch for source changes to toggle custom input
+  useEffect(() => {
+    if (source === 'Other') {
+      setShowCustomInput(true)
+      setValue('activity', customActivity || 'Other')
+    } else {
+      setShowCustomInput(false)
+      setCustomActivity('')
+      if (source) {
+        setValue('activity', '') // Reset activity when source changes
+      }
+    }
+  }, [source, customActivity, setValue])
 
   const sources = ['Peloton', 'Tonal', 'Cannondale', 'Gym', 'Other']
   
@@ -85,24 +136,55 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
   
   const activities = getFilteredActivities();
   
-  // Show miles field for cardio activities
-  const showMiles = activity === 'Cycling' || activity === 'Outdoor cycling' || activity === 'Running' || activity === 'Swimming' || activity === 'Walking';
-  // Show weight lifted for strength activities or Tonal
-  const showWeight = activity === 'Weight lifting' || source === 'Tonal'
+  // Show miles field for cardio activities or custom activities with cardio keywords
+  const showMiles = (() => {
+    const cardioActivities = ['Cycling', 'Outdoor cycling', 'Running', 'Swimming', 'Walking'];
+    if (cardioActivities.includes(activity)) return true;
+    
+    // For custom activities, check for cardio-related keywords
+    if (source === 'Other' && customActivity) {
+      const cardioKeywords = ['run', 'walk', 'swim', 'bike', 'cycle', 'jog', 'hike', 'row'];
+      return cardioKeywords.some(keyword => 
+        customActivity.toLowerCase().includes(keyword)
+      );
+    }
+    return false;
+  })();
+  
+  // Show weight lifted for strength activities or custom activities with strength keywords
+  const showWeight = (() => {
+    if (activity === 'Weight lifting' || source === 'Tonal') return true;
+    
+    // For custom activities, check for strength-related keywords
+    if (source === 'Other' && customActivity) {
+      const strengthKeywords = ['weight', 'lift', 'strength', 'gym', 'dumbbell', 'barbell', 'press', 'curl', 'squat'];
+      return strengthKeywords.some(keyword => 
+        customActivity.toLowerCase().includes(keyword)
+      );
+    }
+    return false;
+  })();
 
   const onFormSubmit = (data: WorkoutFormData) => {
+    const finalActivity = source === 'Other' && customActivity ? customActivity : data.activity
+    
+    // Save custom activity to localStorage if it's from Other source
+    if (source === 'Other' && customActivity) {
+      saveCustomActivity(customActivity)
+    }
+    
     const session: Omit<WorkoutSession, 'id'> = {
       date: parseLocalDateInput(data.date),
       source: data.source,
-      activity: data.activity,
-      minutes: data.minutes,
-      miles: showMiles ? data.miles : undefined,
-      weightLifted: showWeight ? data.weightLifted : undefined,
+      activity: finalActivity,
+      minutes: Number(data.minutes),
+      miles: data.miles ? Number(data.miles) : undefined,
+      weightLifted: data.weightLifted ? Number(data.weightLifted) : undefined,
       notes: data.notes || undefined
     }
-    
     onSubmit(session)
     reset()
+    setCustomActivity('') // Reset custom activity
   }
 
   const handleValueChange = (field: 'minutes' | 'miles' | 'weightLifted', value: string) => {
@@ -140,8 +222,12 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
         <select
           {...register('source', { required: 'Source is required' })}
           onChange={(e) => {
-            setValue('source', e.target.value);
-            setValue('activity', ''); // Reset activity when source changes
+            const newSource = e.target.value;
+            setValue('source', newSource);
+            if (newSource !== 'Other') {
+              setValue('activity', ''); // Reset activity when changing to non-Other source
+              setCustomActivity('');
+            }
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -158,17 +244,69 @@ export function WorkoutForm({ onSubmit, initial, submitLabel }: WorkoutFormProps
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Activity
         </label>
-        <select
-          {...register('activity', { required: 'Activity is required' })}
-          disabled={!source}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-        >
-          <option value="">Select activity</option>
-          {activities.map(act => (
-            <option key={act} value={act}>{act}</option>
-          ))}
-        </select>
-        {errors.activity && <p className="text-red-500 text-xs mt-1">{errors.activity.message}</p>}
+        {showCustomInput ? (
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Enter custom activity..."
+              value={customActivity}
+              onChange={(e) => {
+                setCustomActivity(e.target.value)
+                setValue('activity', e.target.value || 'Other')
+                // Show suggestions if there are matches
+                const filtered = customSuggestions.filter(s => 
+                  s.toLowerCase().includes(e.target.value.toLowerCase())
+                )
+                setShowSuggestions(filtered.length > 0 && e.target.value.length > 0)
+              }}
+              onFocus={() => {
+                const filtered = customSuggestions.filter(s => 
+                  s.toLowerCase().includes(customActivity.toLowerCase())
+                )
+                setShowSuggestions(filtered.length > 0 && customActivity.length > 0)
+              }}
+              onBlur={() => {
+                // Delay to allow clicking on suggestions
+                setTimeout(() => setShowSuggestions(false), 200)
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+            {/* Suggestions dropdown */}
+            {showSuggestions && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-auto">
+                {customSuggestions
+                  .filter(s => s.toLowerCase().includes(customActivity.toLowerCase()))
+                  .map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setCustomActivity(suggestion)
+                        setValue('activity', suggestion)
+                        setShowSuggestions(false)
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <select
+            {...register('activity', { required: 'Activity is required' })}
+            disabled={!source}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          >
+            <option value="">Select activity</option>
+            {activities.map(act => (
+              <option key={act} value={act}>{act}</option>
+            ))}
+          </select>
+        )}
+        {errors.activity && !showCustomInput && <p className="text-red-500 text-xs mt-1">{errors.activity.message}</p>}
       </div>
 
       {/* Minutes */}
