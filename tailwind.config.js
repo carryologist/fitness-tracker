@@ -1,6 +1,5 @@
-import type { Config } from 'tailwindcss'
-
-const config: Config = {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   darkMode: 'class',
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
@@ -19,7 +18,7 @@ const config: Config = {
           300: '#A5B4FC',
           400: '#818CF8',
           500: '#6366F1',
-          600: '#4F46E5', // Main brand color
+          600: '#4F46E5',
           700: '#4338CA',
           800: '#3730A3',
           900: '#312E81',
@@ -31,7 +30,7 @@ const config: Config = {
           200: '#FED7AA',
           300: '#FDBA74',
           400: '#FB923C',
-          500: '#FF6B35', // Strava-inspired orange
+          500: '#FF6B35',
           600: '#EA580C',
           700: '#C2410C',
           800: '#9A3412',
@@ -43,7 +42,7 @@ const config: Config = {
           200: '#BBF7D0',
           300: '#86EFAC',
           400: '#4ADE80',
-          500: '#10B981', // Success green
+          500: '#10B981',
           600: '#16A34A',
           700: '#15803D',
           800: '#166534',
@@ -62,7 +61,6 @@ const config: Config = {
           900: '#111827',
           950: '#030712',
         },
-        // Dark mode specific
         dark: {
           bg: '#0F172A',
           card: '#1E293B',
@@ -97,18 +95,11 @@ const config: Config = {
         'small': ['0.875rem', { lineHeight: '1.25rem' }],
         'caption': ['0.75rem', { lineHeight: '1rem' }],
       },
-      spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
-        '120': '30rem',
-      },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'slide-down': 'slideDown 0.3s ease-out',
         'scale-up': 'scaleUp 0.2s ease-out',
-        'spin-slow': 'spin 3s linear infinite',
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
         fadeIn: {
@@ -134,14 +125,6 @@ const config: Config = {
         'large': '0 8px 24px rgba(0, 0, 0, 0.16)',
         'glow': '0 0 20px rgba(99, 102, 241, 0.3)',
       },
-      borderRadius: {
-        'xl': '1rem',
-        '2xl': '1.5rem',
-      },
-      transitionDuration: {
-        '250': '250ms',
-        '350': '350ms',
-      },
     },
   },
   plugins: [
@@ -150,5 +133,3 @@ const config: Config = {
     }),
   ],
 }
-
-export default config

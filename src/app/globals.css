@@ -73,7 +73,7 @@
 @layer components {
   /* Modern card style */
   .card {
-    @apply bg-white dark:bg-dark-card rounded-xl shadow-soft hover:shadow-medium transition-shadow duration-250;
+    @apply bg-white dark:bg-dark-card rounded-xl shadow-soft hover:shadow-medium transition-shadow duration-300;
   }
 
   /* Primary button style */
