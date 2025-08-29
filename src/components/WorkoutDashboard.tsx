@@ -358,6 +358,19 @@ export function WorkoutDashboard() {
     }
   }
 
+  const handleAddWorkout = async (workout: Omit<WorkoutSession, 'id'>) => {
+    await addSession(workout)
+  }
+
+  const handleEditWorkout = (session: WorkoutSession) => {
+    setEditingSession(session)
+    setIsModalOpen(true)
+  }
+
+  const handleDeleteWorkout = async (id: string) => {
+    await deleteSession(id)
+  }
+
   const handleAddGoal = () => {
     setEditingGoal(undefined)
     setIsGoalModalOpen(true)
@@ -366,6 +379,12 @@ export function WorkoutDashboard() {
   const handleEditGoal = (goal: Goal) => {
     setEditingGoal(goal)
     setIsGoalModalOpen(true)
+  }
+
+  const handleDeleteGoal = async (id: string) => {
+    if (confirm('Are you sure you want to delete this goal?')) {
+      await deleteGoal(id)
+    }
   }
 
   const handleGoalSubmit = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -443,11 +462,11 @@ export function WorkoutDashboard() {
 
       {/* Key Metrics Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Progress Chart - Takes up 2 columns */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-lg flex flex-col">
-          <div className="p-6 border-b flex-shrink-0">
-            <h2 className="text-2xl font-bold text-gray-900">Progress Over Time</h2>
-            <p className="text-gray-600 mt-1">Your fitness journey visualized</p>
+        {/* Progress Chart - 2 columns */}
+        <div className="card">
+          <div className="p-6 border-b border-gray-200 dark:border-dark-border flex-shrink-0">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Progress Over Time</h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Your fitness journey visualized</p>
           </div>
           <div className="p-6 flex-1 min-h-[500px]">
             <ProgressChart 
@@ -462,10 +481,10 @@ export function WorkoutDashboard() {
         </div>
 
         {/* Monthly Summary - 1 column */}
-        <div className="bg-white rounded-lg shadow-lg">
-          <div className="p-6 border-b">
-            <h2 className="text-xl font-bold text-gray-900">Monthly Summary</h2>
-            <p className="text-gray-600 mt-1">Recent performance</p>
+        <div className="card">
+          <div className="p-6 border-b border-gray-200 dark:border-dark-border">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Summary</h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Recent performance</p>
           </div>
           <div className="p-6">
             <MonthlySummary 
@@ -477,44 +496,47 @@ export function WorkoutDashboard() {
         </div>
       </div>
 
-      {/* Goal Tracker - Full width, prominent */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-lg">
-        <div className="p-6 border-b border-blue-100">
-          <h2 className="text-2xl font-bold text-gray-900">Goal Progress</h2>
-          <p className="text-gray-600 mt-1">Track your fitness targets</p>
-        </div>
-        <div className="p-6">
+      {/* Goal Tracker and Summary Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="card p-6">
           <GoalTracker 
             goals={goals} 
-            sessions={sessions} 
-            onAddGoal={handleAddGoal}
-            onEditGoal={handleEditGoal}
+            sessions={sessions}
+            onAddGoal={() => {
+              setEditingGoal(undefined)
+              setIsGoalModalOpen(true)
+            }}
+            onEditGoal={(goal) => {
+              setEditingGoal(goal)
+              setIsGoalModalOpen(true)
+            }}
+            onDeleteGoal={handleDeleteGoal}
           />
         </div>
-      </div>
-
-      {/* Workout Summary */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Workout Statistics</h2>
-          <p className="text-gray-600 mt-1">Summary of your training patterns</p>
-        </div>
-        <div className="p-6">
+        <div className="card p-6">
           <WorkoutSummary sessions={sessions} />
         </div>
       </div>
 
+      {/* Add Workout Form */}
+      <div className="card p-6 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add Workout</h2>
+        <WorkoutForm onSubmit={handleAddWorkout} />
+      </div>
+
       {/* Workout History */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">Workout History</h2>
-          <p className="text-gray-600 mt-1">All your recorded sessions</p>
+      <div className="card">
+        <div className="p-6 border-b border-gray-200 dark:border-dark-border">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Workout History</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">View and manage your past workouts</p>
         </div>
-        <WorkoutTable
-          sessions={sessions}
-          onEdit={(s) => { setEditingSession(s); setIsModalOpen(true) }}
-          onDelete={(id) => deleteSession(id)}
-        />
+        <div className="p-6">
+          <WorkoutTable 
+            sessions={sessions} 
+            onEdit={handleEditWorkout}
+            onDelete={handleDeleteWorkout}
+          />
+        </div>
       </div>
 
       {/* Modal */}
