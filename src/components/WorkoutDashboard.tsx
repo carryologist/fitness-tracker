@@ -1,16 +1,29 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import dynamic from 'next/dynamic'
+import { WorkoutForm } from './WorkoutForm'
 import { WorkoutTable } from './WorkoutTable'
-import { MonthlySummary } from './MonthlySummary'
-import { ProgressChart } from './ProgressChart'
 import { WorkoutModal } from './WorkoutModal'
+import { WorkoutSummary } from './WorkoutSummary'
+import { MonthlySummary } from './MonthlySummary'
 import { GoalModal } from './GoalModal'
 import { GoalTracker } from './GoalTracker'
-import { WorkoutSummary } from './WorkoutSummary'
-import { WorkoutForm } from './WorkoutForm'
 import { AddWorkoutDialog } from './AddWorkoutDialog'
 import { Plus } from 'lucide-react'
+
+// Dynamic import for ProgressChart to avoid SSR issues with recharts
+const ProgressChart = dynamic(
+  () => import('./ProgressChart').then(mod => ({ default: mod.ProgressChart })),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-64 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <div className="text-gray-500 dark:text-gray-400">Loading chart...</div>
+      </div>
+    )
+  }
+)
 
 export interface WorkoutSession {
   id: string
@@ -102,6 +115,7 @@ const GOALS_STORAGE_KEY = 'fitness-tracker-goals'
 
 const saveGoalsToStorage = (goals: Goal[]) => {
   try {
+    if (typeof window === 'undefined') return
     localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(goals))
   } catch (error) {
     console.error('Error saving goals to localStorage:', error)
@@ -110,6 +124,7 @@ const saveGoalsToStorage = (goals: Goal[]) => {
 
 const loadGoalsFromStorage = (): Goal[] => {
   try {
+    if (typeof window === 'undefined') return []
     const stored = localStorage.getItem(GOALS_STORAGE_KEY)
     if (stored) {
       const parsed = JSON.parse(stored)
