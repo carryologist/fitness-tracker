@@ -1,29 +1,16 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import dynamic from 'next/dynamic'
 import { WorkoutForm } from './WorkoutForm'
 import { WorkoutTable } from './WorkoutTable'
 import { WorkoutModal } from './WorkoutModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { MonthlySummary } from './MonthlySummary'
+import { ProgressChart } from './ProgressChart'
 import { GoalModal } from './GoalModal'
 import { GoalTracker } from './GoalTracker'
 import { AddWorkoutDialog } from './AddWorkoutDialog'
 import { Plus } from 'lucide-react'
-
-// Dynamic import for ProgressChart to avoid SSR issues with recharts
-const ProgressChart = dynamic(
-  () => import('./ProgressChart').then(mod => ({ default: mod.ProgressChart })),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center h-64 bg-gray-50 dark:bg-gray-800 rounded-lg">
-        <div className="text-gray-500 dark:text-gray-400">Loading chart...</div>
-      </div>
-    )
-  }
-)
 
 export interface WorkoutSession {
   id: string
