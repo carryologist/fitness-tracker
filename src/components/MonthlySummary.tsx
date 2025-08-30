@@ -6,10 +6,10 @@ import { formatNumber } from '../utils/numberFormat'
 interface MonthlySummaryProps {
   sessions: WorkoutSession[]
   selectedMonths: number[]
-  onMonthSelect: (month: number) => void
+  onMonthToggle: (month: number) => void
 }
 
-export function MonthlySummary({ sessions, selectedMonths, onMonthSelect }: MonthlySummaryProps) {
+export function MonthlySummary({ sessions, selectedMonths, onMonthToggle }: MonthlySummaryProps) {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -63,7 +63,7 @@ export function MonthlySummary({ sessions, selectedMonths, onMonthSelect }: Mont
                       : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     }
                   `}
-                  onClick={() => onMonthSelect(index)}
+                  onClick={() => onMonthToggle(index)}
                 >
                   <td className="py-3 px-2">
                     <div className="flex items-center gap-2">
