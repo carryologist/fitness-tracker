@@ -1,52 +1,42 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, min, max, eachMonthOfInterval } from 'date-fns'
 import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { WorkoutSession } from './WorkoutDashboard'
 import { formatNumber } from '../utils/numberFormat'
 
+type ViewMode = 'annual' | 'monthly' | 'custom'
+
 interface ProgressChartProps {
   sessions: WorkoutSession[]
-  initialViewMode?: 'annual' | 'monthly' | 'custom'
-  initialSelectedMonth?: Date
+  viewMode?: ViewMode
+  selectedMonth?: Date
   selectedMonths?: Date[]
   onMonthChange?: (months: Date[]) => void
-  onViewModeChange?: (mode: 'annual' | 'monthly' | 'custom') => void
+  onViewModeChange?: (mode: ViewMode) => void
 }
 
 export function ProgressChart({ 
   sessions, 
-  initialViewMode = 'annual',
-  initialSelectedMonth = new Date(),
+  viewMode: initialViewMode = 'annual',
+  selectedMonth: initialSelectedMonth = new Date(),
   selectedMonths = [],
   onMonthChange,
   onViewModeChange
 }: ProgressChartProps) {
-  const [viewMode, setViewMode] = useState<'annual' | 'monthly' | 'custom'>(initialViewMode)
-  const [selectedMonth, setSelectedMonth] = useState<Date>(initialSelectedMonth)
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
+  const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
+  const [isMobile, setIsMobile] = useState(false)
   
-  React.useEffect(() => {
-    const checkTheme = () => {
-      if (typeof window !== 'undefined') {
-        setIsDarkMode(document.documentElement.classList.contains('dark'))
-      }
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640)
     }
-    
-    checkTheme()
-    
-    // Listen for theme changes
-    const observer = new MutationObserver(checkTheme)
-    if (typeof window !== 'undefined') {
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['class']
-      })
-    }
-    
-    return () => observer.disconnect()
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
   const selectedMonthKeys = useMemo(() => selectedMonths.map(d => format(d, 'yyyy-MM')), [selectedMonths])
@@ -73,93 +63,81 @@ export function ProgressChart({
   const canGoNext = selectedMonth < startOfMonth(new Date())
 
   const chartData = useMemo(() => {
-    if (sessions.length === 0) return []
-
-    // Fallback: no custom months selected => treat as annual
-    if (viewMode === 'custom' && selectedMonthKeys.length === 0) {
-      const dates = sessions.map(s => s.date)
-      const minDate = min(dates)
-      const maxDate = max(dates)
-      const months = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) })
-      return months.map(month => {
-        const monthKey = format(month, 'yyyy-MM')
-        const monthSessions = sessions.filter(session => format(session.date, 'yyyy-MM') === monthKey)
-        return {
-          period: format(month, 'MMM yyyy'),
-          minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
-          miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
-          weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-        }
-      })
-    }
-
-    if (viewMode === 'custom' && selectedMonthKeys.length === 1) {
-      const onlyMonth = selectedMonths[0]
-      const monthStart = startOfMonth(onlyMonth)
-      const monthEnd = endOfMonth(onlyMonth)
-      const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
-      return days.map(day => {
-        const dayKey = format(day, 'yyyy-MM-dd')
-        const daySessions = sessions.filter(session => format(session.date, 'yyyy-MM-dd') === dayKey)
-        return {
-          period: format(day, 'd'),
-          minutes: daySessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
-          miles: daySessions.reduce((sum, s) => sum + (s.miles || 0), 0),
-          weight: daySessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-        }
-      })
-    }
-
-    if (viewMode === 'custom' && selectedMonthKeys.length > 1) {
-      const dates = sessions.map(s => s.date)
-      const minDate = min(dates)
-      const maxDate = max(dates)
-      const months = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) })
-      return months
-        .filter(m => selectedMonthKeys.includes(format(m, 'yyyy-MM')))
-        .map(month => {
-          const monthKey = format(month, 'yyyy-MM')
-          const monthSessions = sessions.filter(session => format(session.date, 'yyyy-MM') === monthKey)
-          return {
-            period: format(month, 'MMM yyyy'),
-            minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
-            miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
-            weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-          }
-        })
-    }
-
     if (viewMode === 'annual') {
-      const dates = sessions.map(s => s.date)
-      const minDate = min(dates)
-      const maxDate = max(dates)
-      const months = eachMonthOfInterval({ start: startOfMonth(minDate), end: startOfMonth(maxDate) })
+      // Annual view - show monthly data
+      const months = eachMonthOfInterval({
+        start: new Date(2025, 0, 1),
+        end: new Date(2025, 11, 31)
+      })
+
       return months.map(month => {
-        const monthKey = format(month, 'yyyy-MM')
-        const monthSessions = sessions.filter(session => format(session.date, 'yyyy-MM') === monthKey)
+        const monthSessions = sessions.filter(s => {
+          const sessionDate = new Date(s.date)
+          return sessionDate.getMonth() === month.getMonth() && 
+                 sessionDate.getFullYear() === month.getFullYear()
+        })
+
+        const totalMinutes = monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
+        const totalMiles = monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0)
+        const totalWeight = monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+
         return {
-          period: format(month, 'MMM yyyy'),
-          minutes: monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
-          miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
-          weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+          label: format(month, 'MMM yyyy'),
+          minutes: totalMinutes,
+          miles: totalMiles,
+          weight: totalWeight
+        }
+      })
+    } else if (viewMode === 'monthly') {
+      // Monthly view - show daily data for selected month
+      const days = eachDayOfInterval({
+        start: startOfMonth(selectedMonth),
+        end: endOfMonth(selectedMonth)
+      })
+
+      return days.map(day => {
+        const daySessions = sessions.filter(s => {
+          const sessionDate = new Date(s.date)
+          return format(sessionDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
+        })
+
+        const totalMinutes = daySessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
+        const totalMiles = daySessions.reduce((sum, s) => sum + (s.miles || 0), 0)
+        const totalWeight = daySessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+
+        return {
+          label: format(day, 'd'),
+          minutes: totalMinutes,
+          miles: totalMiles,
+          weight: totalWeight
         }
       })
     } else {
-      const monthStart = startOfMonth(selectedMonth)
-      const monthEnd = endOfMonth(selectedMonth)
-      const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
-      return days.map(day => {
-        const dayKey = format(day, 'yyyy-MM-dd')
-        const daySessions = sessions.filter(session => format(session.date, 'yyyy-MM-dd') === dayKey)
+      // Custom view - show data for selected months
+      if (selectedMonths.length === 0) return []
+      
+      const sortedMonths = [...selectedMonths].sort((a, b) => a.getTime() - b.getTime())
+      
+      return sortedMonths.map(month => {
+        const monthSessions = sessions.filter(s => {
+          const sessionDate = new Date(s.date)
+          return sessionDate.getMonth() === month.getMonth() && 
+                 sessionDate.getFullYear() === month.getFullYear()
+        })
+
+        const totalMinutes = monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
+        const totalMiles = monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0)
+        const totalWeight = monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+
         return {
-          period: format(day, 'd'),
-          minutes: daySessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
-          miles: daySessions.reduce((sum, s) => sum + (s.miles || 0), 0),
-          weight: daySessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+          label: format(month, 'MMM yyyy'),
+          minutes: totalMinutes,
+          miles: totalMiles,
+          weight: totalWeight
         }
       })
     }
-  }, [sessions, viewMode, selectedMonth, selectedMonthKeys, selectedMonths])
+  }, [sessions, viewMode, selectedMonth, selectedMonths])
 
   const domains = useMemo(() => {
     if (chartData.length === 0) return { left: [0, 50], right: [0, 1000] }
@@ -194,13 +172,45 @@ export function ProgressChart({
     )
   }
 
-  const chartColors = {
-    text: isDarkMode ? '#9ca3af' : '#6b7280',
-    grid: isDarkMode ? '#374151' : '#e5e7eb',
+  const colors = {
+    text: '#6b7280',
+    grid: '#e5e7eb',
     tooltip: {
-      bg: isDarkMode ? '#1f2937' : '#ffffff',
-      border: isDarkMode ? '#374151' : '#e5e7eb'
+      bg: '#ffffff',
+      border: '#e5e7eb'
     }
+  }
+
+  // Format x-axis labels based on screen size
+  const formatXAxisTick = (value: string) => {
+    if (viewMode === 'annual') {
+      if (isMobile) {
+        // Show abbreviated month names on mobile
+        const monthMap: Record<string, string> = {
+          'Jan 2025': 'Jan',
+          'Feb 2025': 'Feb',
+          'Mar 2025': 'Mar',
+          'Apr 2025': 'Apr',
+          'May 2025': 'May',
+          'Jun 2025': 'Jun',
+          'Jul 2025': 'Jul',
+          'Aug 2025': 'Aug',
+          'Sep 2025': 'Sep',
+          'Oct 2025': 'Oct',
+          'Nov 2025': 'Nov',
+          'Dec 2025': 'Dec'
+        }
+        return monthMap[value] || value
+      }
+      // Desktop: show month and year
+      return value.replace(' 2025', '')
+    }
+    // For daily view, show day number only on mobile
+    if (isMobile && viewMode === 'monthly') {
+      const day = parseInt(value)
+      return day % 5 === 1 ? day.toString() : ''
+    }
+    return value
   }
 
   return (
@@ -291,39 +301,59 @@ export function ProgressChart({
       
       <div className="mt-6">
         <div className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+            <LineChart 
+              data={chartData} 
+              margin={{ 
+                top: 5, 
+                right: isMobile ? 5 : 30, 
+                left: isMobile ? 0 : 20, 
+                bottom: 5 
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
               <XAxis 
-                dataKey="period" 
-                tick={{ fontSize: 11, fill: chartColors.text }}
-                stroke={chartColors.text}
+                dataKey="label" 
+                stroke={colors.text}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+                tickFormatter={formatXAxisTick}
+                interval={isMobile && viewMode === 'annual' ? 0 : 'preserveStartEnd'}
+                angle={isMobile && viewMode === 'annual' ? -45 : 0}
+                textAnchor={isMobile && viewMode === 'annual' ? 'end' : 'middle'}
+                height={isMobile && viewMode === 'annual' ? 50 : 30}
               />
               <YAxis 
-                yAxisId="left"
-                tick={{ fontSize: 11, fill: chartColors.text }}
-                stroke={chartColors.text}
-                label={{ value: 'Minutes / Miles', angle: -90, position: 'insideLeft', style: { fill: chartColors.text } }}
+                yAxisId="left" 
+                stroke={colors.text}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+                width={isMobile ? 35 : 60}
+                tickFormatter={(value) => isMobile ? `${value}` : formatNumber(value)}
               />
               <YAxis 
                 yAxisId="right" 
-                orientation="right"
-                tick={{ fontSize: 11, fill: chartColors.text }}
-                stroke={chartColors.text}
-                label={{ value: 'Weight (lbs)', angle: 90, position: 'insideRight', style: { fill: chartColors.text } }}
+                orientation="right" 
+                stroke={colors.text}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+                width={isMobile ? 40 : 60}
+                tickFormatter={(value) => {
+                  if (isMobile) {
+                    return value >= 1000 ? `${(value/1000).toFixed(0)}k` : value.toString()
+                  }
+                  return formatNumber(value)
+                }}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: chartColors.tooltip.bg,
-                  border: `1px solid ${chartColors.tooltip.border}`,
+                  backgroundColor: colors.tooltip.bg,
+                  border: `1px solid ${colors.tooltip.border}`,
                   borderRadius: '0.375rem'
                 }}
-                labelStyle={{ color: chartColors.text }}
+                labelStyle={{ color: colors.text }}
               />
               <Legend 
                 wrapperStyle={{ paddingTop: '20px' }}
                 iconType="line"
-                formatter={(value) => <span style={{ color: chartColors.text }}>{value}</span>}
+                formatter={(value) => <span style={{ color: colors.text }}>{value}</span>}
               />
               <Line 
                 yAxisId="left" 

@@ -217,30 +217,30 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
             {getQuarterLabel(pacingMetrics.currentQuarter)} Pacing Insights
           </h4>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-blue-700 dark:text-blue-300">Sessions needed (45 min)</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Target className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Sessions needed (45 min)</span>
               </div>
-              <span className="font-bold text-blue-900 dark:text-blue-100">
+              <span className="font-bold text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-nowrap">
                 {pacingMetrics.sessionsNeeded} sessions
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-blue-700 dark:text-blue-300">Days remaining</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <CalendarDays className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Days remaining</span>
               </div>
-              <span className="font-bold text-blue-900 dark:text-blue-100">
+              <span className="font-bold text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-nowrap">
                 {pacingMetrics.daysRemaining} days
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-blue-700 dark:text-blue-300">Required pace</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Required pace</span>
               </div>
-              <span className="font-bold text-blue-900 dark:text-blue-100">
+              <span className="font-bold text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-nowrap">
                 {pacingMetrics.dailyPace === 0 ? 'On track!' :
                  pacingMetrics.dailyPace < 0.5 ? 'Every other day' :
                  pacingMetrics.dailyPace < 1 ? `Every ${Math.round(1/pacingMetrics.dailyPace)} days` :

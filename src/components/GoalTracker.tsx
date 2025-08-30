@@ -146,34 +146,35 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">2025 Fitness Challenge</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Track your progress towards your {viewMode === 'quarterly' ? 'quarterly' : 'annual'} goals
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setViewMode('quarterly')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              viewMode === 'quarterly'
-                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            {getQuarterLabel(currentQuarter)}
-          </button>
-          <button
-            onClick={() => setViewMode('annual')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              viewMode === 'annual'
-                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            Annual
-          </button>
+      {/* Header with responsive layout */}
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">2025 Fitness Challenge</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Track your progress towards your quarterly goals</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMode('quarterly')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                viewMode === 'quarterly'
+                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              {getQuarterLabel(currentQuarter)}
+            </button>
+            <button
+              onClick={() => setViewMode('annual')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                viewMode === 'annual'
+                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              Annual
+            </button>
+          </div>
         </div>
       </div>
 

@@ -176,13 +176,13 @@ export function WorkoutDashboard() {
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
-  const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
-  const [editingSession, setEditingSession] = useState<WorkoutSession | undefined>(undefined)
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null)
   const [selectedMonths, setSelectedMonths] = useState<Date[]>([])
   const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
+  const [showAddWorkout, setShowAddWorkout] = useState(false)
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
+  const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
+  const [editingSession, setEditingSession] = useState<WorkoutSession | undefined>(undefined)
 
   // Handle view change from chart
   const handleViewChange = (view: 'annual' | 'monthly' | 'custom') => {
@@ -353,7 +353,7 @@ export function WorkoutDashboard() {
 
   const handleEditWorkout = (session: WorkoutSession) => {
     setEditingSession(session)
-    setIsModalOpen(true)
+    setShowAddWorkout(true)
   }
 
   const handleDeleteWorkout = async (id: string) => {
@@ -420,20 +420,26 @@ export function WorkoutDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center shadow-sm">
                 <span className="text-white font-bold text-xl">F</span>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Fitness Tracker</h1>
+              <div>
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
+                  <span className="hidden sm:inline">Fitness Tracker</span>
+                  <span className="sm:hidden">Fitness</span>
+                </h1>
+                <p className="text-xs text-gray-600 dark:text-gray-400 hidden sm:block">Track your progress</p>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <ThemeToggle />
               <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                onClick={() => setShowAddWorkout(true)}
+                className="bg-primary-500 hover:bg-primary-600 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm"
               >
                 <Plus className="w-5 h-5" />
                 <span className="hidden sm:inline">Add Workout</span>
@@ -556,12 +562,12 @@ export function WorkoutDashboard() {
 
         {/* Add Workout Modal */}
         <AddWorkoutDialog
-          isOpen={isModalOpen}
+          isOpen={showAddWorkout}
           onClose={() => {
-            setIsModalOpen(false)
+            setShowAddWorkout(false)
             setEditingSession(undefined)
           }}
-          onSubmit={editingSession ? (data) => updateSession(editingSession.id, data) : addSession}
+          onSubmit={handleAddWorkout}
           editingSession={editingSession}
         />
 

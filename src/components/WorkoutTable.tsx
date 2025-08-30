@@ -69,96 +69,54 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
 
   return (
     <div className="overflow-x-auto">
-      <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-        Showing {sessions.length} of {sessions.length} sessions
-      </div>
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700">
-            <th className="text-left py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Date
-            </th>
-            <th className="text-left py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Source
-            </th>
-            <th className="text-left py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Activity
-            </th>
-            <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Minutes
-            </th>
-            <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Miles
-            </th>
-            <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Weight Lifted
-            </th>
-            <th className="text-left py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Notes
-            </th>
-            <th className="text-center py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Actions
-            </th>
+            <th className="text-left py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Date</th>
+            <th className="text-left py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Source</th>
+            <th className="text-left py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Activity</th>
+            <th className="text-right py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Minutes</th>
+            <th className="text-right py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Miles</th>
+            <th className="text-right py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Weight</th>
+            <th className="text-center py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+        <tbody>
           {sortedSessions.map((session) => (
-            <tr 
-              key={session.id} 
-              className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-            >
-              <td className="py-3 px-2 text-sm text-gray-900 dark:text-gray-100">
-                {format(session.date, 'M/d/yy')}
+            <tr key={session.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm text-gray-900 dark:text-gray-100">
+                {format(new Date(session.date), 'MMM d, yyyy')}
               </td>
-              <td className="py-3 px-2 text-sm text-gray-900 dark:text-gray-100">
+              <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 {session.source}
               </td>
-              <td className="py-3 px-2 text-sm text-gray-900 dark:text-gray-100">
+              <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 {session.activity}
               </td>
-              <td className="py-3 px-2 text-sm text-right text-gray-900 dark:text-gray-100">
-                {session.minutes}
+              <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                {formatNumber(session.minutes)}
               </td>
-              <td className="py-3 px-2 text-sm text-right text-gray-900 dark:text-gray-100">
-                {session.miles ? session.miles.toFixed(1) : '-'}
+              <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                {session.miles ? formatNumber(session.miles) : '—'}
               </td>
-              <td className="py-3 px-2 text-sm text-right text-gray-900 dark:text-gray-100">
-                {session.weightLifted ? formatNumber(session.weightLifted) : '-'}
+              <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                {session.weightLifted ? formatNumber(session.weightLifted) : '—'}
               </td>
-              <td className="py-3 px-2 text-sm text-gray-600 dark:text-gray-400">
-                {session.notes || '-'}
-              </td>
-              <td className="py-3 px-2 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  {onEdit && (
-                    <button
-                      onClick={() => onEdit(session)}
-                      className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                      title="Edit workout"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button
-                      onClick={() => onDelete(session.id)}
-                      className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                      title="Delete workout"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+              <td className="py-2 sm:py-3 px-2 text-center">
+                {onDelete && (
+                  <button
+                    onClick={() => onDelete(session.id)}
+                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                    title="Delete workout"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {sessions.length === 0 && (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          No workout sessions recorded yet.
-        </div>
-      )}
     </div>
   )
 }

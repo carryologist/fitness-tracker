@@ -40,11 +40,11 @@ export function MonthlySummary({ sessions, selectedMonths, onMonthToggle }: Mont
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700">
-              <th className="text-left py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Month</th>
-              <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Sessions</th>
-              <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Minutes</th>
-              <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Miles</th>
-              <th className="text-right py-3 px-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Weight</th>
+              <th className="text-left py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Month</th>
+              <th className="text-right py-2 px-1 sm:px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Sessions</th>
+              <th className="text-right py-2 px-1 sm:px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Minutes</th>
+              <th className="text-right py-2 px-1 sm:px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Miles</th>
+              <th className="text-right py-2 px-1 sm:px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Weight</th>
             </tr>
           </thead>
           <tbody>
@@ -65,43 +65,37 @@ export function MonthlySummary({ sessions, selectedMonths, onMonthToggle }: Mont
                   `}
                   onClick={() => onMonthToggle(index)}
                 >
-                  <td className="py-3 px-2">
+                  <td className="py-2 sm:py-3 px-2">
                     <div className="flex items-center gap-2">
-                      <span className={`font-medium ${
-                        isSelected 
-                          ? 'text-primary-600 dark:text-primary-400' 
-                          : hasData 
-                            ? 'text-gray-900 dark:text-gray-100' 
-                            : 'text-gray-400 dark:text-gray-500'
+                      <span className={`font-medium text-xs sm:text-sm ${
+                        hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-600'
                       }`}>
                         {month}
                       </span>
                       {isSelected && (
-                        <span className="text-xs font-medium text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/40 px-2 py-0.5 rounded">
-                          SELECTED
-                        </span>
+                        <span className="text-xs text-primary-600 dark:text-primary-400 font-medium">SELECTED</span>
                       )}
                     </div>
                   </td>
-                  <td className={`text-right py-3 px-2 ${
-                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
+                  <td className={`text-right py-2 sm:py-3 px-1 sm:px-2 text-xs sm:text-sm ${
+                    hasData ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'
                   }`}>
                     {formatNumber(monthData.sessions)}
                   </td>
-                  <td className={`text-right py-3 px-2 ${
-                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
+                  <td className={`text-right py-2 sm:py-3 px-1 sm:px-2 text-xs sm:text-sm ${
+                    hasData ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'
                   }`}>
                     {formatNumber(monthData.minutes)}
                   </td>
-                  <td className={`text-right py-3 px-2 ${
-                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
+                  <td className={`text-right py-2 sm:py-3 px-1 sm:px-2 text-xs sm:text-sm ${
+                    hasData ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'
                   }`}>
                     {formatNumber(monthData.miles)}
                   </td>
-                  <td className={`text-right py-3 px-2 ${
-                    hasData ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
+                  <td className={`text-right py-2 sm:py-3 px-1 sm:px-2 text-xs sm:text-sm ${
+                    hasData ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'
                   }`}>
-                    {formatNumber(monthData.weight)}
+                    {monthData.weight > 0 ? formatNumber(monthData.weight) : '—'}
                   </td>
                 </tr>
               )
