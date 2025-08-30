@@ -6,7 +6,7 @@ import { WorkoutTable } from './WorkoutTable'
 import { WorkoutModal } from './WorkoutModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { MonthlySummary } from './MonthlySummary'
-import { ProgressChart } from './ProgressChart'
+import { ClientProgressChart } from './ClientProgressChart'
 import { GoalModal } from './GoalModal'
 import { GoalTracker } from './GoalTracker'
 import { AddWorkoutDialog } from './AddWorkoutDialog'
@@ -179,43 +179,20 @@ export function WorkoutDashboard() {
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
   const [editingSession, setEditingSession] = useState<WorkoutSession | undefined>(undefined)
+  const [selectedMonth, setSelectedMonth] = useState<Date | null>(null)
+  const [selectedMonths, setSelectedMonths] = useState<Date[]>([])
   const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
-  const [selectedMonths, setSelectedMonths] = useState<number[]>([])
-
-  // Handle month selection
-  const handleMonthSelect = (month: number) => {
-    setSelectedMonths(prev => {
-      const isSelected = prev.includes(month)
-      if (isSelected) {
-        // Remove month
-        const newSelection = prev.filter(m => m !== month)
-        // If no months selected, go back to annual
-        if (newSelection.length === 0) {
-          setChartView('annual')
-        }
-        return newSelection
-      } else {
-        // Add month
-        const newSelection = [...prev, month]
-        // Update chart view based on selection
-        if (newSelection.length === 1) {
-          setChartView('monthly')
-        } else {
-          setChartView('custom')
-        }
-        return newSelection
-      }
-    })
-  }
 
   // Handle view change from chart
-  const handleChartViewChange = (view: 'annual' | 'monthly' | 'custom') => {
+  const handleViewChange = (view: 'annual' | 'monthly' | 'custom') => {
     setChartView(view)
     if (view === 'annual') {
+      setSelectedMonth(null)
       setSelectedMonths([])
     } else if (view === 'monthly' && selectedMonths.length === 0) {
-      // Default to current month
-      setSelectedMonths([new Date().getMonth()])
+      const currentMonth = new Date()
+      setSelectedMonth(currentMonth)
+      setSelectedMonths([currentMonth])
     }
   }
 
@@ -459,16 +436,51 @@ export function WorkoutDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <ProgressChart 
+          <ClientProgressChart 
             sessions={sessions}
             initialViewMode={chartView}
-            onViewModeChange={handleChartViewChange}
-            selectedMonths={selectedMonths.map(m => new Date(new Date().getFullYear(), m))}
+            initialSelectedMonth={selectedMonth || new Date()}
+            selectedMonths={selectedMonths}
+            onMonthChange={(months) => {
+              if (months.length === 1) {
+                setSelectedMonth(months[0])
+                setSelectedMonths(months)
+              } else {
+                setSelectedMonths(months)
+              }
+            }}
+            onViewModeChange={handleViewChange}
           />
           <MonthlySummary 
             sessions={sessions}
-            selectedMonths={selectedMonths}
-            onMonthSelect={handleMonthSelect}
+            selectedMonths={selectedMonths.map(d => d.getMonth())}
+            onMonthToggle={(month) => {
+              const monthDate = new Date(new Date().getFullYear(), month)
+              const existingIndex = selectedMonths.findIndex(d => d.getMonth() === month)
+              
+              if (existingIndex >= 0) {
+                // Remove month
+                const newMonths = selectedMonths.filter((_, i) => i !== existingIndex)
+                setSelectedMonths(newMonths)
+                if (newMonths.length === 0) {
+                  setSelectedMonth(null)
+                  setChartView('annual')
+                } else if (newMonths.length === 1) {
+                  setSelectedMonth(newMonths[0])
+                  setChartView('monthly')
+                }
+              } else {
+                // Add month
+                const newMonths = [...selectedMonths, monthDate].sort((a, b) => a.getMonth() - b.getMonth())
+                setSelectedMonths(newMonths)
+                if (newMonths.length === 1) {
+                  setSelectedMonth(monthDate)
+                  setChartView('monthly')
+                } else {
+                  setChartView('custom')
+                }
+              }
+            }}
           />
         </div>
 
