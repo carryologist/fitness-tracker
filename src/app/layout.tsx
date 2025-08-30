@@ -2,15 +2,14 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
-const inter = Inter({ 
-  subsets: ['latin'],
-  variable: '--font-inter',
-})
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Fitness Tracker',
-  description: 'Track your fitness journey with detailed workout analytics',
+  description: 'Track your fitness journey',
 }
 
 export default function RootLayout({
@@ -20,10 +19,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+      <body className={inter.className}>
+        <ErrorBoundary>
+          <ThemeProvider>
+            <ThemeToggle />
+            {children}
+          </ThemeProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

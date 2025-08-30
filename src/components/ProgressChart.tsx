@@ -4,7 +4,6 @@ import React, { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { WorkoutSession } from './WorkoutDashboard'
 import { format, startOfMonth, eachMonthOfInterval, min, max, eachDayOfInterval, endOfMonth, addMonths, subMonths } from 'date-fns'
-import { useTheme } from './ThemeProvider'
 import { Calendar, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
@@ -13,7 +12,7 @@ interface ProgressChartProps {
   initialViewMode?: 'annual' | 'monthly' | 'custom'
   initialSelectedMonth?: Date
   selectedMonths?: Date[]
-  onMonthChange?: (month: Date) => void
+  onMonthChange?: (months: Date[]) => void
   onViewModeChange?: (mode: 'annual' | 'monthly' | 'custom') => void
 }
 
@@ -25,10 +24,32 @@ export function ProgressChart({
   onMonthChange,
   onViewModeChange
 }: ProgressChartProps) {
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
   const [viewMode, setViewMode] = useState<'annual' | 'monthly' | 'custom'>(initialViewMode)
   const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
+  
+  // Check if we're in a dark mode by looking at the document class
+  const [isDark, setIsDark] = useState(false)
+  
+  React.useEffect(() => {
+    const checkTheme = () => {
+      if (typeof window !== 'undefined') {
+        setIsDark(document.documentElement.classList.contains('dark'))
+      }
+    }
+    
+    checkTheme()
+    
+    // Listen for theme changes
+    const observer = new MutationObserver(checkTheme)
+    if (typeof window !== 'undefined') {
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class']
+      })
+    }
+    
+    return () => observer.disconnect()
+  }, [])
 
   const selectedMonthKeys = useMemo(() => selectedMonths.map(d => format(d, 'yyyy-MM')), [selectedMonths])
   
@@ -48,7 +69,7 @@ export function ProgressChart({
 
   const handleMonthChange = (newMonth: Date) => {
     setSelectedMonth(newMonth)
-    onMonthChange?.(newMonth)
+    onMonthChange?.([newMonth])
   }
 
   const currentMonth = new Date()

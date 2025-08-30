@@ -21,9 +21,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true)
     // Load saved theme from localStorage after mounting
-    const savedTheme = localStorage.getItem('theme') as Theme | null
-    if (savedTheme) {
-      setThemeState(savedTheme)
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme') as Theme | null
+      if (savedTheme) {
+        setThemeState(savedTheme)
+      }
     }
   }, [])
 
@@ -64,11 +66,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Prevent flash of incorrect theme
-  if (!mounted) {
-    return null
-  }
-
+  // Always provide context, even when not mounted
+  // This prevents the app from breaking during SSR
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
       {children}
