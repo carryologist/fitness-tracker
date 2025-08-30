@@ -497,28 +497,40 @@ export function WorkoutDashboard() {
 
         {/* Goals and Summary Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="card p-6">
-            <GoalTracker 
-              goals={{
-                annual: {
-                  sessions: 260,
-                  minutes: 10400,
-                  miles: 520,
-                  weight: 520000
-                },
-                monthly: {
-                  sessions: 22,
-                  minutes: 867,
-                  miles: 43,
-                  weight: 43333
-                }
-              }}
-              sessions={sessions}
-            />
-          </div>
-          <div className="card p-6">
-            <WorkoutSummary sessions={sessions} />
-          </div>
+          <GoalTracker 
+            sessions={sessions} 
+            goals={{
+              monthly: {
+                sessions: 22,
+                minutes: 867,
+                miles: 43,
+                weight: 43333
+              },
+              annual: {
+                sessions: 260,
+                minutes: 10400,
+                miles: 520,
+                weight: 520000
+              }
+            }} 
+          />
+          <WorkoutSummary 
+            sessions={sessions} 
+            goals={{
+              monthly: {
+                sessions: 22,
+                minutes: 867,
+                miles: 43,
+                weight: 43333
+              },
+              annual: {
+                sessions: 260,
+                minutes: 10400,
+                miles: 520,
+                weight: 520000
+              }
+            }}
+          />
         </div>
 
         {/* Add Workout Form */}

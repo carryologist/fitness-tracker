@@ -307,49 +307,6 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
             </div>
           </div>
         </div>
-        
-        {/* Pacing Metrics */}
-        {viewMode === 'quarterly' && (
-          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Pacing Insights</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-blue-700 dark:text-blue-300">Sessions needed to catch up:</span>
-                <span className="font-semibold text-blue-900 dark:text-blue-100">
-                  {Math.max(0, Math.ceil((expectedMinutes - actualMinutes) / 45))} sessions
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-blue-700 dark:text-blue-300">Days remaining in {getQuarterLabel(currentQuarter)}:</span>
-                <span className="font-semibold text-blue-900 dark:text-blue-100">
-                  {(() => {
-                    const quarterMonths = getQuarterMonths(currentQuarter)
-                    const quarterEnd = new Date(currentYear, quarterMonths[2] + 1, 0)
-                    const daysLeft = Math.floor((quarterEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-                    return Math.max(0, daysLeft)
-                  })()} days
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-blue-700 dark:text-blue-300">Required pace:</span>
-                <span className="font-semibold text-blue-900 dark:text-blue-100">
-                  {(() => {
-                    const quarterMonths = getQuarterMonths(currentQuarter)
-                    const quarterEnd = new Date(currentYear, quarterMonths[2] + 1, 0)
-                    const daysLeft = Math.floor((quarterEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-                    const sessionsNeeded = Math.max(0, Math.ceil((expectedMinutes - actualMinutes) / 45))
-                    if (daysLeft <= 0) return 'Quarter ending!'
-                    const pace = sessionsNeeded / daysLeft
-                    if (pace <= 0) return 'On track!'
-                    if (pace < 0.5) return 'Every other day'
-                    if (pace < 1) return `${(1/pace).toFixed(0)} days per session`
-                    return `${pace.toFixed(1)} sessions/day`
-                  })()}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
