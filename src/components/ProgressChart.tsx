@@ -2,9 +2,9 @@
 
 import React, { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, min, max, eachMonthOfInterval } from 'date-fns'
+import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { WorkoutSession } from './WorkoutDashboard'
-import { format, startOfMonth, eachMonthOfInterval, min, max, eachDayOfInterval, endOfMonth, addMonths, subMonths } from 'date-fns'
-import { Calendar, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
 interface ProgressChartProps {
@@ -25,15 +25,13 @@ export function ProgressChart({
   onViewModeChange
 }: ProgressChartProps) {
   const [viewMode, setViewMode] = useState<'annual' | 'monthly' | 'custom'>(initialViewMode)
-  const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
-  
-  // Check if we're in a dark mode by looking at the document class
-  const [isDark, setIsDark] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState<Date>(initialSelectedMonth)
+  const [isDarkMode, setIsDarkMode] = useState(false)
   
   React.useEffect(() => {
     const checkTheme = () => {
       if (typeof window !== 'undefined') {
-        setIsDark(document.documentElement.classList.contains('dark'))
+        setIsDarkMode(document.documentElement.classList.contains('dark'))
       }
     }
     
@@ -72,9 +70,7 @@ export function ProgressChart({
     onMonthChange?.([newMonth])
   }
 
-  const currentMonth = new Date()
-  const isCurrentOrFutureMonth = selectedMonth >= startOfMonth(currentMonth)
-  const canGoNext = !isCurrentOrFutureMonth
+  const canGoNext = selectedMonth < startOfMonth(new Date())
 
   const chartData = useMemo(() => {
     if (sessions.length === 0) return []
@@ -199,52 +195,101 @@ export function ProgressChart({
   }
 
   const chartColors = {
-    text: isDark ? '#9ca3af' : '#6b7280',
-    grid: isDark ? '#374151' : '#e5e7eb',
+    text: isDarkMode ? '#9ca3af' : '#6b7280',
+    grid: isDarkMode ? '#374151' : '#e5e7eb',
     tooltip: {
-      bg: isDark ? '#1f2937' : '#ffffff',
-      border: isDark ? '#374151' : '#e5e7eb'
+      bg: isDarkMode ? '#1f2937' : '#ffffff',
+      border: isDarkMode ? '#374151' : '#e5e7eb'
     }
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 flex-shrink-0 gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-              {viewMode === 'annual' ? 'Annual Progress by Month' : viewMode === 'custom' ? 'Custom Period' : `${format(selectedMonth, 'MMMM yyyy')} Daily Progress`}
-            </h3>
-            <p className="text-xs sm:text-sm text-gray-600">
-              {viewMode === 'annual' ? 'Your fitness journey over the year' : viewMode === 'custom' ? 'Aggregated over selected months' : 'Daily activity for the month'}
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              {viewMode === 'annual' ? 'Annual Progress by Month' : 
+               viewMode === 'monthly' ? `${format(selectedMonth, 'MMMM yyyy')} Daily Progress` :
+               'Custom Period Progress'}
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Your fitness journey {viewMode === 'annual' ? 'over the year' : 
+                                   viewMode === 'monthly' ? 'this month' : 
+                                   'for selected months'}
             </p>
           </div>
           {viewMode === 'monthly' && (
             <div className="flex items-center gap-2">
-              <button onClick={() => handleMonthChange(subMonths(selectedMonth, 1))} className="p-1 rounded-md hover:bg-gray-100 transition-colors" title="Previous month">
-                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              <button 
+                onClick={() => handleMonthChange(subMonths(selectedMonth, 1))} 
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                title="Previous month"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
-              <button onClick={() => canGoNext && handleMonthChange(addMonths(selectedMonth, 1))} className={`p-1 rounded-md transition-colors ${canGoNext ? 'hover:bg-gray-100 text-gray-600' : 'text-gray-300 cursor-not-allowed'}`} title={canGoNext ? "Next month" : "Cannot go beyond current month"} disabled={!canGoNext}>
-                <ChevronRight className="w-4 h-4" />
+              <button 
+                onClick={() => canGoNext && handleMonthChange(addMonths(selectedMonth, 1))} 
+                className={`p-2 rounded-lg transition-colors ${
+                  canGoNext 
+                    ? 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400' 
+                    : 'text-gray-300 dark:text-gray-700 cursor-not-allowed'
+                }`} 
+                title={canGoNext ? "Next month" : "Cannot go beyond current month"} 
+                disabled={!canGoNext}
+              >
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           )}
         </div>
-        <div className="flex bg-gray-100 rounded-lg p-1 self-start sm:self-auto">
-          <button onClick={() => handleViewModeChange('annual')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'annual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
-            <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
+        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleViewModeChange('annual')}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+              ${viewMode === 'annual' 
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-2 border-blue-200 dark:border-blue-800' 
+                : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+              }
+            `}
+          >
+            <BarChart3 className="w-4 h-4" />
             Annual
           </button>
-          <button onClick={() => handleViewModeChange('monthly')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'monthly' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
-            <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
+          <button
+            onClick={() => handleViewModeChange('monthly')}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+              ${viewMode === 'monthly' 
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-2 border-blue-200 dark:border-blue-800' 
+                : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+              }
+            `}
+          >
+            <Calendar className="w-4 h-4" />
             Monthly
           </button>
-          <button onClick={() => handleViewModeChange('custom')} className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${viewMode === 'custom' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+          <button
+            onClick={() => handleViewModeChange('custom')}
+            disabled={selectedMonthKeys.length < 2}
+            className={`
+              px-4 py-2 rounded-lg font-medium transition-colors
+              ${viewMode === 'custom' 
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-2 border-blue-200 dark:border-blue-800' 
+                : selectedMonthKeys.length < 2
+                  ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-2 border-transparent cursor-not-allowed'
+                  : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+              }
+            `}
+          >
             Custom
           </button>
         </div>
       </div>
-      <div className="flex-1 min-h-0">
+      
+      <div className="mt-6">
         <div className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
