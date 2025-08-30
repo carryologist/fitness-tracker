@@ -23,14 +23,20 @@ interface GoalTrackerProps {
   }
 }
 
-function calculateProgress(sessions: WorkoutSession[], goals: { sessions: number, minutes: number, miles: number, weight: number }) {
-  const currentDate = new Date()
-  const currentMonth = currentDate.getMonth()
-  const currentYear = currentDate.getFullYear()
-  
+function getQuarter(date: Date): number {
+  return Math.floor(date.getMonth() / 3) + 1
+}
+
+function getQuarterMonths(quarter: number): [number, number, number] {
+  const start = (quarter - 1) * 3
+  return [start, start + 1, start + 2]
+}
+
+function calculateQuarterlyProgress(sessions: WorkoutSession[], quarter: number, year: number) {
+  const quarterMonths = getQuarterMonths(quarter)
   const relevantSessions = sessions.filter(s => {
     const sessionDate = new Date(s.date)
-    return sessionDate.getMonth() === currentMonth && sessionDate.getFullYear() === currentYear
+    return quarterMonths.includes(sessionDate.getMonth()) && sessionDate.getFullYear() === year
   })
   
   return {
@@ -41,21 +47,38 @@ function calculateProgress(sessions: WorkoutSession[], goals: { sessions: number
   }
 }
 
-function calculateExpectedProgress(goals: { sessions: number, minutes: number, miles: number, weight: number }, viewMode: 'monthly' | 'annual') {
+function calculateAnnualProgress(sessions: WorkoutSession[], year: number) {
+  const relevantSessions = sessions.filter(s => {
+    const sessionDate = new Date(s.date)
+    return sessionDate.getFullYear() === year
+  })
+  
+  return {
+    sessions: relevantSessions.length,
+    minutes: relevantSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
+    miles: relevantSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
+    weight: relevantSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+  }
+}
+
+function calculateExpectedProgress(goals: { sessions: number, minutes: number, miles: number, weight: number }, viewMode: 'quarterly' | 'annual') {
   const now = new Date()
-  const currentMonth = now.getMonth()
   const currentYear = now.getFullYear()
   
-  if (viewMode === 'monthly') {
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
-    const daysPassed = now.getDate()
-    const monthProgress = daysPassed / daysInMonth
+  if (viewMode === 'quarterly') {
+    const currentQuarter = getQuarter(now)
+    const quarterMonths = getQuarterMonths(currentQuarter)
+    const quarterStart = new Date(currentYear, quarterMonths[0], 1)
+    const quarterEnd = new Date(currentYear, quarterMonths[2] + 1, 0)
+    const totalDaysInQuarter = Math.floor((quarterEnd.getTime() - quarterStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    const daysPassed = Math.floor((now.getTime() - quarterStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    const quarterProgress = daysPassed / totalDaysInQuarter
     
     return {
-      sessions: goals.sessions * monthProgress,
-      minutes: goals.minutes * monthProgress,
-      miles: goals.miles * monthProgress,
-      weight: goals.weight * monthProgress
+      sessions: goals.sessions * quarterProgress,
+      minutes: goals.minutes * quarterProgress,
+      miles: goals.miles * quarterProgress,
+      weight: goals.weight * quarterProgress
     }
   } else {
     const startOfYear = new Date(currentYear, 0, 1)
@@ -72,17 +95,28 @@ function calculateExpectedProgress(goals: { sessions: number, minutes: number, m
 }
 
 export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
-  const [viewMode, setViewMode] = useState<'monthly' | 'annual'>('monthly')
+  const [viewMode, setViewMode] = useState<'quarterly' | 'annual'>('quarterly')
   const currentDate = new Date()
   const currentMonth = currentDate.getMonth()
   const currentYear = currentDate.getFullYear()
-  const currentQuarter = Math.floor(currentMonth / 3) + 1
+  const currentQuarter = getQuarter(currentDate)
 
   // Define current goals based on view mode
-  const currentGoals = viewMode === 'monthly' ? goals.monthly : goals.annual
+  // For quarterly, we'll use monthly goals * 3
+  const currentGoals = viewMode === 'quarterly' 
+    ? {
+        sessions: goals.monthly.sessions * 3,
+        minutes: goals.monthly.minutes * 3,
+        miles: goals.monthly.miles * 3,
+        weight: goals.monthly.weight * 3
+      }
+    : goals.annual
 
   // Calculate progress for current period
-  const progress = calculateProgress(sessions, currentGoals)
+  const progress = viewMode === 'quarterly'
+    ? calculateQuarterlyProgress(sessions, currentQuarter, currentYear)
+    : calculateAnnualProgress(sessions, currentYear)
+    
   const expectedProgress = calculateExpectedProgress(currentGoals, viewMode)
   
   // Extract values for cleaner code
@@ -104,35 +138,38 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
   const getStatus = (actual: number, expected: number) => {
     return actual >= expected ? 'On Track' : 'Behind'
   }
+  
+  const getQuarterLabel = (quarter: number) => {
+    const labels = ['Q1', 'Q2', 'Q3', 'Q4']
+    return labels[quarter - 1]
+  }
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">
-            2025 Fitness Challenge
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Track your progress towards your {viewMode} goals
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">2025 Fitness Challenge</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Track your progress towards your {viewMode === 'quarterly' ? 'quarterly' : 'annual'} goals
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setViewMode('monthly')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'monthly'
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            onClick={() => setViewMode('quarterly')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              viewMode === 'quarterly'
+                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
           >
-            Monthly
+            {getQuarterLabel(currentQuarter)}
           </button>
           <button
             onClick={() => setViewMode('annual')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               viewMode === 'annual'
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
           >
             Annual
@@ -272,7 +309,7 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
         </div>
         
         {/* Pacing Metrics */}
-        {viewMode === 'monthly' && (
+        {viewMode === 'quarterly' && (
           <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Pacing Insights</h4>
             <div className="space-y-2 text-sm">
@@ -283,21 +320,29 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-blue-700 dark:text-blue-300">Days remaining in month:</span>
+                <span className="text-blue-700 dark:text-blue-300">Days remaining in {getQuarterLabel(currentQuarter)}:</span>
                 <span className="font-semibold text-blue-900 dark:text-blue-100">
-                  {new Date(currentYear, currentMonth + 1, 0).getDate() - currentDate.getDate()} days
+                  {(() => {
+                    const quarterMonths = getQuarterMonths(currentQuarter)
+                    const quarterEnd = new Date(currentYear, quarterMonths[2] + 1, 0)
+                    const daysLeft = Math.floor((quarterEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+                    return Math.max(0, daysLeft)
+                  })()} days
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-blue-700 dark:text-blue-300">Required pace:</span>
                 <span className="font-semibold text-blue-900 dark:text-blue-100">
                   {(() => {
-                    const daysLeft = new Date(currentYear, currentMonth + 1, 0).getDate() - currentDate.getDate()
+                    const quarterMonths = getQuarterMonths(currentQuarter)
+                    const quarterEnd = new Date(currentYear, quarterMonths[2] + 1, 0)
+                    const daysLeft = Math.floor((quarterEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
                     const sessionsNeeded = Math.max(0, Math.ceil((expectedMinutes - actualMinutes) / 45))
-                    if (daysLeft === 0) return 'Last day!'
+                    if (daysLeft <= 0) return 'Quarter ending!'
                     const pace = sessionsNeeded / daysLeft
                     if (pace <= 0) return 'On track!'
-                    if (pace < 1) return 'Every other day'
+                    if (pace < 0.5) return 'Every other day'
+                    if (pace < 1) return `${(1/pace).toFixed(0)} days per session`
                     return `${pace.toFixed(1)} sessions/day`
                   })()}
                 </span>
