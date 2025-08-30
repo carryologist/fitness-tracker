@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ThemeToggle } from './ThemeToggle'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
@@ -10,10 +9,5 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     setMounted(true)
   }, [])
 
-  return (
-    <>
-      {mounted && <ThemeToggle />}
-      {children}
-    </>
-  )
+  return <>{children}</>
 }

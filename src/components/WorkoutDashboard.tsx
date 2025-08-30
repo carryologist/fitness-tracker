@@ -10,6 +10,7 @@ import { ClientProgressChart } from './ClientProgressChart'
 import { GoalModal } from './GoalModal'
 import { GoalTracker } from './GoalTracker'
 import { AddWorkoutDialog } from './AddWorkoutDialog'
+import { ThemeToggle } from './ThemeToggle'
 import { Plus } from 'lucide-react'
 
 export interface WorkoutSession {
@@ -418,19 +419,29 @@ export function WorkoutDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Floating Action Button */}
-      <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-40 safe-area-inset-top">
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 group min-w-[60px] sm:min-w-auto"
-        >
-          <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
-          <span className="font-medium transition-all duration-200 group-hover:pr-2 hidden sm:inline">
-            <span className="group-hover:hidden">Add</span>
-            <span className="hidden group-hover:inline whitespace-nowrap">Add Workout</span>
-          </span>
-        </button>
-      </div>
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-xl">F</span>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Fitness Tracker</h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <ThemeToggle />
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="hidden sm:inline">Add Workout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
