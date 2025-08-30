@@ -102,13 +102,13 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
   const currentQuarter = getQuarter(currentDate)
 
   // Define current goals based on view mode
-  // For quarterly, we'll use monthly goals * 3
+  // Quarterly goals: 2925 minutes, 125000 lbs, 65 sessions
   const currentGoals = viewMode === 'quarterly' 
     ? {
-        sessions: goals.monthly.sessions * 3,
-        minutes: goals.monthly.minutes * 3,
-        miles: goals.monthly.miles * 3,
-        weight: goals.monthly.weight * 3
+        sessions: 65,      // 5 sessions/week × 13 weeks
+        minutes: 2925,     // 45 min/day × 5 days/week × 13 weeks
+        miles: goals.monthly.miles * 3,  // Keep miles as monthly * 3
+        weight: 125000     // 500,000 lbs/year ÷ 4 quarters
       }
     : goals.annual
 

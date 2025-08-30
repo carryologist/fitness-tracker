@@ -80,8 +80,10 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     const currentYear = now.getFullYear()
     const quarterMonths = getQuarterMonths(currentQuarter)
     
-    // Calculate quarterly goal (monthly * 3)
-    const quarterlyGoal = goals.monthly.minutes * 3
+    // Exact quarterly goals
+    const quarterlyGoalMinutes = 2925  // 45 min/day × 5 days/week × 13 weeks
+    const quarterlyGoalSessions = 65   // 5 sessions/week × 13 weeks
+    const quarterlyGoalWeight = 125000 // 500,000 lbs/year ÷ 4
     
     // Get current quarter's progress
     const quarterSessions = sessions.filter(s => {
@@ -91,7 +93,10 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     })
     
     const minutesCompleted = quarterSessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
-    const minutesRemaining = Math.max(0, quarterlyGoal - minutesCompleted)
+    const sessionsCompleted = quarterSessions.length
+    const weightCompleted = quarterSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
+    
+    const minutesRemaining = Math.max(0, quarterlyGoalMinutes - minutesCompleted)
     const sessionsNeeded = Math.ceil(minutesRemaining / 45)
     
     // Calculate days remaining in quarter
@@ -105,7 +110,11 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
       currentQuarter,
       minutesCompleted,
       minutesRemaining,
-      quarterlyGoal,
+      quarterlyGoalMinutes,
+      sessionsCompleted,
+      quarterlyGoalSessions,
+      weightCompleted,
+      quarterlyGoalWeight,
       sessionsNeeded,
       daysRemaining,
       dailyPace
@@ -209,26 +218,38 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
           </h4>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-blue-700 dark:text-blue-300">Minutes completed:</span>
+              <span className="text-blue-700 dark:text-blue-300">Minutes:</span>
               <span className="font-semibold text-blue-900 dark:text-blue-100">
-                {formatNumber(pacingMetrics.minutesCompleted)} / {formatNumber(pacingMetrics.quarterlyGoal)}
+                {formatNumber(pacingMetrics.minutesCompleted)} / {formatNumber(pacingMetrics.quarterlyGoalMinutes)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-blue-700 dark:text-blue-300">Sessions needed (45 min):</span>
+              <span className="text-blue-700 dark:text-blue-300">Sessions:</span>
               <span className="font-semibold text-blue-900 dark:text-blue-100">
-                {pacingMetrics.sessionsNeeded} sessions
+                {pacingMetrics.sessionsCompleted} / {pacingMetrics.quarterlyGoalSessions}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-blue-700 dark:text-blue-300">Days remaining in quarter:</span>
+              <span className="text-blue-700 dark:text-blue-300">Weight lifted:</span>
               <span className="font-semibold text-blue-900 dark:text-blue-100">
-                {pacingMetrics.daysRemaining} days
+                {formatNumber(pacingMetrics.weightCompleted)} / {formatNumber(pacingMetrics.quarterlyGoalWeight)} lbs
               </span>
             </div>
             <div className="pt-2 mt-2 border-t border-blue-200 dark:border-blue-700">
               <div className="flex justify-between">
-                <span className="text-blue-700 dark:text-blue-300 font-medium">Required daily pace:</span>
+                <span className="text-blue-700 dark:text-blue-300">Sessions needed (45 min):</span>
+                <span className="font-semibold text-blue-900 dark:text-blue-100">
+                  {pacingMetrics.sessionsNeeded} sessions
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-blue-700 dark:text-blue-300">Days remaining:</span>
+                <span className="font-semibold text-blue-900 dark:text-blue-100">
+                  {pacingMetrics.daysRemaining} days
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-blue-700 dark:text-blue-300 font-medium">Required pace:</span>
                 <span className="font-bold text-blue-900 dark:text-blue-100">
                   {pacingMetrics.dailyPace === 0 ? 'On track!' :
                    pacingMetrics.dailyPace < 0.5 ? 'Every other day' :

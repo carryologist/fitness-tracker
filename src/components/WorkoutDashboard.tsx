@@ -501,16 +501,16 @@ export function WorkoutDashboard() {
             sessions={sessions} 
             goals={{
               monthly: {
-                sessions: 22,
-                minutes: 867,
+                sessions: 22,  // Will be multiplied by 3 for quarterly
+                minutes: 975,  // 2925 / 3 = 975 per month
                 miles: 43,
-                weight: 43333
+                weight: 41667  // 125000 / 3 = 41667 per month
               },
               annual: {
-                sessions: 260,
-                minutes: 10400,
+                sessions: 260,  // 65 * 4 = 260 sessions/year
+                minutes: 11700, // 2925 * 4 = 11700 minutes/year
                 miles: 520,
-                weight: 520000
+                weight: 500000  // 500,000 lbs/year
               }
             }} 
           />
@@ -518,16 +518,16 @@ export function WorkoutDashboard() {
             sessions={sessions} 
             goals={{
               monthly: {
-                sessions: 22,
-                minutes: 867,
+                sessions: 22,  // Will be multiplied by 3 for quarterly
+                minutes: 975,  // 2925 / 3 = 975 per month
                 miles: 43,
-                weight: 43333
+                weight: 41667  // 125000 / 3 = 41667 per month
               },
               annual: {
-                sessions: 260,
-                minutes: 10400,
+                sessions: 260,  // 65 * 4 = 260 sessions/year
+                minutes: 11700, // 2925 * 4 = 11700 minutes/year
                 miles: 520,
-                weight: 520000
+                weight: 500000  // 500,000 lbs/year
               }
             }}
           />
