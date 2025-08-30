@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
-import { ThemeToggle } from '@/components/ThemeToggle'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { ClientLayout } from '@/components/ClientLayout'
+import { ThemeScript } from './theme-script'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,11 +20,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <head>
+        <ThemeScript />
+      </head>
+      <body className={inter.className} suppressHydrationWarning>
         <ErrorBoundary>
           <ThemeProvider>
-            <ThemeToggle />
-            {children}
+            <ClientLayout>
+              {children}
+            </ClientLayout>
           </ThemeProvider>
         </ErrorBoundary>
       </body>

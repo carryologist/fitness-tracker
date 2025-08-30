@@ -18,14 +18,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light')
   const [mounted, setMounted] = useState(false)
 
+  // Only run on client
   useEffect(() => {
     setMounted(true)
-    // Load saved theme from localStorage after mounting
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme') as Theme | null
-      if (savedTheme) {
-        setThemeState(savedTheme)
-      }
+    
+    // Load saved theme from localStorage
+    const savedTheme = localStorage.getItem('theme') as Theme | null
+    if (savedTheme) {
+      setThemeState(savedTheme)
+    } else {
+      // Check system preference
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      setResolvedTheme(isDark ? 'dark' : 'light')
     }
   }, [])
 
@@ -33,6 +37,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (!mounted) return
 
     const root = window.document.documentElement
+    
+    // Remove both classes first
+    root.classList.remove('light', 'dark')
     
     // Determine the resolved theme
     let resolved: ResolvedTheme = 'light'
@@ -43,19 +50,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       
       // Listen for system theme changes
       const handler = (e: MediaQueryListEvent) => {
-        setResolvedTheme(e.matches ? 'dark' : 'light')
+        const newTheme = e.matches ? 'dark' : 'light'
+        setResolvedTheme(newTheme)
+        root.classList.remove('light', 'dark')
+        root.classList.add(newTheme)
       }
-      mediaQuery.addEventListener('change', handler)
       
+      mediaQuery.addEventListener('change', handler)
       return () => mediaQuery.removeEventListener('change', handler)
     } else {
       resolved = theme as ResolvedTheme
     }
     
     setResolvedTheme(resolved)
-    
-    // Apply theme to document
-    root.classList.remove('light', 'dark')
     root.classList.add(resolved)
   }, [theme, mounted])
 
@@ -66,10 +73,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Always provide context, even when not mounted
-  // This prevents the app from breaking during SSR
+  // Provide default values during SSR to prevent hydration mismatch
+  const value = {
+    theme,
+    setTheme,
+    resolvedTheme: mounted ? resolvedTheme : 'light'
+  }
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   )
