@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react'
 import { WorkoutSession } from './WorkoutDashboard'
-import { Activity, Dumbbell, TrendingUp, Calendar } from 'lucide-react'
+import { Activity, Dumbbell, TrendingUp, Calendar, Clock, Target, CalendarDays } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutSummaryProps {
@@ -213,50 +213,39 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
       {/* Pacing Metrics */}
       {pacingMetrics && goals && (
         <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">
             {getQuarterLabel(pacingMetrics.currentQuarter)} Pacing Insights
           </h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-blue-700 dark:text-blue-300">Minutes:</span>
-              <span className="font-semibold text-blue-900 dark:text-blue-100">
-                {formatNumber(pacingMetrics.minutesCompleted)} / {formatNumber(pacingMetrics.quarterlyGoalMinutes)}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <span className="text-blue-700 dark:text-blue-300">Sessions needed (45 min)</span>
+              </div>
+              <span className="font-bold text-blue-900 dark:text-blue-100">
+                {pacingMetrics.sessionsNeeded} sessions
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-blue-700 dark:text-blue-300">Sessions:</span>
-              <span className="font-semibold text-blue-900 dark:text-blue-100">
-                {pacingMetrics.sessionsCompleted} / {pacingMetrics.quarterlyGoalSessions}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <span className="text-blue-700 dark:text-blue-300">Days remaining</span>
+              </div>
+              <span className="font-bold text-blue-900 dark:text-blue-100">
+                {pacingMetrics.daysRemaining} days
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-blue-700 dark:text-blue-300">Weight lifted:</span>
-              <span className="font-semibold text-blue-900 dark:text-blue-100">
-                {formatNumber(pacingMetrics.weightCompleted)} / {formatNumber(pacingMetrics.quarterlyGoalWeight)} lbs
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <span className="text-blue-700 dark:text-blue-300">Required pace</span>
+              </div>
+              <span className="font-bold text-blue-900 dark:text-blue-100">
+                {pacingMetrics.dailyPace === 0 ? 'On track!' :
+                 pacingMetrics.dailyPace < 0.5 ? 'Every other day' :
+                 pacingMetrics.dailyPace < 1 ? `Every ${Math.round(1/pacingMetrics.dailyPace)} days` :
+                 `${pacingMetrics.dailyPace.toFixed(1)} sessions/day`}
               </span>
-            </div>
-            <div className="pt-2 mt-2 border-t border-blue-200 dark:border-blue-700">
-              <div className="flex justify-between">
-                <span className="text-blue-700 dark:text-blue-300">Sessions needed (45 min):</span>
-                <span className="font-semibold text-blue-900 dark:text-blue-100">
-                  {pacingMetrics.sessionsNeeded} sessions
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-blue-700 dark:text-blue-300">Days remaining:</span>
-                <span className="font-semibold text-blue-900 dark:text-blue-100">
-                  {pacingMetrics.daysRemaining} days
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-blue-700 dark:text-blue-300 font-medium">Required pace:</span>
-                <span className="font-bold text-blue-900 dark:text-blue-100">
-                  {pacingMetrics.dailyPace === 0 ? 'On track!' :
-                   pacingMetrics.dailyPace < 0.5 ? 'Every other day' :
-                   pacingMetrics.dailyPace < 1 ? `Every ${Math.round(1/pacingMetrics.dailyPace)} days` :
-                   `${pacingMetrics.dailyPace.toFixed(1)} sessions/day`}
-                </span>
-              </div>
             </div>
           </div>
         </div>
