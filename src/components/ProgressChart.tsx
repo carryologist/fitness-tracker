@@ -31,6 +31,9 @@ export function ProgressChart({
   const [isMobile, setIsMobile] = useState(false)
   
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+    
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 640)
     }

@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { WorkoutSession } from './WorkoutDashboard'
 
-interface ProgressChartProps {
+interface ClientProgressChartProps {
   sessions: WorkoutSession[]
   initialViewMode?: 'annual' | 'monthly' | 'custom'
   initialSelectedMonth?: Date
@@ -12,22 +12,22 @@ interface ProgressChartProps {
   onViewModeChange?: (mode: 'annual' | 'monthly' | 'custom') => void
 }
 
-// Loading placeholder that matches the expected size
-const ChartLoading = () => (
-  <div className="flex items-center justify-center h-[400px] bg-gray-50 dark:bg-gray-800 rounded-lg">
-    <div className="text-gray-500 dark:text-gray-400">Loading chart...</div>
-  </div>
-)
-
-// Dynamic import with no SSR
+// Dynamically import ProgressChart with SSR disabled
 const ProgressChart = dynamic(
-  () => import('./ProgressChart').then(mod => ({ default: mod.ProgressChart })),
-  {
+  () => import('./ProgressChart').then(mod => mod.ProgressChart),
+  { 
     ssr: false,
-    loading: ChartLoading
+    loading: () => (
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
+          <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded"></div>
+        </div>
+      </div>
+    )
   }
 )
 
-export function ClientProgressChart(props: ProgressChartProps) {
+export function ClientProgressChart(props: ClientProgressChartProps) {
   return <ProgressChart {...props} />
 }
