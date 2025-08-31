@@ -295,6 +295,16 @@ export function ProgressChart({
                 borderRadius: '0.375rem'
               }}
               labelStyle={{ color: colors.text }}
+              formatter={(value: number, name: string) => {
+                // Format the value using our formatNumber utility
+                const formattedValue = formatNumber(value)
+                
+                // Add appropriate suffix for weight
+                if (name === 'Weight Lifted (lbs)') {
+                  return `${formattedValue} lbs`
+                }
+                return formattedValue
+              }}
             />
             <Legend 
               wrapperStyle={{ paddingTop: '20px' }}
