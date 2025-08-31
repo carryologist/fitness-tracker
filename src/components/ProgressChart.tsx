@@ -179,7 +179,7 @@ export function ProgressChart({
   // Don't render chart on server
   if (!mounted) {
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 overflow-hidden">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
           <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded"></div>
@@ -197,7 +197,7 @@ export function ProgressChart({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 overflow-hidden">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <div>
@@ -214,11 +214,11 @@ export function ProgressChart({
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => handleViewModeChange('annual')}
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+              flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base
               ${viewMode === 'annual' 
                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-2 border-blue-200 dark:border-blue-800' 
                 : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -231,7 +231,7 @@ export function ProgressChart({
           <button
             onClick={() => handleViewModeChange('monthly')}
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+              flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base
               ${viewMode === 'monthly' 
                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-2 border-blue-200 dark:border-blue-800' 
                 : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -245,7 +245,7 @@ export function ProgressChart({
             onClick={() => handleViewModeChange('custom')}
             disabled={selectedMonthKeys.length < 2}
             className={`
-              px-4 py-2 rounded-lg font-medium transition-colors
+              px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base
               ${viewMode === 'custom' 
                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-2 border-blue-200 dark:border-blue-800' 
                 : selectedMonthKeys.length < 2
