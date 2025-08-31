@@ -1,55 +1,60 @@
 'use client'
 
-import { useTheme } from './ThemeProvider'
-import { Moon, Sun, Monitor } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Sun, Moon, Monitor } from 'lucide-react'
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    // Get initial theme from localStorage or default to system
+    const stored = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null
+    if (stored) {
+      setTheme(stored)
+      applyTheme(stored)
+    } else {
+      applyTheme('system')
+    }
+  }, [])
+
+  const applyTheme = (newTheme: 'light' | 'dark' | 'system') => {
+    const root = document.documentElement
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    const effectiveTheme = newTheme === 'system' ? systemTheme : newTheme
+    
+    if (effectiveTheme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+  }
+
+  const handleThemeChange = () => {
+    const newTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
+    setTheme(newTheme)
+    localStorage.setItem('theme', newTheme)
+    applyTheme(newTheme)
+  }
+
+  if (!mounted) {
+    return (
+      <button className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
+        <Monitor className="w-5 h-5" />
+      </button>
+    )
+  }
 
   return (
-    <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
-      <button
-        onClick={() => setTheme('light')}
-        className={`p-2 rounded-md transition-colors relative group ${
-          theme === 'light' 
-            ? 'bg-white dark:bg-gray-700 text-yellow-500 shadow-sm' 
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-        }`}
-        aria-label="Light mode"
-      >
-        <Sun className="w-4 h-4" />
-        <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          Light Mode
-        </span>
-      </button>
-      <button
-        onClick={() => setTheme('system')}
-        className={`p-2 rounded-md transition-colors relative group ${
-          theme === 'system' 
-            ? 'bg-white dark:bg-gray-700 text-blue-500 shadow-sm' 
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-        }`}
-        aria-label="System mode"
-      >
-        <Monitor className="w-4 h-4" />
-        <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          System
-        </span>
-      </button>
-      <button
-        onClick={() => setTheme('dark')}
-        className={`p-2 rounded-md transition-colors relative group ${
-          theme === 'dark' 
-            ? 'bg-white dark:bg-gray-700 text-purple-500 shadow-sm' 
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-        }`}
-        aria-label="Dark mode"
-      >
-        <Moon className="w-4 h-4" />
-        <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          Dark Mode
-        </span>
-      </button>
-    </div>
+    <button
+      onClick={handleThemeChange}
+      className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+      title={`Current theme: ${theme}`}
+    >
+      {theme === 'light' && <Sun className="w-5 h-5 text-yellow-500" />}
+      {theme === 'dark' && <Moon className="w-5 h-5 text-blue-500" />}
+      {theme === 'system' && <Monitor className="w-5 h-5 text-gray-500" />}
+    </button>
   )
 }

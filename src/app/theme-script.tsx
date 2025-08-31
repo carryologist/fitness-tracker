@@ -2,27 +2,21 @@ export function ThemeScript() {
   const themeScript = `
     (function() {
       try {
-        const theme = localStorage.getItem('theme') || 'system';
-        let resolved = 'light';
+        const stored = localStorage.getItem('theme');
+        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        const theme = stored === 'light' || stored === 'dark' ? stored : systemTheme;
         
-        if (theme === 'system') {
-          resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        } else if (theme === 'dark') {
-          resolved = 'dark';
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
         }
-        
-        document.documentElement.classList.add(resolved);
-      } catch (e) {
-        // Fallback to light theme
-        document.documentElement.classList.add('light');
-      }
+      } catch (e) {}
     })()
-  `;
+  `
 
   return (
     <script
       dangerouslySetInnerHTML={{ __html: themeScript }}
       suppressHydrationWarning
     />
-  );
+  )
 }
