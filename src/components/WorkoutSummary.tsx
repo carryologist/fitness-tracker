@@ -7,17 +7,15 @@ import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutSummaryProps {
   sessions: WorkoutSession[]
-  goals?: {
-    monthly: {
+  goals: {
+    quarterly: {
       sessions: number
       minutes: number
-      miles: number
       weight: number
     }
     annual: {
       sessions: number
       minutes: number
-      miles: number
       weight: number
     }
   }

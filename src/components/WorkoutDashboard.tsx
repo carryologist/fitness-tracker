@@ -480,16 +480,14 @@ export function WorkoutDashboard() {
           <GoalTracker 
             sessions={sessions} 
             goals={{
-              monthly: {
-                sessions: 22,  // Will be multiplied by 3 for quarterly
-                minutes: 975,  // 2925 / 3 = 975 per month
-                miles: 43,
-                weight: 41667  // 125000 / 3 = 41667 per month
+              quarterly: {
+                sessions: 65,   // 5 sessions/week × 13 weeks
+                minutes: 2925,  // 45 min/session × 65 sessions
+                weight: 125000  // 500,000 lbs/year ÷ 4 quarters
               },
               annual: {
                 sessions: 260,  // 65 * 4 = 260 sessions/year
                 minutes: 11700, // 2925 * 4 = 11700 minutes/year
-                miles: 520,
                 weight: 500000  // 500,000 lbs/year
               }
             }} 
@@ -497,19 +495,17 @@ export function WorkoutDashboard() {
           <WorkoutSummary 
             sessions={sessions} 
             goals={{
-              monthly: {
-                sessions: 22,  // Will be multiplied by 3 for quarterly
-                minutes: 975,  // 2925 / 3 = 975 per month
-                miles: 43,
-                weight: 41667  // 125000 / 3 = 41667 per month
+              quarterly: {
+                sessions: 65,   // 5 sessions/week × 13 weeks
+                minutes: 2925,  // 45 min/session × 65 sessions
+                weight: 125000  // 500,000 lbs/year ÷ 4 quarters
               },
               annual: {
                 sessions: 260,  // 65 * 4 = 260 sessions/year
                 minutes: 11700, // 2925 * 4 = 11700 minutes/year
-                miles: 520,
                 weight: 500000  // 500,000 lbs/year
               }
-            }}
+            }} 
           />
         </div>
 

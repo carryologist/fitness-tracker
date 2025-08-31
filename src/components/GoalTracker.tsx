@@ -1,161 +1,154 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
+import { Dumbbell, Activity, CheckCircle, Calendar, BarChart3 } from 'lucide-react'
 import { WorkoutSession } from './WorkoutDashboard'
-import { Activity, Dumbbell, CheckCircle } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
 interface GoalTrackerProps {
   sessions: WorkoutSession[]
   goals: {
-    monthly: {
+    quarterly: {
       sessions: number
       minutes: number
-      miles: number
       weight: number
     }
     annual: {
       sessions: number
       minutes: number
-      miles: number
       weight: number
     }
   }
 }
 
-function getQuarter(date: Date): number {
-  return Math.floor(date.getMonth() / 3) + 1
-}
-
-function getQuarterMonths(quarter: number): [number, number, number] {
-  const start = (quarter - 1) * 3
-  return [start, start + 1, start + 2]
-}
-
-function calculateQuarterlyProgress(sessions: WorkoutSession[], quarter: number, year: number) {
-  const quarterMonths = getQuarterMonths(quarter)
-  const relevantSessions = sessions.filter(s => {
-    const sessionDate = new Date(s.date)
-    return quarterMonths.includes(sessionDate.getMonth()) && sessionDate.getFullYear() === year
-  })
-  
-  return {
-    sessions: relevantSessions.length,
-    minutes: relevantSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
-    miles: relevantSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
-    weight: relevantSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-  }
-}
-
-function calculateAnnualProgress(sessions: WorkoutSession[], year: number) {
-  const relevantSessions = sessions.filter(s => {
-    const sessionDate = new Date(s.date)
-    return sessionDate.getFullYear() === year
-  })
-  
-  return {
-    sessions: relevantSessions.length,
-    minutes: relevantSessions.reduce((sum, s) => sum + (s.minutes || 0), 0),
-    miles: relevantSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
-    weight: relevantSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-  }
-}
-
-function calculateExpectedProgress(goals: { sessions: number, minutes: number, miles: number, weight: number }, viewMode: 'quarterly' | 'annual') {
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  
-  if (viewMode === 'quarterly') {
-    const currentQuarter = getQuarter(now)
-    const quarterMonths = getQuarterMonths(currentQuarter)
-    const quarterStart = new Date(currentYear, quarterMonths[0], 1)
-    const quarterEnd = new Date(currentYear, quarterMonths[2] + 1, 0)
-    const totalDaysInQuarter = Math.floor((quarterEnd.getTime() - quarterStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-    const daysPassed = Math.floor((now.getTime() - quarterStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-    const quarterProgress = daysPassed / totalDaysInQuarter
-    
-    return {
-      sessions: goals.sessions * quarterProgress,
-      minutes: goals.minutes * quarterProgress,
-      miles: goals.miles * quarterProgress,
-      weight: goals.weight * quarterProgress
-    }
-  } else {
-    const startOfYear = new Date(currentYear, 0, 1)
-    const daysPassed = Math.floor((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)) + 1
-    const yearProgress = daysPassed / 365
-    
-    return {
-      sessions: goals.sessions * yearProgress,
-      minutes: goals.minutes * yearProgress,
-      miles: goals.miles * yearProgress,
-      weight: goals.weight * yearProgress
-    }
-  }
-}
-
-function getQuarterLabel(quarter: number): string {
-  const labels = ['Q1', 'Q2', 'Q3', 'Q4']
-  return labels[quarter - 1]
-}
+type ViewMode = 'quarterly' | 'annual'
 
 export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2025, 0, 1))
+  const [currentDate, setCurrentDate] = useState<Date | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>('quarterly')
   
   useEffect(() => {
     setCurrentDate(new Date())
   }, [])
   
-  const currentQuarter = getQuarter(currentDate)
-  const currentYear = currentDate.getFullYear()
-  const quarterMonths = getQuarterMonths(currentQuarter)
-
-  // Define current goals based on view mode
-  // Quarterly goals: 2925 minutes, 125000 lbs, 65 sessions
-  const currentGoals = {
-    sessions: 65,      // 5 sessions/week × 13 weeks
-    minutes: 2925,     // 45 min/day × 5 days/week × 13 weeks
-    miles: goals.monthly.miles * 3,  // Keep miles as monthly * 3
-    weight: 125000     // 500,000 lbs/year ÷ 4 quarters
+  if (!currentDate) {
+    return null // Don't render on server
   }
-
-  // Calculate progress for current period
-  const progress = calculateQuarterlyProgress(sessions, currentQuarter, currentYear)
-    
-  const expectedProgress = calculateExpectedProgress(currentGoals, 'quarterly')
   
-  // Extract values for cleaner code
-  const actualWeight = progress.weight
-  const expectedWeight = expectedProgress.weight
-  const targetWeight = currentGoals.weight
+  const currentQuarter = Math.floor(currentDate.getMonth() / 3) + 1
+  const currentYear = currentDate.getFullYear()
+  
+  // Calculate date ranges based on view mode
+  const getDateRange = () => {
+    if (viewMode === 'quarterly') {
+      const quarterStart = new Date(currentYear, (currentQuarter - 1) * 3, 1)
+      const quarterEnd = new Date(currentYear, currentQuarter * 3, 0)
+      return { start: quarterStart, end: quarterEnd }
+    } else {
+      const yearStart = new Date(currentYear, 0, 1)
+      const yearEnd = new Date(currentYear, 11, 31)
+      return { start: yearStart, end: yearEnd }
+    }
+  }
+  
+  const { start: periodStart, end: periodEnd } = getDateRange()
+  
+  // Filter sessions for the selected period
+  const periodSessions = sessions.filter(session => {
+    const sessionDate = new Date(session.date)
+    return sessionDate >= periodStart && sessionDate <= periodEnd
+  })
+  
+  // Calculate actual values
+  const actualSessions = periodSessions.length
+  const actualMinutes = periodSessions.reduce((sum, session) => sum + (session.minutes || 0), 0)
+  const actualWeight = periodSessions.reduce((sum, session) => sum + (session.weightLifted || 0), 0)
+  
+  // Get targets based on view mode
+  const targets = viewMode === 'quarterly' ? goals.quarterly : goals.annual
+  const targetSessions = targets.sessions
+  const targetMinutes = targets.minutes
+  const targetWeight = targets.weight
+  
+  // Calculate expected progress based on time elapsed
+  const totalDays = Math.floor((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  const daysElapsed = Math.floor((currentDate.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  const timeProgress = Math.min(daysElapsed / totalDays, 1)
+  
+  const expectedSessions = targetSessions * timeProgress
+  const expectedMinutes = targetMinutes * timeProgress
+  const expectedWeight = targetWeight * timeProgress
+  
+  // Calculate progress percentages
+  const sessionsProgress = (actualSessions / targetSessions) * 100
+  const minutesProgress = (actualMinutes / targetMinutes) * 100
   const weightProgress = (actualWeight / targetWeight) * 100
   
-  const actualMinutes = progress.minutes
-  const expectedMinutes = expectedProgress.minutes
-  const targetMinutes = currentGoals.minutes
-  const minutesProgress = (actualMinutes / targetMinutes) * 100
-  
-  const actualSessions = progress.sessions
-  const expectedSessions = expectedProgress.sessions
-  const targetSessions = currentGoals.sessions
-  const sessionsProgress = (actualSessions / targetSessions) * 100
-  
+  // Helper functions
   const getStatus = (actual: number, expected: number) => {
-    return actual >= expected ? 'On Track' : 'Behind'
+    if (actual >= expected) return 'On Track'
+    if (actual >= expected * 0.8) return 'Slightly Behind'
+    return 'Behind'
+  }
+  
+  const getLabel = () => {
+    if (viewMode === 'quarterly') {
+      return `Q${currentQuarter} Goal Progress`
+    } else {
+      return `${currentYear} Annual Progress`
+    }
+  }
+  
+  const getDescription = () => {
+    if (viewMode === 'quarterly') {
+      return 'Track your quarterly fitness goals'
+    } else {
+      return 'Track your annual fitness goals'
+    }
   }
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      {/* Header with responsive layout */}
+      {/* Header with toggle buttons */}
       <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              {getQuarterLabel(currentQuarter)} Goal Progress
+              {getLabel()}
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Track your quarterly fitness goals
+              {getDescription()}
             </p>
+          </div>
+          
+          {/* Toggle Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('quarterly')}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+                ${viewMode === 'quarterly' 
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-2 border-blue-200 dark:border-blue-800' 
+                  : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+                }
+              `}
+            >
+              <Calendar className="w-4 h-4" />
+              Q{currentQuarter}
+            </button>
+            <button
+              onClick={() => setViewMode('annual')}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+                ${viewMode === 'annual' 
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-2 border-blue-200 dark:border-blue-800' 
+                  : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+                }
+              `}
+            >
+              <BarChart3 className="w-4 h-4" />
+              Annual
+            </button>
           </div>
         </div>
       </div>
