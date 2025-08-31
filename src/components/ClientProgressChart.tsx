@@ -5,8 +5,8 @@ import { WorkoutSession } from './WorkoutDashboard'
 
 interface ClientProgressChartProps {
   sessions: WorkoutSession[]
-  initialViewMode?: 'annual' | 'monthly' | 'custom'
-  initialSelectedMonth?: Date
+  viewMode?: 'annual' | 'monthly' | 'custom'
+  selectedMonth?: Date
   selectedMonths?: Date[]
   onMonthChange?: (months: Date[]) => void
   onViewModeChange?: (mode: 'annual' | 'monthly' | 'custom') => void

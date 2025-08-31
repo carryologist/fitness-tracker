@@ -193,11 +193,27 @@ export function WorkoutDashboard() {
     if (view === 'annual') {
       setSelectedMonth(null)
       setSelectedMonths([])
-    } else if (view === 'monthly' && selectedMonths.length === 0) {
-      // Use currentDate if available, otherwise use current year
-      const monthToSelect = currentDate || new Date(currentYear, new Date().getMonth(), 1)
-      setSelectedMonth(monthToSelect)
-      setSelectedMonths([monthToSelect])
+    } else if (view === 'monthly') {
+      // If no months are selected, select the current month
+      if (selectedMonths.length === 0) {
+        const monthToSelect = currentDate || new Date(currentYear, new Date().getMonth(), 1)
+        setSelectedMonth(monthToSelect)
+        setSelectedMonths([monthToSelect])
+      } else if (selectedMonths.length > 1) {
+        // If multiple months selected, keep only the first one
+        setSelectedMonth(selectedMonths[0])
+        setSelectedMonths([selectedMonths[0]])
+      }
+    } else if (view === 'custom') {
+      // For custom view, ensure we have at least 2 months selected
+      if (selectedMonths.length < 2) {
+        const currentMonthIndex = currentDate ? currentDate.getMonth() : new Date().getMonth()
+        const nextMonthIndex = (currentMonthIndex + 1) % 12
+        const month1 = new Date(currentYear, currentMonthIndex, 1)
+        const month2 = new Date(currentYear, nextMonthIndex, 1)
+        setSelectedMonths([month1, month2])
+        setSelectedMonth(null)
+      }
     }
   }
 
@@ -413,8 +429,8 @@ export function WorkoutDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <ClientProgressChart 
             sessions={sessions}
-            initialViewMode={chartView}
-            initialSelectedMonth={selectedMonth || currentDate || new Date(currentYear, 0, 1)}
+            viewMode={chartView}
+            selectedMonth={selectedMonth || currentDate || new Date(currentYear, 0, 1)}
             selectedMonths={selectedMonths}
             onMonthChange={(months) => {
               if (months.length === 1) {

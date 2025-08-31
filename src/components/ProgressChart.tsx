@@ -18,13 +18,10 @@ interface ProgressChartProps {
   onViewModeChange?: (mode: ViewMode) => void
 }
 
-// Use a stable default date (Jan 1, 2025) to avoid hydration issues
-const DEFAULT_DATE = new Date(2025, 0, 1)
-
 export function ProgressChart({ 
   sessions, 
-  viewMode: initialViewMode = 'annual',
-  selectedMonth: initialSelectedMonth = DEFAULT_DATE,
+  viewMode = 'annual',
+  selectedMonth = new Date(),
   selectedMonths = [],
   onMonthChange,
   onViewModeChange
@@ -51,10 +48,6 @@ export function ProgressChart({
       onMonthChange?.([...selectedMonths, month])
     }
   }
-
-  // Use props directly instead of internal state
-  const viewMode = initialViewMode
-  const selectedMonth = initialSelectedMonth
 
   // Calculate chart data based on view mode
   const chartData = useMemo(() => {
