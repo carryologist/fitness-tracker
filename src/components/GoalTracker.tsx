@@ -95,7 +95,7 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
     if (viewMode === 'quarterly') {
       return `Q${currentQuarter} Goal Progress`
     } else {
-      return `${currentYear} Annual Progress`
+      return `${currentYear} Goal Progress`
     }
   }
   
