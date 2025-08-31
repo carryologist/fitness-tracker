@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, min, max, eachMonthOfInterval } from 'date-fns'
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, eachMonthOfInterval } from 'date-fns'
 import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { WorkoutSession } from './WorkoutDashboard'
 import { formatNumber } from '../utils/numberFormat'
@@ -29,8 +29,10 @@ export function ProgressChart({
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
   const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
   const [isMobile, setIsMobile] = useState(false)
+  const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
+    setMounted(true)
     // Only run on client side
     if (typeof window === 'undefined') return
     
@@ -187,32 +189,24 @@ export function ProgressChart({
   // Format x-axis labels based on screen size
   const formatXAxisTick = (value: string) => {
     if (viewMode === 'annual') {
-      if (isMobile) {
-        // Show abbreviated month names on mobile
-        const monthMap: Record<string, string> = {
-          'Jan 2025': 'Jan',
-          'Feb 2025': 'Feb',
-          'Mar 2025': 'Mar',
-          'Apr 2025': 'Apr',
-          'May 2025': 'May',
-          'Jun 2025': 'Jun',
-          'Jul 2025': 'Jul',
-          'Aug 2025': 'Aug',
-          'Sep 2025': 'Sep',
-          'Oct 2025': 'Oct',
-          'Nov 2025': 'Nov',
-          'Dec 2025': 'Dec'
-        }
-        return monthMap[value] || value
+      // Always show abbreviated month names for consistency
+      const monthMap: Record<string, string> = {
+        'Jan 2025': 'Jan',
+        'Feb 2025': 'Feb', 
+        'Mar 2025': 'Mar',
+        'Apr 2025': 'Apr',
+        'May 2025': 'May',
+        'Jun 2025': 'Jun',
+        'Jul 2025': 'Jul',
+        'Aug 2025': 'Aug',
+        'Sep 2025': 'Sep',
+        'Oct 2025': 'Oct',
+        'Nov 2025': 'Nov',
+        'Dec 2025': 'Dec'
       }
-      // Desktop: show month and year
-      return value.replace(' 2025', '')
+      return monthMap[value] || value.replace(' 2025', '')
     }
-    // For daily view, show day number only on mobile
-    if (isMobile && viewMode === 'monthly') {
-      const day = parseInt(value)
-      return day % 5 === 1 ? day.toString() : ''
-    }
+    // For daily view, always show day number
     return value
   }
 
@@ -303,94 +297,93 @@ export function ProgressChart({
       </div>
       
       <div className="mt-6">
-        <div className="h-[400px]">
-          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-            <LineChart 
-              data={chartData} 
-              margin={{ 
-                top: 5, 
-                right: isMobile ? 5 : 30, 
-                left: isMobile ? 0 : 20, 
-                bottom: 5 
+        {/* Chart */}
+        <ResponsiveContainer width="100%" height={mounted && isMobile ? 250 : 300}>
+          <LineChart 
+            data={chartData} 
+            margin={{ 
+              top: 5, 
+              right: mounted && isMobile ? 5 : 30, 
+              left: mounted && isMobile ? 0 : 20, 
+              bottom: 5 
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
+            <XAxis 
+              dataKey="label" 
+              stroke={colors.text}
+              tick={{ fontSize: mounted && isMobile ? 10 : 12 }}
+              tickFormatter={formatXAxisTick}
+              interval={mounted && isMobile && viewMode === 'annual' ? 0 : 'preserveStartEnd'}
+              angle={mounted && isMobile && viewMode === 'annual' ? -45 : 0}
+              textAnchor={mounted && isMobile && viewMode === 'annual' ? 'end' : 'middle'}
+              height={mounted && isMobile && viewMode === 'annual' ? 50 : 30}
+            />
+            <YAxis 
+              yAxisId="left" 
+              stroke={colors.text}
+              tick={{ fontSize: mounted && isMobile ? 10 : 12 }}
+              width={mounted && isMobile ? 35 : 60}
+              tickFormatter={(value) => mounted && isMobile ? `${value}` : formatNumber(value)}
+            />
+            <YAxis 
+              yAxisId="right" 
+              orientation="right" 
+              stroke={colors.text}
+              tick={{ fontSize: mounted && isMobile ? 10 : 12 }}
+              width={mounted && isMobile ? 40 : 60}
+              tickFormatter={(value) => {
+                if (mounted && isMobile) {
+                  return value >= 1000 ? `${(value/1000).toFixed(0)}k` : value.toString()
+                }
+                return formatNumber(value)
               }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-              <XAxis 
-                dataKey="label" 
-                stroke={colors.text}
-                tick={{ fontSize: isMobile ? 10 : 12 }}
-                tickFormatter={formatXAxisTick}
-                interval={isMobile && viewMode === 'annual' ? 0 : 'preserveStartEnd'}
-                angle={isMobile && viewMode === 'annual' ? -45 : 0}
-                textAnchor={isMobile && viewMode === 'annual' ? 'end' : 'middle'}
-                height={isMobile && viewMode === 'annual' ? 50 : 30}
-              />
-              <YAxis 
-                yAxisId="left" 
-                stroke={colors.text}
-                tick={{ fontSize: isMobile ? 10 : 12 }}
-                width={isMobile ? 35 : 60}
-                tickFormatter={(value) => isMobile ? `${value}` : formatNumber(value)}
-              />
-              <YAxis 
-                yAxisId="right" 
-                orientation="right" 
-                stroke={colors.text}
-                tick={{ fontSize: isMobile ? 10 : 12 }}
-                width={isMobile ? 40 : 60}
-                tickFormatter={(value) => {
-                  if (isMobile) {
-                    return value >= 1000 ? `${(value/1000).toFixed(0)}k` : value.toString()
-                  }
-                  return formatNumber(value)
-                }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: colors.tooltip.bg,
-                  border: `1px solid ${colors.tooltip.border}`,
-                  borderRadius: '0.375rem'
-                }}
-                labelStyle={{ color: colors.text }}
-              />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                iconType="line"
-                formatter={(value) => <span style={{ color: colors.text }}>{value}</span>}
-              />
-              <Line 
-                yAxisId="left" 
-                type="monotone" 
-                dataKey="miles" 
-                stroke="#10b981" 
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                activeDot={{ r: 5 }}
-                name="Miles"
-              />
-              <Line 
-                yAxisId="left" 
-                type="monotone" 
-                dataKey="minutes" 
-                stroke="#3b82f6" 
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                activeDot={{ r: 5 }}
-                name="Minutes"
-              />
-              <Line 
-                yAxisId="right" 
-                type="monotone" 
-                dataKey="weight" 
-                stroke="#f97316" 
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                activeDot={{ r: 5 }}
-                name="Weight Lifted (lbs)"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: colors.tooltip.bg,
+                border: `1px solid ${colors.tooltip.border}`,
+                borderRadius: '0.375rem'
+              }}
+              labelStyle={{ color: colors.text }}
+            />
+            <Legend 
+              wrapperStyle={{ paddingTop: '20px' }}
+              iconType="line"
+              formatter={(value) => <span style={{ color: colors.text }}>{value}</span>}
+            />
+            <Line 
+              yAxisId="left" 
+              type="monotone" 
+              dataKey="miles" 
+              stroke="#10b981" 
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              name="Miles"
+            />
+            <Line 
+              yAxisId="left" 
+              type="monotone" 
+              dataKey="minutes" 
+              stroke="#3b82f6" 
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              name="Minutes"
+            />
+            <Line 
+              yAxisId="right" 
+              type="monotone" 
+              dataKey="weight" 
+              stroke="#f97316" 
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              name="Weight Lifted (lbs)"
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
     </div>
   )
