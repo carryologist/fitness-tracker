@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { WorkoutSession } from './WorkoutDashboard'
-import { Target, TrendingUp, Calendar, Activity, Dumbbell, CheckCircle } from 'lucide-react'
+import { Activity, Dumbbell, CheckCircle } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
 interface GoalTrackerProps {
@@ -94,30 +94,35 @@ function calculateExpectedProgress(goals: { sessions: number, minutes: number, m
   }
 }
 
+function getQuarterLabel(quarter: number): string {
+  const labels = ['Q1', 'Q2', 'Q3', 'Q4']
+  return labels[quarter - 1]
+}
+
 export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
-  const [viewMode, setViewMode] = useState<'quarterly' | 'annual'>('quarterly')
-  const currentDate = new Date()
-  const currentMonth = currentDate.getMonth()
-  const currentYear = currentDate.getFullYear()
+  const [currentDate, setCurrentDate] = useState<Date>(new Date(2025, 0, 1))
+  
+  useEffect(() => {
+    setCurrentDate(new Date())
+  }, [])
+  
   const currentQuarter = getQuarter(currentDate)
+  const currentYear = currentDate.getFullYear()
+  const quarterMonths = getQuarterMonths(currentQuarter)
 
   // Define current goals based on view mode
   // Quarterly goals: 2925 minutes, 125000 lbs, 65 sessions
-  const currentGoals = viewMode === 'quarterly' 
-    ? {
-        sessions: 65,      // 5 sessions/week × 13 weeks
-        minutes: 2925,     // 45 min/day × 5 days/week × 13 weeks
-        miles: goals.monthly.miles * 3,  // Keep miles as monthly * 3
-        weight: 125000     // 500,000 lbs/year ÷ 4 quarters
-      }
-    : goals.annual
+  const currentGoals = {
+    sessions: 65,      // 5 sessions/week × 13 weeks
+    minutes: 2925,     // 45 min/day × 5 days/week × 13 weeks
+    miles: goals.monthly.miles * 3,  // Keep miles as monthly * 3
+    weight: 125000     // 500,000 lbs/year ÷ 4 quarters
+  }
 
   // Calculate progress for current period
-  const progress = viewMode === 'quarterly'
-    ? calculateQuarterlyProgress(sessions, currentQuarter, currentYear)
-    : calculateAnnualProgress(sessions, currentYear)
+  const progress = calculateQuarterlyProgress(sessions, currentQuarter, currentYear)
     
-  const expectedProgress = calculateExpectedProgress(currentGoals, viewMode)
+  const expectedProgress = calculateExpectedProgress(currentGoals, 'quarterly')
   
   // Extract values for cleaner code
   const actualWeight = progress.weight
@@ -138,42 +143,19 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
   const getStatus = (actual: number, expected: number) => {
     return actual >= expected ? 'On Track' : 'Behind'
   }
-  
-  const getQuarterLabel = (quarter: number) => {
-    const labels = ['Q1', 'Q2', 'Q3', 'Q4']
-    return labels[quarter - 1]
-  }
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
       {/* Header with responsive layout */}
       <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">2025 Fitness Challenge</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Track your progress towards your quarterly goals</p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('quarterly')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                viewMode === 'quarterly'
-                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-              }`}
-            >
-              {getQuarterLabel(currentQuarter)}
-            </button>
-            <button
-              onClick={() => setViewMode('annual')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                viewMode === 'annual'
-                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-              }`}
-            >
-              Annual
-            </button>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              {getQuarterLabel(currentQuarter)} Goal Progress
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Track your quarterly fitness goals
+            </p>
           </div>
         </div>
       </div>

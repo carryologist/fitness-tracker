@@ -1,17 +1,14 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
-import { WorkoutForm } from './WorkoutForm'
+import React, { useState, useEffect } from 'react'
 import { WorkoutTable } from './WorkoutTable'
-import { WorkoutModal } from './WorkoutModal'
-import { WorkoutSummary } from './WorkoutSummary'
+import { WorkoutForm } from './WorkoutForm'
 import { MonthlySummary } from './MonthlySummary'
 import { ClientProgressChart } from './ClientProgressChart'
-import { GoalModal } from './GoalModal'
 import { GoalTracker } from './GoalTracker'
-import { AddWorkoutDialog } from './AddWorkoutDialog'
+import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
-import { Plus } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 
 export interface WorkoutSession {
   id: string
@@ -174,15 +171,21 @@ const saveGoalToAPI = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedA
 
 export function WorkoutDashboard() {
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
-  const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
+  const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null)
   const [selectedMonths, setSelectedMonths] = useState<Date[]>([])
-  const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
+  const [currentYear, setCurrentYear] = useState(2025) // Default year
+  const [currentDate, setCurrentDate] = useState<Date | null>(null) // Initialize as null
   const [showAddWorkout, setShowAddWorkout] = useState(false)
-  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
-  const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
-  const [editingSession, setEditingSession] = useState<WorkoutSession | undefined>(undefined)
+
+  // Set current date/year on client side only
+  useEffect(() => {
+    const now = new Date()
+    setCurrentYear(now.getFullYear())
+    setCurrentDate(now)
+    setSelectedMonth(now)
+  }, [])
 
   // Handle view change from chart
   const handleViewChange = (view: 'annual' | 'monthly' | 'custom') => {
@@ -231,19 +234,15 @@ export function WorkoutDashboard() {
       
       // Load goals from API (with localStorage fallback)
       const savedGoals = await fetchGoalsFromAPI()
-      setGoals(savedGoals)
       
       // Also save to localStorage for offline access
       saveGoalsToStorage(savedGoals)
       
       setLoading(false)
     } catch (error) {
-      console.error('💥 Error loading data from API:', error)
-      
-      // Fallback to empty data instead of imported data
+      console.error('Failed to load data:', error)
       console.log('⚠️ Using empty data as fallback')
       setSessions([])
-      setGoals([])
       setLoading(false)
     }
   }
@@ -339,11 +338,18 @@ export function WorkoutDashboard() {
 
   const deleteSession = async (id: string) => {
     try {
-      const response = await fetch(`/api/workouts?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
-      if (!response.ok) throw new Error(`Failed to delete workout: ${response.status}`)
-      setSessions(prev => prev.filter(s => s.id !== id))
-    } catch (e) {
-      console.error('Error deleting workout:', e)
+      const response = await fetch(`/api/workouts?id=${id}`, {
+        method: 'DELETE',
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete workout')
+      }
+      
+      setSessions(sessions.filter(s => s.id !== id))
+    } catch (error) {
+      console.error('Failed to delete workout:', error)
+      alert('Failed to delete workout. Please try again.')
     }
   }
 
@@ -351,74 +357,25 @@ export function WorkoutDashboard() {
     await addSession(workout)
   }
 
-  const handleEditWorkout = (session: WorkoutSession) => {
-    setEditingSession(session)
-    setShowAddWorkout(true)
-  }
-
   const handleDeleteWorkout = async (id: string) => {
-    await deleteSession(id)
-  }
-
-  const handleGoalSubmit = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const now = new Date()
-    
-    if (editingGoal) {
-      // Update existing goal via API
-      const updatedGoal = await saveGoalToAPI(goalData, editingGoal.id)
+    try {
+      const response = await fetch(`/api/workouts?id=${id}`, {
+        method: 'DELETE',
+      })
       
-      if (updatedGoal) {
-        const newGoals = goals.map(g => g.id === editingGoal.id ? updatedGoal : g)
-        setGoals(newGoals)
-        saveGoalsToStorage(newGoals) // Backup to localStorage
-      } else {
-        // Fallback to localStorage if API fails
-        const fallbackGoal: Goal = {
-          ...goalData,
-          id: editingGoal.id,
-          createdAt: editingGoal.createdAt,
-          updatedAt: now
-        }
-        const newGoals = goals.map(g => g.id === editingGoal.id ? fallbackGoal : g)
-        setGoals(newGoals)
-        saveGoalsToStorage(newGoals)
+      if (!response.ok) {
+        throw new Error('Failed to delete workout')
       }
-    } else {
-      // Create new goal via API
-      const newGoal = await saveGoalToAPI(goalData)
       
-      if (newGoal) {
-        const newGoals = [newGoal, ...goals]
-        setGoals(newGoals)
-        saveGoalsToStorage(newGoals) // Backup to localStorage
-      } else {
-        // Fallback to localStorage if API fails
-        const fallbackGoal: Goal = {
-          ...goalData,
-          id: Date.now().toString(),
-          createdAt: now,
-          updatedAt: now
-        }
-        const newGoals = [fallbackGoal, ...goals]
-        setGoals(newGoals)
-        saveGoalsToStorage(newGoals)
-      }
+      setSessions(sessions.filter(s => s.id !== id))
+    } catch (error) {
+      console.error('Failed to delete workout:', error)
+      alert('Failed to delete workout. Please try again.')
     }
-    
-    setEditingGoal(undefined)
-    setIsGoalModalOpen(false)
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-600">Loading...</div>
-      </div>
-    )
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -456,7 +413,7 @@ export function WorkoutDashboard() {
           <ClientProgressChart 
             sessions={sessions}
             initialViewMode={chartView}
-            initialSelectedMonth={selectedMonth || new Date()}
+            initialSelectedMonth={selectedMonth || currentDate || new Date(currentYear, 0, 1)}
             selectedMonths={selectedMonths}
             onMonthChange={(months) => {
               if (months.length === 1) {
@@ -472,7 +429,7 @@ export function WorkoutDashboard() {
             sessions={sessions}
             selectedMonths={selectedMonths.map(d => d.getMonth())}
             onMonthToggle={(month) => {
-              const monthDate = new Date(new Date().getFullYear(), month)
+              const monthDate = new Date(currentYear, month)
               const existingIndex = selectedMonths.findIndex(d => d.getMonth() === month)
               
               if (existingIndex >= 0) {
@@ -554,30 +511,31 @@ export function WorkoutDashboard() {
           <div className="p-6">
             <WorkoutTable 
               sessions={sessions} 
-              onEdit={handleEditWorkout}
               onDelete={handleDeleteWorkout}
             />
           </div>
         </div>
 
-        {/* Add Workout Modal */}
-        <AddWorkoutDialog
-          isOpen={showAddWorkout}
-          onClose={() => {
-            setShowAddWorkout(false)
-            setEditingSession(undefined)
-          }}
-          onSubmit={handleAddWorkout}
-          editingSession={editingSession}
-        />
-
-        {/* Goal Modal */}
-        <GoalModal 
-          isOpen={isGoalModalOpen}
-          onClose={() => setIsGoalModalOpen(false)}
-          onSubmit={handleGoalSubmit}
-          existingGoal={editingGoal}
-        />
+        {/* Modals */}
+        {showAddWorkout && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add Workout</h2>
+                <button
+                  onClick={() => setShowAddWorkout(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <WorkoutForm onSubmit={(data) => {
+                handleAddWorkout(data)
+                setShowAddWorkout(false)
+              }} />
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

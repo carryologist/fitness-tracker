@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useMemo } from 'react'
+import { Activity, TrendingUp, Calendar, Weight } from 'lucide-react'
 import { WorkoutSession } from './WorkoutDashboard'
-import { Activity, Dumbbell, TrendingUp, Calendar, Clock, Target, CalendarDays } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutSummaryProps {
@@ -23,21 +23,7 @@ interface WorkoutSummaryProps {
   }
 }
 
-function getQuarter(date: Date): number {
-  return Math.floor(date.getMonth() / 3) + 1
-}
-
-function getQuarterMonths(quarter: number): [number, number, number] {
-  const start = (quarter - 1) * 3
-  return [start, start + 1, start + 2]
-}
-
-function getQuarterLabel(quarter: number): string {
-  const labels = ['Q1', 'Q2', 'Q3', 'Q4']
-  return labels[quarter - 1]
-}
-
-export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
+export function WorkoutSummary({ sessions }: WorkoutSummaryProps) {
   const summaryStats = useMemo(() => {
     if (sessions.length === 0) return null
 
@@ -71,56 +57,6 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     }
   }, [sessions])
 
-  // Calculate quarterly progress for pacing
-  const pacingMetrics = useMemo(() => {
-    if (!goals) return null
-    
-    const now = new Date()
-    const currentQuarter = getQuarter(now)
-    const currentYear = now.getFullYear()
-    const quarterMonths = getQuarterMonths(currentQuarter)
-    
-    // Exact quarterly goals
-    const quarterlyGoalMinutes = 2925  // 45 min/day × 5 days/week × 13 weeks
-    const quarterlyGoalSessions = 65   // 5 sessions/week × 13 weeks
-    const quarterlyGoalWeight = 125000 // 500,000 lbs/year ÷ 4
-    
-    // Get current quarter's progress
-    const quarterSessions = sessions.filter(s => {
-      const sessionDate = new Date(s.date)
-      return quarterMonths.includes(sessionDate.getMonth()) && 
-             sessionDate.getFullYear() === currentYear
-    })
-    
-    const minutesCompleted = quarterSessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
-    const sessionsCompleted = quarterSessions.length
-    const weightCompleted = quarterSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-    
-    const minutesRemaining = Math.max(0, quarterlyGoalMinutes - minutesCompleted)
-    const sessionsNeeded = Math.ceil(minutesRemaining / 45)
-    
-    // Calculate days remaining in quarter
-    const quarterEnd = new Date(currentYear, quarterMonths[2] + 1, 0)
-    const daysRemaining = Math.max(0, Math.floor((quarterEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) + 1)
-    
-    // Calculate required pace
-    const dailyPace = daysRemaining > 0 ? sessionsNeeded / daysRemaining : 0
-    
-    return {
-      currentQuarter,
-      minutesCompleted,
-      minutesRemaining,
-      quarterlyGoalMinutes,
-      sessionsCompleted,
-      quarterlyGoalSessions,
-      weightCompleted,
-      quarterlyGoalWeight,
-      sessionsNeeded,
-      daysRemaining,
-      dailyPace
-    }
-  }, [sessions, goals])
-
   if (!summaryStats) {
     return (
       <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -133,7 +69,7 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     if (activity.toLowerCase().includes('cycling')) {
       return <Activity className="w-4 h-4 text-blue-500" />
     } else if (activity.toLowerCase().includes('weight') || activity.toLowerCase().includes('tonal')) {
-      return <Dumbbell className="w-4 h-4 text-orange-500" />
+      return <Weight className="w-4 h-4 text-orange-500" />
     } else {
       return <TrendingUp className="w-4 h-4 text-gray-500" />
     }
@@ -180,7 +116,7 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
 
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
-            <Dumbbell className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <Weight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             <span className="text-sm text-gray-600 dark:text-gray-400">Weight Lifted</span>
           </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -209,47 +145,6 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
           </div>
         ))}
       </div>
-
-      {/* Pacing Metrics */}
-      {pacingMetrics && goals && (
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">
-            {getQuarterLabel(pacingMetrics.currentQuarter)} Pacing Insights
-          </h4>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <Target className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Sessions needed (45 min)</span>
-              </div>
-              <span className="font-bold text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-nowrap">
-                {pacingMetrics.sessionsNeeded} sessions
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <CalendarDays className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Days remaining</span>
-              </div>
-              <span className="font-bold text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-nowrap">
-                {pacingMetrics.daysRemaining} days
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Required pace</span>
-              </div>
-              <span className="font-bold text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-nowrap">
-                {pacingMetrics.dailyPace === 0 ? 'On track!' :
-                 pacingMetrics.dailyPace < 0.5 ? 'Every other day' :
-                 pacingMetrics.dailyPace < 1 ? `Every ${Math.round(1/pacingMetrics.dailyPace)} days` :
-                 `${pacingMetrics.dailyPace.toFixed(1)} sessions/day`}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

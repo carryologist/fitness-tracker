@@ -1,24 +1,33 @@
 'use client'
 
+import React, { useState, useEffect } from 'react'
 import { WorkoutSession } from './WorkoutDashboard'
 import { formatNumber } from '../utils/numberFormat'
 
 interface MonthlySummaryProps {
   sessions: WorkoutSession[]
-  selectedMonths: number[]
-  onMonthToggle: (month: number) => void
+  selectedMonths?: number[]
+  onMonthToggle?: (month: number) => void
 }
 
-export function MonthlySummary({ sessions, selectedMonths, onMonthToggle }: MonthlySummaryProps) {
+export function MonthlySummary({ sessions, selectedMonths = [], onMonthToggle }: MonthlySummaryProps) {
+  // Use state for current year to avoid hydration mismatch
+  const [currentYear, setCurrentYear] = useState(2025) // Default to 2025
+  
+  useEffect(() => {
+    // Only update on client side
+    setCurrentYear(new Date().getFullYear())
+  }, [])
+  
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ]
 
-  const getMonthData = (monthIndex: number) => {
-    const monthSessions = sessions.filter(s => {
-      const date = new Date(s.date)
-      return date.getMonth() === monthIndex && date.getFullYear() === new Date().getFullYear()
+  const monthlyStats = months.map((month, index) => {
+    const monthSessions = sessions.filter(session => {
+      const date = new Date(session.date)
+      return date.getMonth() === index && date.getFullYear() === currentYear
     })
 
     return {
@@ -27,7 +36,7 @@ export function MonthlySummary({ sessions, selectedMonths, onMonthToggle }: Mont
       miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
       weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
     }
-  }
+  })
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -49,7 +58,7 @@ export function MonthlySummary({ sessions, selectedMonths, onMonthToggle }: Mont
           </thead>
           <tbody>
             {months.map((month, index) => {
-              const monthData = getMonthData(index)
+              const monthData = monthlyStats[index]
               const isSelected = selectedMonths.includes(index)
               const hasData = monthData.sessions > 0
               
@@ -63,7 +72,7 @@ export function MonthlySummary({ sessions, selectedMonths, onMonthToggle }: Mont
                       : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     }
                   `}
-                  onClick={() => onMonthToggle(index)}
+                  onClick={() => onMonthToggle?.(index)}
                 >
                   <td className="py-2 sm:py-3 px-2">
                     <div className="flex items-center gap-2">

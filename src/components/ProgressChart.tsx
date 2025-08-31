@@ -2,8 +2,8 @@
 
 import React, { useMemo, useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, eachMonthOfInterval } from 'date-fns'
-import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval } from 'date-fns'
+import { BarChart3, Calendar } from 'lucide-react'
 import { WorkoutSession } from './WorkoutDashboard'
 import { formatNumber } from '../utils/numberFormat'
 
@@ -18,10 +18,13 @@ interface ProgressChartProps {
   onViewModeChange?: (mode: ViewMode) => void
 }
 
+// Use a stable default date (Jan 1, 2025) to avoid hydration issues
+const DEFAULT_DATE = new Date(2025, 0, 1)
+
 export function ProgressChart({ 
   sessions, 
   viewMode: initialViewMode = 'annual',
-  selectedMonth: initialSelectedMonth = new Date(),
+  selectedMonth: initialSelectedMonth = DEFAULT_DATE,
   selectedMonths = [],
   onMonthChange,
   onViewModeChange
