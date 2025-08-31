@@ -194,9 +194,10 @@ export function WorkoutDashboard() {
       setSelectedMonth(null)
       setSelectedMonths([])
     } else if (view === 'monthly' && selectedMonths.length === 0) {
-      const currentMonth = new Date()
-      setSelectedMonth(currentMonth)
-      setSelectedMonths([currentMonth])
+      // Use currentDate if available, otherwise use current year
+      const monthToSelect = currentDate || new Date(currentYear, new Date().getMonth(), 1)
+      setSelectedMonth(monthToSelect)
+      setSelectedMonths([monthToSelect])
     }
   }
 

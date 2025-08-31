@@ -29,8 +29,6 @@ export function ProgressChart({
   onMonthChange,
   onViewModeChange
 }: ProgressChartProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
-  const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
   const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
@@ -40,7 +38,6 @@ export function ProgressChart({
   const selectedMonthKeys = useMemo(() => selectedMonths.map(d => format(d, 'yyyy-MM')), [selectedMonths])
   
   const handleViewModeChange = (mode: 'annual' | 'monthly' | 'custom') => {
-    setViewMode(mode)
     onViewModeChange?.(mode)
   }
 
@@ -55,19 +52,9 @@ export function ProgressChart({
     }
   }
 
-  // Effect to sync external viewMode changes
-  useEffect(() => {
-    if (initialViewMode !== viewMode) {
-      setViewMode(initialViewMode)
-    }
-  }, [initialViewMode])
-
-  // Effect to sync external selectedMonth changes
-  useEffect(() => {
-    if (initialSelectedMonth !== selectedMonth) {
-      setSelectedMonth(initialSelectedMonth)
-    }
-  }, [initialSelectedMonth])
+  // Use props directly instead of internal state
+  const viewMode = initialViewMode
+  const selectedMonth = initialSelectedMonth
 
   // Calculate chart data based on view mode
   const chartData = useMemo(() => {
