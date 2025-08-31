@@ -28,20 +28,10 @@ export function ProgressChart({
 }: ProgressChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode)
   const [selectedMonth, setSelectedMonth] = useState(initialSelectedMonth)
-  const [isMobile, setIsMobile] = useState(false)
   const [mounted, setMounted] = useState(false)
   
   useEffect(() => {
     setMounted(true)
-    // Only run on client side
-    if (typeof window === 'undefined') return
-    
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640)
-    }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
   const selectedMonthKeys = useMemo(() => selectedMonths.map(d => format(d, 'yyyy-MM')), [selectedMonths])
@@ -50,139 +40,132 @@ export function ProgressChart({
     setViewMode(mode)
     onViewModeChange?.(mode)
   }
-  
-  React.useEffect(() => {
-    setSelectedMonth(initialSelectedMonth)
-    if (initialViewMode === 'custom' && selectedMonthKeys.length === 0) {
-      setViewMode('annual')
-    } else {
-      setViewMode(initialViewMode)
-    }
-  }, [initialSelectedMonth, initialViewMode, selectedMonthKeys.length])
 
-  const handleMonthChange = (newMonth: Date) => {
-    setSelectedMonth(newMonth)
-    onMonthChange?.([newMonth])
+  const handleMonthClick = (month: Date) => {
+    const monthKey = format(month, 'yyyy-MM')
+    const isSelected = selectedMonthKeys.includes(monthKey)
+    
+    if (isSelected) {
+      onMonthChange?.(selectedMonths.filter(m => format(m, 'yyyy-MM') !== monthKey))
+    } else {
+      onMonthChange?.([...selectedMonths, month])
+    }
   }
 
-  const canGoNext = selectedMonth < startOfMonth(new Date())
+  // Effect to sync external viewMode changes
+  useEffect(() => {
+    if (initialViewMode !== viewMode) {
+      setViewMode(initialViewMode)
+    }
+  }, [initialViewMode])
 
+  // Effect to sync external selectedMonth changes
+  useEffect(() => {
+    if (initialSelectedMonth !== selectedMonth) {
+      setSelectedMonth(initialSelectedMonth)
+    }
+  }, [initialSelectedMonth])
+
+  // Calculate chart data based on view mode
   const chartData = useMemo(() => {
     if (viewMode === 'annual') {
-      // Annual view - show monthly data
+      // Group by month for annual view
+      const monthlyData = new Map<string, { minutes: number, miles: number, weight: number }>()
+      
+      sessions.forEach(session => {
+        const monthKey = format(new Date(session.date), 'MMM yyyy')
+        const existing = monthlyData.get(monthKey) || { minutes: 0, miles: 0, weight: 0 }
+        monthlyData.set(monthKey, {
+          minutes: existing.minutes + (session.minutes || 0),
+          miles: existing.miles + (session.miles || 0),
+          weight: existing.weight + (session.weightLifted || 0)
+        })
+      })
+
+      // Get all months in the year
+      const currentYear = new Date().getFullYear()
       const months = eachMonthOfInterval({
-        start: new Date(2025, 0, 1),
-        end: new Date(2025, 11, 31)
+        start: new Date(currentYear, 0, 1),
+        end: new Date(currentYear, 11, 31)
       })
 
       return months.map(month => {
-        const monthSessions = sessions.filter(s => {
-          const sessionDate = new Date(s.date)
-          return sessionDate.getMonth() === month.getMonth() && 
-                 sessionDate.getFullYear() === month.getFullYear()
-        })
-
-        const totalMinutes = monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
-        const totalMiles = monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0)
-        const totalWeight = monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-
+        const monthKey = format(month, 'MMM yyyy')
+        const data = monthlyData.get(monthKey) || { minutes: 0, miles: 0, weight: 0 }
         return {
           label: format(month, 'MMM yyyy'),
-          minutes: totalMinutes,
-          miles: totalMiles,
-          weight: totalWeight
+          ...data
         }
       })
     } else if (viewMode === 'monthly') {
-      // Monthly view - show daily data for selected month
+      // Group by day for monthly view
+      const dailyData = new Map<string, { minutes: number, miles: number, weight: number }>()
+      
+      sessions.forEach(session => {
+        const sessionDate = new Date(session.date)
+        if (format(sessionDate, 'yyyy-MM') === format(selectedMonth, 'yyyy-MM')) {
+          const dayKey = format(sessionDate, 'd')
+          const existing = dailyData.get(dayKey) || { minutes: 0, miles: 0, weight: 0 }
+          dailyData.set(dayKey, {
+            minutes: existing.minutes + (session.minutes || 0),
+            miles: existing.miles + (session.miles || 0),
+            weight: existing.weight + (session.weightLifted || 0)
+          })
+        }
+      })
+
+      // Get all days in the selected month
       const days = eachDayOfInterval({
         start: startOfMonth(selectedMonth),
         end: endOfMonth(selectedMonth)
       })
 
       return days.map(day => {
-        const daySessions = sessions.filter(s => {
-          const sessionDate = new Date(s.date)
-          return format(sessionDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
-        })
-
-        const totalMinutes = daySessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
-        const totalMiles = daySessions.reduce((sum, s) => sum + (s.miles || 0), 0)
-        const totalWeight = daySessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-
+        const dayKey = format(day, 'd')
+        const data = dailyData.get(dayKey) || { minutes: 0, miles: 0, weight: 0 }
         return {
-          label: format(day, 'd'),
-          minutes: totalMinutes,
-          miles: totalMiles,
-          weight: totalWeight
+          label: dayKey,
+          ...data
         }
       })
     } else {
-      // Custom view - show data for selected months
-      if (selectedMonths.length === 0) return []
+      // Custom view - show selected months
+      const monthlyData = new Map<string, { minutes: number, miles: number, weight: number }>()
       
-      const sortedMonths = [...selectedMonths].sort((a, b) => a.getTime() - b.getTime())
-      
-      return sortedMonths.map(month => {
-        const monthSessions = sessions.filter(s => {
-          const sessionDate = new Date(s.date)
-          return sessionDate.getMonth() === month.getMonth() && 
-                 sessionDate.getFullYear() === month.getFullYear()
-        })
-
-        const totalMinutes = monthSessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
-        const totalMiles = monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0)
-        const totalWeight = monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-
-        return {
-          label: format(month, 'MMM yyyy'),
-          minutes: totalMinutes,
-          miles: totalMiles,
-          weight: totalWeight
+      sessions.forEach(session => {
+        const monthKey = format(new Date(session.date), 'MMM yyyy')
+        if (selectedMonthKeys.includes(format(new Date(session.date), 'yyyy-MM'))) {
+          const existing = monthlyData.get(monthKey) || { minutes: 0, miles: 0, weight: 0 }
+          monthlyData.set(monthKey, {
+            minutes: existing.minutes + (session.minutes || 0),
+            miles: existing.miles + (session.miles || 0),
+            weight: existing.weight + (session.weightLifted || 0)
+          })
         }
       })
+
+      return Array.from(monthlyData.entries()).map(([label, data]) => ({
+        label,
+        ...data
+      }))
     }
-  }, [sessions, viewMode, selectedMonth, selectedMonths])
+  }, [sessions, viewMode, selectedMonth, selectedMonthKeys])
 
   const domains = useMemo(() => {
-    if (chartData.length === 0) return { left: [0, 50], right: [0, 1000] }
-    const minutesValues = chartData.map(d => d.minutes).filter(v => v > 0)
-    const milesValues = chartData.map(d => d.miles).filter(v => v > 0)
-    const leftValues = [...minutesValues, ...milesValues]
-    const weightValues = chartData.map(d => d.weight).filter(v => v > 0)
-    let leftMax = 50
-    if (leftValues.length > 0) {
-      const dataMax = Math.max(...leftValues)
-      leftMax = Math.ceil(dataMax * 1.3)
-      if (leftMax <= 10) leftMax = Math.ceil(leftMax / 2) * 2
-      else if (leftMax <= 50) leftMax = Math.ceil(leftMax / 5) * 5
-      else leftMax = Math.ceil(leftMax / 10) * 10
+    const allValues = chartData.flatMap(d => [d.minutes, d.miles, d.weight])
+    return {
+      min: Math.min(...allValues, 0),
+      max: Math.max(...allValues, 1)
     }
-    let rightMax = 1000
-    if (weightValues.length > 0) {
-      const dataMax = Math.max(...weightValues)
-      rightMax = Math.ceil(dataMax * 1.3)
-      if (rightMax <= 1000) rightMax = Math.ceil(rightMax / 100) * 100
-      else if (rightMax <= 10000) rightMax = Math.ceil(rightMax / 1000) * 1000
-      else rightMax = Math.ceil(rightMax / 10000) * 10000
-    }
-    return { left: [0, leftMax], right: [0, rightMax] }
   }, [chartData])
 
-  if (chartData.length === 0) {
-    return (
-      <div className="h-64 flex items-center justify-center text-gray-500">
-        No data to display. Add some workout sessions to see your progress!
-      </div>
-    )
-  }
-
+  // Theme colors
   const colors = {
-    text: '#6b7280',
-    grid: '#e5e7eb',
+    text: 'rgb(107 114 128)',
+    grid: 'rgb(229 231 235)',
     tooltip: {
-      bg: '#ffffff',
-      border: '#e5e7eb'
+      bg: 'white',
+      border: 'rgb(229 231 235)'
     }
   }
 
@@ -210,6 +193,26 @@ export function ProgressChart({
     return value
   }
 
+  // Don't render chart on server
+  if (!mounted) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
+          <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center text-gray-500">
+        No data to display. Add some workout sessions to see your progress!
+      </div>
+    )
+  }
+
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
       <div className="mb-6">
@@ -226,29 +229,6 @@ export function ProgressChart({
                                    'for selected months'}
             </p>
           </div>
-          {viewMode === 'monthly' && (
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => handleMonthChange(subMonths(selectedMonth, 1))} 
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
-                title="Previous month"
-              >
-                <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              </button>
-              <button 
-                onClick={() => canGoNext && handleMonthChange(addMonths(selectedMonth, 1))} 
-                className={`p-2 rounded-lg transition-colors ${
-                  canGoNext 
-                    ? 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400' 
-                    : 'text-gray-300 dark:text-gray-700 cursor-not-allowed'
-                }`} 
-                title={canGoNext ? "Next month" : "Cannot go beyond current month"} 
-                disabled={!canGoNext}
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
         </div>
         
         <div className="flex items-center gap-2">
@@ -298,46 +278,32 @@ export function ProgressChart({
       
       <div className="mt-6">
         {/* Chart */}
-        <ResponsiveContainer width="100%" height={mounted && isMobile ? 250 : 300}>
+        <ResponsiveContainer width="100%" height={300}>
           <LineChart 
             data={chartData} 
-            margin={{ 
-              top: 5, 
-              right: mounted && isMobile ? 5 : 30, 
-              left: mounted && isMobile ? 0 : 20, 
-              bottom: 5 
-            }}
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
             <XAxis 
               dataKey="label" 
               stroke={colors.text}
-              tick={{ fontSize: mounted && isMobile ? 10 : 12 }}
+              tick={{ fontSize: 12 }}
               tickFormatter={formatXAxisTick}
-              interval={mounted && isMobile && viewMode === 'annual' ? 0 : 'preserveStartEnd'}
-              angle={mounted && isMobile && viewMode === 'annual' ? -45 : 0}
-              textAnchor={mounted && isMobile && viewMode === 'annual' ? 'end' : 'middle'}
-              height={mounted && isMobile && viewMode === 'annual' ? 50 : 30}
             />
             <YAxis 
               yAxisId="left" 
               stroke={colors.text}
-              tick={{ fontSize: mounted && isMobile ? 10 : 12 }}
-              width={mounted && isMobile ? 35 : 60}
-              tickFormatter={(value) => mounted && isMobile ? `${value}` : formatNumber(value)}
+              tick={{ fontSize: 12 }}
+              width={60}
+              tickFormatter={(value) => formatNumber(value)}
             />
             <YAxis 
               yAxisId="right" 
               orientation="right" 
               stroke={colors.text}
-              tick={{ fontSize: mounted && isMobile ? 10 : 12 }}
-              width={mounted && isMobile ? 40 : 60}
-              tickFormatter={(value) => {
-                if (mounted && isMobile) {
-                  return value >= 1000 ? `${(value/1000).toFixed(0)}k` : value.toString()
-                }
-                return formatNumber(value)
-              }}
+              tick={{ fontSize: 12 }}
+              width={60}
+              tickFormatter={(value) => formatNumber(value)}
             />
             <Tooltip 
               contentStyle={{ 
