@@ -200,7 +200,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
   };
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 gap-4">
       {/* Date */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

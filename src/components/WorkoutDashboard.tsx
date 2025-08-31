@@ -405,9 +405,8 @@ export function WorkoutDashboard() {
                 className="w-10 h-10 rounded-lg shadow-sm"
               />
               <div>
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
-                  <span className="hidden sm:inline">Fitness Tracker</span>
-                  <span className="sm:hidden">Fitness</span>
+                <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-100">
+                  Fitness Tracker
                 </h1>
                 <p className="text-xs text-gray-600 dark:text-gray-400 hidden sm:block">Track your progress</p>
               </div>
