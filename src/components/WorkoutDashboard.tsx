@@ -394,13 +394,16 @@ export function WorkoutDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-white font-bold text-xl">F</span>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src="/fitness-logo.svg" 
+                alt="Fitness Tracker" 
+                className="w-10 h-10 rounded-lg shadow-sm"
+              />
               <div>
                 <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                   <span className="hidden sm:inline">Fitness Tracker</span>
