@@ -182,10 +182,10 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
           <div className="flex items-center gap-2 mb-2">
             <Weight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm text-gray-600 dark:text-gray-400">Weight Lifted</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">Total Lbs Lifted</span>
           </div>
           <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
-            {formatNumber(summaryStats.totalWeight)}&nbsp;lbs
+            {formatNumber(summaryStats.totalWeight)}
           </p>
         </div>
       </div>

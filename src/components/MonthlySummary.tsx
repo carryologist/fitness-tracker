@@ -89,7 +89,7 @@ export function MonthlySummary({ sessions, selectedMonths = [], onMonthToggle }:
                   <td className={`text-right py-2 sm:py-3 px-1 sm:px-2 text-xs sm:text-sm ${
                     hasData ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'
                   }`}>
-                    {formatNumber(monthData.sessions)}
+                    {monthData.sessions}
                   </td>
                   <td className={`text-right py-2 sm:py-3 px-1 sm:px-2 text-xs sm:text-sm ${
                     hasData ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'
