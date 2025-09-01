@@ -262,7 +262,7 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">Expected</span>
-              <span className="text-gray-700 dark:text-gray-300">{formatNumber(Math.round(expectedSessions))} sessions</span>
+              <span className="text-gray-700 dark:text-gray-300">{Math.round(expectedSessions)} sessions</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">Target</span>
