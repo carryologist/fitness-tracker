@@ -50,14 +50,21 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     const totalMiles = sessions.reduce((sum, s) => sum + (s.miles || 0), 0)
     const totalWeight = sessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
 
-    // Activity breakdown
+    // Activity breakdown with case-insensitive grouping
     const activityBreakdown = sessions.reduce((acc, session) => {
       const activity = session.activity || 'Other'
-      if (!acc[activity]) {
-        acc[activity] = { count: 0, minutes: 0 }
+      // Normalize activity name to title case for consistent grouping
+      const normalizedActivity = activity
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+      
+      if (!acc[normalizedActivity]) {
+        acc[normalizedActivity] = { count: 0, minutes: 0 }
       }
-      acc[activity].count++
-      acc[activity].minutes += session.minutes || 0
+      acc[normalizedActivity].count++
+      acc[normalizedActivity].minutes += session.minutes || 0
       return acc
     }, {} as Record<string, { count: number; minutes: number }>)
 

@@ -8,9 +8,9 @@ interface WorkoutFormData {
   date: string
   source: string
   activity: string
-  minutes: number
-  miles?: number
-  weightLifted?: number
+  minutes: string | number
+  miles?: string | number
+  weightLifted?: string | number
   notes?: string
 }
 
@@ -67,7 +67,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
       date: defaultDate,
       source: initial?.source ?? '',
       activity: initial?.activity ?? '',
-      minutes: initial?.minutes ?? 0,
+      minutes: initial?.minutes ?? '',
       miles: initial?.miles,
       weightLifted: initial?.weightLifted,
       notes: initial?.notes ?? ''
@@ -88,9 +88,6 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
 
   const activity = watch('activity')
   const source = watch('source')
-  const minutes = watch('minutes')
-  const miles = watch('miles')
-  const weightLifted = watch('weightLifted')
   
   // State for custom activity input
   const [customActivity, setCustomActivity] = useState('')
@@ -187,18 +184,6 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
     setCustomActivity('') // Reset custom activity
   }
 
-  const handleValueChange = (field: 'minutes' | 'miles' | 'weightLifted', value: string) => {
-    // Allow any number of decimal places in input
-    if (value === '') {
-      setValue(field, 0);
-    } else {
-      const numValue = parseFloat(value);
-      if (!isNaN(numValue)) {
-        setValue(field, numValue);
-      }
-    }
-  };
-
   return (
     <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 gap-4">
       {/* Date */}
@@ -263,8 +248,10 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
           type="number"
           step="any"
           placeholder="Minutes"
-          value={minutes}
-          onChange={(e) => handleValueChange('minutes', e.target.value)}
+          {...register('minutes', { 
+            required: 'Minutes is required',
+            min: { value: 0, message: 'Minutes must be positive' }
+          })}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
         />
         {errors.minutes && <p className="text-red-500 text-xs mt-1">{errors.minutes.message}</p>}
@@ -280,8 +267,9 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
             type="number"
             step="any"
             placeholder="Miles"
-            value={miles}
-            onChange={(e) => handleValueChange('miles', e.target.value)}
+            {...register('miles', {
+              min: { value: 0, message: 'Miles must be positive' }
+            })}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
         </div>
@@ -297,8 +285,9 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
             type="number"
             step="any"
             placeholder="Weight (lbs)"
-            value={weightLifted}
-            onChange={(e) => handleValueChange('weightLifted', e.target.value)}
+            {...register('weightLifted', {
+              min: { value: 0, message: 'Weight must be positive' }
+            })}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
         </div>
