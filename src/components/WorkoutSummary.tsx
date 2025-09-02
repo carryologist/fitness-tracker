@@ -73,12 +73,36 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
       .sort((a, b) => b[1].minutes - a[1].minutes)
       .slice(0, 3)
 
+    // Find single session records
+    const singleSessionRecords = {
+      highestMiles: sessions.reduce((max, session) => {
+        const miles = session.miles || 0
+        return miles > (max.miles || 0) ? {
+          miles,
+          activity: session.activity,
+          date: session.date,
+          source: session.source
+        } : max
+      }, { miles: 0, activity: '', date: new Date(), source: '' }),
+      
+      highestWeight: sessions.reduce((max, session) => {
+        const weight = session.weightLifted || 0
+        return weight > (max.weight || 0) ? {
+          weight,
+          activity: session.activity,
+          date: session.date,
+          source: session.source
+        } : max
+      }, { weight: 0, activity: '', date: new Date(), source: '' })
+    }
+
     return {
       totalSessions,
       totalMinutes,
       totalMiles,
       totalWeight,
-      topActivities
+      topActivities,
+      singleSessionRecords
     }
   }, [sessions])
 
@@ -192,7 +216,49 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
 
       {/* Activity Breakdown */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Top Activities</h3>
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Top Activities - Single Session</h3>
+        <div className="space-y-2">
+          {/* Highest Miles */}
+          {summaryStats.singleSessionRecords.highestMiles.miles > 0 && (
+            <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">Longest Distance</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {summaryStats.singleSessionRecords.highestMiles.activity} • {summaryStats.singleSessionRecords.highestMiles.source}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm font-bold text-green-700 dark:text-green-300">
+                {summaryStats.singleSessionRecords.highestMiles.miles.toFixed(1)} mi
+              </p>
+            </div>
+          )}
+          
+          {/* Highest Weight */}
+          {summaryStats.singleSessionRecords.highestWeight.weight > 0 && (
+            <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center gap-3">
+                <Weight className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">Most Weight Lifted</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {summaryStats.singleSessionRecords.highestWeight.activity} • {summaryStats.singleSessionRecords.highestWeight.source}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm font-bold text-purple-700 dark:text-purple-300">
+                {formatNumber(summaryStats.singleSessionRecords.highestWeight.weight)} lbs
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Activity Breakdown */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Top Activities - All Time</h3>
         {summaryStats.topActivities.map(([activity, stats]) => (
           <div key={activity} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
             <div className="flex items-center gap-3">
