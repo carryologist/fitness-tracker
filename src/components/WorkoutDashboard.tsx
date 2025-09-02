@@ -6,9 +6,10 @@ import { WorkoutForm } from './WorkoutForm'
 import { MonthlySummary } from './MonthlySummary'
 import { ClientProgressChart } from './ClientProgressChart'
 import { GoalTracker } from './GoalTracker'
+import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Target } from 'lucide-react'
 
 export interface WorkoutSession {
   id: string
@@ -171,6 +172,7 @@ const saveGoalToAPI = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedA
 
 export function WorkoutDashboard() {
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
+  const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
   const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null)
@@ -178,6 +180,8 @@ export function WorkoutDashboard() {
   const [currentYear, setCurrentYear] = useState(2025) // Default year
   const [currentDate, setCurrentDate] = useState<Date | null>(null) // Initialize as null
   const [showAddWorkout, setShowAddWorkout] = useState(false)
+  const [showGoalModal, setShowGoalModal] = useState(false)
+  const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
 
   // Set current date/year on client side only
   useEffect(() => {
@@ -251,6 +255,7 @@ export function WorkoutDashboard() {
       
       // Load goals from API (with localStorage fallback)
       const savedGoals = await fetchGoalsFromAPI()
+      setGoals(savedGoals)
       
       // Also save to localStorage for offline access
       saveGoalsToStorage(savedGoals)
@@ -260,6 +265,7 @@ export function WorkoutDashboard() {
       console.error('Failed to load data:', error)
       console.log('⚠️ Using empty data as fallback')
       setSessions([])
+      setGoals([])
       setLoading(false)
     }
   }
@@ -391,6 +397,43 @@ export function WorkoutDashboard() {
     }
   }
 
+  // Goal management functions
+  const handleCreateGoal = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newGoal = await saveGoalToAPI(goalData)
+    if (newGoal) {
+      const updatedGoals = [...goals, newGoal]
+      setGoals(updatedGoals)
+      saveGoalsToStorage(updatedGoals)
+    }
+  }
+
+  const handleEditGoal = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!editingGoal) return
+    
+    const updatedGoal = await saveGoalToAPI(goalData, editingGoal.id)
+    if (updatedGoal) {
+      const updatedGoals = goals.map(g => g.id === editingGoal.id ? updatedGoal : g)
+      setGoals(updatedGoals)
+      saveGoalsToStorage(updatedGoals)
+      setEditingGoal(undefined)
+    }
+  }
+
+  const openEditGoal = (goal: Goal) => {
+    setEditingGoal(goal)
+    setShowGoalModal(true)
+  }
+
+  const closeGoalModal = () => {
+    setShowGoalModal(false)
+    setEditingGoal(undefined)
+  }
+
+  // Get current goal for the year
+  const getCurrentGoal = (): Goal | null => {
+    return goals.find(g => g.year === currentYear) || null
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
@@ -479,35 +522,81 @@ export function WorkoutDashboard() {
 
         {/* Goals and Summary Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <GoalTracker 
-            sessions={sessions} 
-            goals={{
-              quarterly: {
-                sessions: 65,   // 5 sessions/week × 13 weeks
-                minutes: 2925,  // 45 min/session × 65 sessions
-                weight: 125000  // 500,000 lbs/year ÷ 4 quarters
-              },
-              annual: {
-                sessions: 260,  // 65 * 4 = 260 sessions/year
-                minutes: 11700, // 2925 * 4 = 11700 minutes/year
-                weight: 500000  // 500,000 lbs/year
-              }
-            }} 
-          />
+          {(() => {
+            const currentGoal = getCurrentGoal()
+            
+            if (!currentGoal) {
+              // No goal exists for current year - show create goal UI
+              return (
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="text-center">
+                    <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                      No Goal Set for {currentYear}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      Create an annual fitness goal to track your progress with quarterly milestones.
+                    </p>
+                    <button
+                      onClick={() => setShowGoalModal(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Create {currentYear} Goal
+                    </button>
+                  </div>
+                </div>
+              )
+            }
+            
+            // Goal exists - show GoalTracker with actual data
+            return (
+              <div className="relative">
+                <GoalTracker 
+                  sessions={sessions} 
+                  goals={{
+                    quarterly: {
+                      sessions: currentGoal.quarterlySessionsTarget,
+                      minutes: currentGoal.quarterlyMinutesTarget,
+                      weight: currentGoal.quarterlyWeightTarget
+                    },
+                    annual: {
+                      sessions: currentGoal.weeklySessionsTarget * 52,
+                      minutes: currentGoal.annualMinutesTarget,
+                      weight: currentGoal.annualWeightTarget
+                    }
+                  }} 
+                />
+                {/* Edit Goal Button */}
+                <button
+                  onClick={() => openEditGoal(currentGoal)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  title="Edit Goal"
+                >
+                  <Target className="w-5 h-5" />
+                </button>
+              </div>
+            )
+          })()}
           <WorkoutSummary 
             sessions={sessions} 
-            goals={{
-              quarterly: {
-                sessions: 65,   // 5 sessions/week × 13 weeks
-                minutes: 2925,  // 45 min/session × 65 sessions
-                weight: 125000  // 500,000 lbs/year ÷ 4 quarters
-              },
-              annual: {
-                sessions: 260,  // 65 * 4 = 260 sessions/year
-                minutes: 11700, // 2925 * 4 = 11700 minutes/year
-                weight: 500000  // 500,000 lbs/year
+            goals={(() => {
+              const goal = getCurrentGoal()
+              return goal ? {
+                quarterly: {
+                  sessions: goal.quarterlySessionsTarget,
+                  minutes: goal.quarterlyMinutesTarget,
+                  weight: goal.quarterlyWeightTarget
+                },
+                annual: {
+                  sessions: goal.weeklySessionsTarget * 52,
+                  minutes: goal.annualMinutesTarget,
+                  weight: goal.annualWeightTarget
+                }
+              } : {
+                quarterly: { sessions: 0, minutes: 0, weight: 0 },
+                annual: { sessions: 0, minutes: 0, weight: 0 }
               }
-            }} 
+            })()} 
           />
         </div>
 
@@ -551,6 +640,14 @@ export function WorkoutDashboard() {
             </div>
           </div>
         )}
+        
+        {/* Goal Modal */}
+        <GoalModal
+          isOpen={showGoalModal}
+          onClose={closeGoalModal}
+          onSubmit={editingGoal ? handleEditGoal : handleCreateGoal}
+          existingGoal={editingGoal}
+        />
       </main>
     </div>
   )
