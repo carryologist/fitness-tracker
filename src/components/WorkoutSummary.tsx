@@ -257,7 +257,7 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
       </div>
 
       {/* Activity Breakdown */}
-      <div className="space-y-3">
+      <div className="space-y-3 mt-6">
         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Top Activities - All Time</h3>
         {summaryStats.topActivities.map(([activity, stats]) => (
           <div key={activity} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
