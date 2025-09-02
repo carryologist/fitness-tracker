@@ -108,7 +108,7 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 h-full">
       {/* Header with toggle buttons */}
       <div className="mb-6">
         <div className="flex flex-col gap-4">
