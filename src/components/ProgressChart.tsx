@@ -127,19 +127,17 @@ export function ProgressChart({
         }
       })
 
-      // Sort months chronologically by parsing the date from the label
-      return Array.from(monthlyData.entries())
-        .sort(([labelA], [labelB]) => {
-          const dateA = new Date(labelA)
-          const dateB = new Date(labelB)
-          return dateA.getTime() - dateB.getTime()
-        })
-        .map(([label, data]) => ({
-          label,
+      // Return data in the order of selectedMonths (which is now chronologically sorted)
+      return selectedMonths.map(month => {
+        const monthKey = format(month, 'MMM yyyy')
+        const data = monthlyData.get(monthKey) || { minutes: 0, miles: 0, weight: 0 }
+        return {
+          label: monthKey,
           ...data
-        }))
+        }
+      }).filter(item => monthlyData.has(item.label)) // Only include months that have data
     }
-  }, [sessions, viewMode, selectedMonth, selectedMonthKeys])
+  }, [sessions, viewMode, selectedMonth, selectedMonthKeys, selectedMonths])
 
   const domains = useMemo(() => {
     const allValues = chartData.flatMap(d => [d.minutes, d.miles, d.weight])

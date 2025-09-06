@@ -507,7 +507,7 @@ export function WorkoutDashboard() {
                 }
               } else {
                 // Add month
-                const newMonths = [...selectedMonths, monthDate].sort((a, b) => a.getMonth() - b.getMonth())
+                const newMonths = [...selectedMonths, monthDate].sort((a, b) => a.getTime() - b.getTime())
                 setSelectedMonths(newMonths)
                 if (newMonths.length === 1) {
                   setSelectedMonth(monthDate)
