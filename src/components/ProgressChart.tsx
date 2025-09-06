@@ -127,10 +127,17 @@ export function ProgressChart({
         }
       })
 
-      return Array.from(monthlyData.entries()).map(([label, data]) => ({
-        label,
-        ...data
-      }))
+      // Sort months chronologically by parsing the date from the label
+      return Array.from(monthlyData.entries())
+        .sort(([labelA], [labelB]) => {
+          const dateA = new Date(labelA)
+          const dateB = new Date(labelB)
+          return dateA.getTime() - dateB.getTime()
+        })
+        .map(([label, data]) => ({
+          label,
+          ...data
+        }))
     }
   }, [sessions, viewMode, selectedMonth, selectedMonthKeys])
 
