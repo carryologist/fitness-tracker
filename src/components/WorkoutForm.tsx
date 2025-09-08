@@ -32,6 +32,21 @@ function parseLocalDateInput(dateString: string): Date {
   return new Date(year, month - 1, day)
 }
 
+// Helper to format weight with commas (no decimals)
+function formatWeight(value: string | number): string {
+  if (!value) return ''
+  const numValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value
+  if (isNaN(numValue)) return ''
+  return Math.floor(numValue).toLocaleString('en-US')
+}
+
+// Helper to parse formatted weight back to number
+function parseWeight(formattedValue: string): number {
+  const cleaned = formattedValue.replace(/,/g, '')
+  const parsed = parseFloat(cleaned)
+  return isNaN(parsed) ? 0 : Math.floor(parsed)
+}
+
 // Helper to get custom activities from localStorage
 function getStoredCustomActivities(): string[] {
   if (typeof window === 'undefined') return []
@@ -94,6 +109,16 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
   const [showCustomInput, setShowCustomInput] = useState(false)
   const [customSuggestions, setCustomSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  
+  // State for formatted weight input
+  const [formattedWeight, setFormattedWeight] = useState('')
+  
+  // Initialize formatted weight from initial value
+  useEffect(() => {
+    if (initial?.weightLifted) {
+      setFormattedWeight(formatWeight(initial.weightLifted))
+    }
+  }, [initial?.weightLifted])
   
   // Load stored custom activities on mount
   useEffect(() => {
@@ -182,6 +207,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
     onSubmit(session)
     reset()
     setCustomActivity('') // Reset custom activity
+    setFormattedWeight('') // Reset formatted weight
   }
 
   return (
@@ -282,12 +308,31 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
             Weight Lifted (lbs)
           </label>
           <input
-            type="number"
-            step="any"
+            type="text"
             placeholder="Weight (lbs)"
-            {...register('weightLifted', {
-              min: { value: 0, message: 'Weight must be positive' }
-            })}
+            value={formattedWeight}
+            onChange={(e) => {
+              const inputValue = e.target.value
+              // Allow only numbers and commas
+              const cleanedValue = inputValue.replace(/[^0-9,]/g, '')
+              // Remove multiple commas and format
+              const numericValue = cleanedValue.replace(/,/g, '')
+              if (numericValue === '' || /^\d+$/.test(numericValue)) {
+                const formatted = numericValue ? formatWeight(numericValue) : ''
+                setFormattedWeight(formatted)
+                // Update the form value with the numeric value
+                setValue('weightLifted', numericValue ? parseWeight(formatted) : '')
+              }
+            }}
+            onBlur={() => {
+              // Ensure proper formatting on blur
+              if (formattedWeight) {
+                const parsed = parseWeight(formattedWeight)
+                const reformatted = formatWeight(parsed)
+                setFormattedWeight(reformatted)
+                setValue('weightLifted', parsed)
+              }
+            }}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
         </div>
