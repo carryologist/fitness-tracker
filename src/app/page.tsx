@@ -8,4 +8,4 @@ export default function Home() {
       <WorkoutDashboard />
     </main>
   )
-}
+}// Force redeploy - fitness tracker restoration
