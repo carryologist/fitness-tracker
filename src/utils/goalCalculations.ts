@@ -109,8 +109,15 @@ export function createGoal(
   minutesPerSession: number,
   weeklySessionsTarget: number
 ): Omit<Goal, 'id' | 'createdAt' | 'updatedAt'> {
-  const weeklyMinutesTarget = minutesPerSession * weeklySessionsTarget
-  
+  // For 2026 goals: 3 days at 45 mins and 2 days at 60 mins per week = 255 mins per week
+  // But we'll maintain backward compatibility with the existing model
+  let weeklyMinutesTarget = minutesPerSession * weeklySessionsTarget
+
+  // If it's for year 2026, calculate using the new mixed session model
+  if (year === 2026) {
+    weeklyMinutesTarget = (45 * 3) + (60 * 2) // 3 days at 45 mins, 2 days at 60 mins
+  }
+
   return {
     name,
     year,

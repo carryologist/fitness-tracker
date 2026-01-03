@@ -16,7 +16,7 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
   const [formData, setFormData] = useState({
     name: existingGoal?.name || '',
     year: existingGoal?.year || new Date().getFullYear(),
-    annualWeightTarget: existingGoal?.annualWeightTarget || 500000,
+    annualWeightTarget: existingGoal?.annualWeightTarget || 1000000,
     minutesPerSession: existingGoal?.minutesPerSession || 45,
     weeklySessionsTarget: existingGoal?.weeklySessionsTarget || 5
   })
@@ -67,7 +67,7 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., 2025 Fitness Challenge"
+              placeholder="e.g., 2026 Fitness Challenge"
               required
             />
           </div>
@@ -135,8 +135,18 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
           <div className="bg-gray-50 p-3 rounded-md">
             <h3 className="text-sm font-medium text-gray-700 mb-2">Calculated Targets:</h3>
             <div className="text-xs text-gray-600 space-y-1">
-              <div>Weekly Minutes: {weeklyMinutes.toLocaleString()}</div>
-              <div>Annual Minutes: {annualMinutes.toLocaleString()}</div>
+              {formData.year === 2026 ? (
+                <>
+                  <div>Weekly Pattern: 3 days × 45 mins, 2 days × 60 mins</div>
+                  <div>Weekly Minutes: 255</div>
+                  <div>Annual Minutes: {(255 * 52).toLocaleString()}</div>
+                </>
+              ) : (
+                <>
+                  <div>Weekly Minutes: {weeklyMinutes.toLocaleString()}</div>
+                  <div>Annual Minutes: {annualMinutes.toLocaleString()}</div>
+                </>
+              )}
               <div>Quarterly Weight: {quarterlyWeight.toLocaleString()} lbs</div>
               <div>Quarterly Minutes: {quarterlyMinutes.toLocaleString()}</div>
               <div>Quarterly Sessions: {quarterlySessions}</div>

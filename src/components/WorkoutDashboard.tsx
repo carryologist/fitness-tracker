@@ -9,7 +9,7 @@ import { GoalTracker } from './GoalTracker'
 import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
-import { Plus, X, Target } from 'lucide-react'
+import { Plus, X, Target, Calendar, ArrowLeftRight } from 'lucide-react'
 
 export interface WorkoutSession {
   id: string
@@ -177,11 +177,16 @@ export function WorkoutDashboard() {
   const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null)
   const [selectedMonths, setSelectedMonths] = useState<Date[]>([])
-  const [currentYear, setCurrentYear] = useState(2025) // Default year
+  const [currentYear, setCurrentYear] = useState(2026) // Default year
   const [currentDate, setCurrentDate] = useState<Date | null>(null) // Initialize as null
   const [showAddWorkout, setShowAddWorkout] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
+
+  // Filter sessions by current year
+  const currentYearSessions = sessions.filter(session => {
+    return session.date.getFullYear() === currentYear
+  })
 
   // Set current date/year on client side only
   useEffect(() => {
@@ -455,6 +460,30 @@ export function WorkoutDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mr-2">
+                <button
+                  onClick={() => setCurrentYear(2025)}
+                  className={`px-3 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
+                    currentYear === 2025
+                    ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>2025</span>
+                </button>
+                <button
+                  onClick={() => setCurrentYear(2026)}
+                  className={`px-3 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
+                    currentYear === 2026
+                    ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>2026</span>
+                </button>
+              </div>
               <ThemeToggle />
               <button
                 onClick={() => setShowAddWorkout(true)}
@@ -472,8 +501,8 @@ export function WorkoutDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <ClientProgressChart 
-            sessions={sessions}
+          <ClientProgressChart
+            sessions={currentYearSessions}
             viewMode={chartView}
             selectedMonth={selectedMonth || currentDate || new Date(currentYear, 0, 1)}
             selectedMonths={selectedMonths}
@@ -487,8 +516,8 @@ export function WorkoutDashboard() {
             }}
             onViewModeChange={handleViewChange}
           />
-          <MonthlySummary 
-            sessions={sessions}
+          <MonthlySummary
+            sessions={currentYearSessions}
             selectedMonths={selectedMonths.map(d => d.getMonth())}
             onMonthToggle={(month) => {
               const monthDate = new Date(currentYear, month)
@@ -551,8 +580,8 @@ export function WorkoutDashboard() {
             // Goal exists - show GoalTracker with actual data
             return (
               <div className="relative">
-                <GoalTracker 
-                  sessions={sessions} 
+                <GoalTracker
+                  sessions={currentYearSessions}
                   goals={{
                     quarterly: {
                       sessions: currentGoal.quarterlySessionsTarget,
@@ -564,7 +593,7 @@ export function WorkoutDashboard() {
                       minutes: currentGoal.annualMinutesTarget,
                       weight: currentGoal.annualWeightTarget
                     }
-                  }} 
+                  }}
                 />
                 {/* Edit Goal Button */}
                 <button
@@ -577,8 +606,8 @@ export function WorkoutDashboard() {
               </div>
             )
           })()}
-          <WorkoutSummary 
-            sessions={sessions} 
+          <WorkoutSummary
+            sessions={currentYearSessions}
             goals={(() => {
               const goal = getCurrentGoal()
               return goal ? {
@@ -596,14 +625,23 @@ export function WorkoutDashboard() {
                 quarterly: { sessions: 0, minutes: 0, weight: 0 },
                 annual: { sessions: 0, minutes: 0, weight: 0 }
               }
-            })()} 
+            })()}
           />
         </div>
 
         {/* Add Workout Form */}
         <div className="card p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add Workout</h2>
-          <WorkoutForm onSubmit={handleAddWorkout} />
+          <WorkoutForm onSubmit={(data) => {
+            // Make sure newly added workouts use the currently selected year
+            const adjustedDate = new Date(data.date);
+            adjustedDate.setFullYear(currentYear);
+
+            handleAddWorkout({
+              ...data,
+              date: adjustedDate
+            })
+          }} />
         </div>
 
         {/* Workout History */}
@@ -613,8 +651,8 @@ export function WorkoutDashboard() {
             <p className="text-gray-600 dark:text-gray-400 mt-1">View and manage your past workouts</p>
           </div>
           <div className="p-6">
-            <WorkoutTable 
-              sessions={sessions} 
+            <WorkoutTable
+              sessions={currentYearSessions}
               onDelete={handleDeleteWorkout}
             />
           </div>
@@ -634,7 +672,14 @@ export function WorkoutDashboard() {
                 </button>
               </div>
               <WorkoutForm onSubmit={(data) => {
-                handleAddWorkout(data)
+                // Make sure newly added workouts use the currently selected year
+                const adjustedDate = new Date(data.date);
+                adjustedDate.setFullYear(currentYear);
+
+                handleAddWorkout({
+                  ...data,
+                  date: adjustedDate
+                })
                 setShowAddWorkout(false)
               }} />
             </div>
