@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { WorkoutSession } from './WorkoutDashboard'
+import { Bike } from 'lucide-react'
 
 interface WorkoutFormData {
   date: string
@@ -244,6 +245,12 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
             <option key={src} value={src}>{src}</option>
           ))}
         </select>
+        {source === 'Cannondale' && (
+          <p className="text-green-600 dark:text-green-400 text-xs mt-1 flex items-center gap-1">
+            <Bike className="w-3 h-3" />
+            <span>1.5× miles multiplier applied for goal tracking</span>
+          </p>
+        )}
         {errors.source && <p className="text-red-500 text-xs mt-1">{errors.source.message}</p>}
       </div>
 

@@ -33,7 +33,7 @@ export function MonthlySummary({ sessions, selectedMonths = [], onMonthToggle }:
     return {
       sessions: monthSessions.length,
       minutes: monthSessions.reduce((sum, s) => sum + s.minutes, 0),
-      miles: monthSessions.reduce((sum, s) => sum + (s.miles || 0), 0),
+      miles: monthSessions.reduce((sum, s) => sum + (s.adjustedMiles || s.miles || 0), 0),
       weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
     }
   })

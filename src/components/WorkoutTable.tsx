@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { WorkoutSession } from './WorkoutDashboard'
-import { Edit2, Trash2 } from 'lucide-react'
+import { Edit2, Trash2, Bike } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutTableProps {
@@ -96,8 +96,17 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
               <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 {formatNumber(session.minutes)}
               </td>
-              <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-                {session.miles ? formatNumber(session.miles) : '—'}
+              <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm">
+                <div className="flex items-center justify-end gap-1">
+                  {session.source === 'Cannondale' && session.miles ? (
+                    <span title="1.5× miles multiplier applied for goal tracking" className="text-green-600 dark:text-green-400">
+                      <Bike className="w-3 h-3 inline-block" />
+                    </span>
+                  ) : null}
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {session.miles ? formatNumber(session.miles) : '—'}
+                  </span>
+                </div>
               </td>
               <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 {session.weightLifted ? formatNumber(session.weightLifted) : '—'}

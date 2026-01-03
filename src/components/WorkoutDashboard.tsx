@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { WorkoutTable } from './WorkoutTable'
 import { WorkoutForm } from './WorkoutForm'
 import { MonthlySummary } from './MonthlySummary'
@@ -10,6 +10,7 @@ import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { Plus, X, Target, Calendar, ArrowLeftRight } from 'lucide-react'
+import { applyWorkoutMultipliers } from '../utils/workoutMultipliers'
 
 export interface WorkoutSession {
   id: string
@@ -18,6 +19,7 @@ export interface WorkoutSession {
   activity: string
   minutes: number
   miles?: number
+  adjustedMiles?: number // Miles with multiplier applied (for Cannondale 1.5x)
   weightLifted?: number
   notes?: string
 }
@@ -187,6 +189,11 @@ export function WorkoutDashboard() {
   const currentYearSessions = sessions.filter(session => {
     return session.date.getFullYear() === currentYear
   })
+
+  // Apply workout multipliers for goal calculations (e.g., Cannondale 1.5x miles)
+  const enhancedSessions = useMemo(() => {
+    return applyWorkoutMultipliers(currentYearSessions)
+  }, [currentYearSessions])
 
   // Set current date/year on client side only
   useEffect(() => {
@@ -444,19 +451,72 @@ export function WorkoutDashboard() {
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          {/* Mobile Layout - Stack vertically */}
+          <div className="sm:hidden py-2">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/fitness-logo.svg"
+                  alt="Fitness Tracker"
+                  className="w-8 h-8 rounded-lg shadow-sm"
+                />
+                <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  Fitness Tracker
+                </h1>
+              </div>
+              <ThemeToggle />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                <button
+                  onClick={() => setCurrentYear(2025)}
+                  className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
+                    currentYear === 2025
+                    ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <Calendar className="w-3 h-3" />
+                  <span>2025</span>
+                </button>
+                <button
+                  onClick={() => setCurrentYear(2026)}
+                  className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
+                    currentYear === 2026
+                    ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <Calendar className="w-3 h-3" />
+                  <span>2026</span>
+                </button>
+              </div>
+              <button
+                onClick={() => setShowAddWorkout(true)}
+                className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Desktop Layout - Horizontal */}
+          <div className="hidden sm:flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src="/fitness-logo.svg" 
-                alt="Fitness Tracker" 
+              <img
+                src="/fitness-logo.svg"
+                alt="Fitness Tracker"
                 className="w-10 h-10 rounded-lg shadow-sm"
               />
               <div>
-                <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-100">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   Fitness Tracker
                 </h1>
-                <p className="text-xs text-gray-600 dark:text-gray-400 hidden sm:block">Track your progress</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Track your progress</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -487,10 +547,10 @@ export function WorkoutDashboard() {
               <ThemeToggle />
               <button
                 onClick={() => setShowAddWorkout(true)}
-                className="bg-primary-500 hover:bg-primary-600 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm"
+                className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm"
               >
                 <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">Add Workout</span>
+                <span>Add Workout</span>
               </button>
             </div>
           </div>
@@ -502,7 +562,7 @@ export function WorkoutDashboard() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <ClientProgressChart
-            sessions={currentYearSessions}
+            sessions={enhancedSessions}
             viewMode={chartView}
             selectedMonth={selectedMonth || currentDate || new Date(currentYear, 0, 1)}
             selectedMonths={selectedMonths}
@@ -517,7 +577,7 @@ export function WorkoutDashboard() {
             onViewModeChange={handleViewChange}
           />
           <MonthlySummary
-            sessions={currentYearSessions}
+            sessions={enhancedSessions}
             selectedMonths={selectedMonths.map(d => d.getMonth())}
             onMonthToggle={(month) => {
               const monthDate = new Date(currentYear, month)
@@ -581,7 +641,7 @@ export function WorkoutDashboard() {
             return (
               <div className="relative">
                 <GoalTracker
-                  sessions={currentYearSessions}
+                  sessions={enhancedSessions}
                   goals={{
                     quarterly: {
                       sessions: currentGoal.quarterlySessionsTarget,
@@ -607,7 +667,7 @@ export function WorkoutDashboard() {
             )
           })()}
           <WorkoutSummary
-            sessions={currentYearSessions}
+            sessions={enhancedSessions}
             goals={(() => {
               const goal = getCurrentGoal()
               return goal ? {
