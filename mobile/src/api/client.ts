@@ -20,14 +20,20 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 
 export const api = {
   // Workouts
-  getWorkouts: () => fetchApi<WorkoutSession[]>('/api/workouts'),
+  getWorkouts: async (): Promise<WorkoutSession[]> => {
+    const data = await fetchApi<{ workouts: WorkoutSession[] }>('/api/workouts');
+    return data.workouts || [];
+  },
   
   createWorkout: (workout: Omit<WorkoutSession, 'id' | 'createdAt' | 'updatedAt'>) =>
-    fetchApi<WorkoutSession>('/api/workouts', {
+    fetchApi<{ workout: WorkoutSession }>('/api/workouts', {
       method: 'POST',
       body: JSON.stringify(workout),
     }),
 
   // Goals
-  getGoals: () => fetchApi<Goal[]>('/api/goals'),
+  getGoals: async (): Promise<Goal[]> => {
+    const data = await fetchApi<{ goals: Goal[] }>('/api/goals');
+    return data.goals || [];
+  },
 };
