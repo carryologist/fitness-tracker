@@ -24,27 +24,28 @@ export default function App() {
               backgroundColor: '#fff',
               borderTopColor: '#e5e7eb',
             },
+            tabBarShowLabel: true,
           }}
         >
           <Tab.Screen
             name="Dashboard"
             component={DashboardScreen}
             options={{
-              tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>📊</Text>,
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>📊</Text>,
             }}
           />
           <Tab.Screen
             name="Workouts"
             component={WorkoutsScreen}
             options={{
-              tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>💪</Text>,
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>💪</Text>,
             }}
           />
           <Tab.Screen
             name="Goals"
             component={GoalsScreen}
             options={{
-              tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🎯</Text>,
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>🎯</Text>,
             }}
           />
         </Tab.Navigator>
