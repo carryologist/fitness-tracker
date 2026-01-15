@@ -1,56 +1,98 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Text } from 'react-native';
 
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { WorkoutsScreen } from './src/screens/WorkoutsScreen';
 import { GoalsScreen } from './src/screens/GoalsScreen';
 
-const Tab = createBottomTabNavigator();
+type Tab = 'dashboard' | 'workouts' | 'goals';
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+
+  const renderScreen = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <DashboardScreen />;
+      case 'workouts':
+        return <WorkoutsScreen />;
+      case 'goals':
+        return <GoalsScreen />;
+    }
+  };
+
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <Tab.Navigator
-          screenOptions={{
-            headerShown: false,
-            tabBarActiveTintColor: '#3b82f6',
-            tabBarInactiveTintColor: '#9ca3af',
-            tabBarStyle: {
-              backgroundColor: '#fff',
-              borderTopColor: '#e5e7eb',
-            },
-            tabBarShowLabel: true,
-          }}
-        >
-          <Tab.Screen
-            name="Dashboard"
-            component={DashboardScreen}
-            options={{
-              tabBarIcon: () => <Text style={{ fontSize: 20 }}>📊</Text>,
-            }}
-          />
-          <Tab.Screen
-            name="Workouts"
-            component={WorkoutsScreen}
-            options={{
-              tabBarIcon: () => <Text style={{ fontSize: 20 }}>💪</Text>,
-            }}
-          />
-          <Tab.Screen
-            name="Goals"
-            component={GoalsScreen}
-            options={{
-              tabBarIcon: () => <Text style={{ fontSize: 20 }}>🎯</Text>,
-            }}
-          />
-        </Tab.Navigator>
-      </NavigationContainer>
+      <View style={styles.container}>
+        <View style={styles.content}>
+          {renderScreen()}
+        </View>
+        <SafeAreaView edges={['bottom']} style={styles.tabBar}>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={() => setActiveTab('dashboard')}
+          >
+            <Text style={styles.tabIcon}>📊</Text>
+            <Text style={[styles.tabLabel, activeTab === 'dashboard' && styles.activeLabel]}>
+              Dashboard
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={() => setActiveTab('workouts')}
+          >
+            <Text style={styles.tabIcon}>💪</Text>
+            <Text style={[styles.tabLabel, activeTab === 'workouts' && styles.activeLabel]}>
+              Workouts
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={() => setActiveTab('goals')}
+          >
+            <Text style={styles.tabIcon}>🎯</Text>
+            <Text style={[styles.tabLabel, activeTab === 'goals' && styles.activeLabel]}>
+              Goals
+            </Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </View>
       <StatusBar style="auto" />
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  content: {
+    flex: 1,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 8,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  tabIcon: {
+    fontSize: 20,
+  },
+  tabLabel: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 4,
+  },
+  activeLabel: {
+    color: '#3b82f6',
+  },
+});
