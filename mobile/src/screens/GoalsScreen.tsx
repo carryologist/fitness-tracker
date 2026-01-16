@@ -4,8 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import { Goal } from '../../shared/types';
 import { GoalModal } from '../components/GoalModal';
+import { useSettings } from '../context/SettingsContext';
+import { darkTheme, lightTheme } from '../theme/themes';
 
 export function GoalsScreen() {
+  const { isDark } = useSettings();
+  const theme = isDark ? darkTheme : lightTheme;
   const [goals, setGoals] = useState<Goal[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -46,6 +50,8 @@ export function GoalsScreen() {
   const handleModalSuccess = () => {
     loadGoals();
   };
+
+  const styles = createStyles(isDark, theme);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -133,16 +139,16 @@ export function GoalsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isDark: boolean, theme: typeof darkTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f1a',
+    backgroundColor: theme.background,
   },
   title: {
     fontSize: 32,
     fontWeight: '800',
     padding: 16,
-    color: '#fff',
+    color: theme.textPrimary,
     letterSpacing: -0.5,
   },
   addButton: {
@@ -172,7 +178,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   card: {
-    backgroundColor: '#242438',
+    backgroundColor: theme.card,
     margin: 16,
     marginTop: 0,
     padding: 22,
@@ -180,7 +186,7 @@ const styles = StyleSheet.create({
   },
   currentYearCard: {
     borderWidth: 2,
-    borderColor: '#6366f1',
+    borderColor: theme.primary,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -188,24 +194,24 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   editBadge: {
-    backgroundColor: '#2d2d44',
+    backgroundColor: theme.cardLight,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
   editBadgeText: {
     fontSize: 12,
-    color: '#a1a1aa',
+    color: theme.textSecondary,
     fontWeight: '600',
   },
   goalName: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#fff',
+    color: theme.textPrimary,
   },
   year: {
     fontSize: 16,
-    color: '#6366f1',
+    color: theme.primary,
     marginTop: 4,
     fontWeight: '700',
   },
@@ -213,12 +219,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#3f3f5a',
+    borderTopColor: theme.border,
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#71717a',
+    color: theme.textMuted,
     textTransform: 'uppercase',
     marginBottom: 12,
     letterSpacing: 0.5,
@@ -230,11 +236,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 15,
-    color: '#a1a1aa',
+    color: theme.textSecondary,
   },
   value: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.textPrimary,
   },
 });

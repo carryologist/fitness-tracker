@@ -6,7 +6,8 @@ import { api } from '../api/client';
 import { WorkoutSession, Goal } from '../../shared/types';
 import { StatCard } from '../components/StatCard';
 import { ProgressBar } from '../components/ProgressBar';
-import { colors } from '../theme/colors';
+import { useSettings } from '../context/SettingsContext';
+import { darkTheme, lightTheme } from '../theme/themes';
 
 type ViewMode = 'quarterly' | 'annual';
 
@@ -20,6 +21,8 @@ function formatNumber(num: number): string {
 }
 
 export function DashboardScreen() {
+  const { isDark } = useSettings();
+  const theme = isDark ? darkTheme : lightTheme;
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -130,6 +133,8 @@ export function DashboardScreen() {
     if (actual >= expected * 0.8) return { text: 'Slightly Behind', color: '#f59e0b' };
     return { text: 'Behind', color: '#ef4444' };
   };
+
+  const styles = createStyles(isDark, theme);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -430,17 +435,17 @@ export function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isDark: boolean, theme: typeof darkTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.background,
   },
   title: {
     fontSize: 32,
     fontWeight: '800',
     padding: 16,
     paddingBottom: 8,
-    color: colors.textPrimary,
+    color: theme.textPrimary,
     letterSpacing: -0.5,
   },
   statsGrid: {
@@ -461,11 +466,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.textPrimary,
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
+    backgroundColor: theme.card,
     borderRadius: 10,
     padding: 4,
   },
@@ -475,18 +480,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   toggleActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.primary,
   },
   toggleText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     fontWeight: '600',
   },
   toggleTextActive: {
     color: '#fff',
   },
   progressCard: {
-    backgroundColor: colors.card,
+    backgroundColor: theme.card,
     borderRadius: 20,
     padding: 20,
     marginBottom: 12,
@@ -511,7 +516,7 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.textPrimary,
   },
   progressStatus: {
     fontSize: 13,
@@ -528,23 +533,23 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
   },
   progressValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.textPrimary,
   },
   progressValueLight: {
     fontSize: 14,
-    color: colors.textMuted,
+    color: theme.textMuted,
   },
   recentSection: {
     margin: 16,
     marginTop: 8,
   },
   workoutCard: {
-    backgroundColor: colors.card,
+    backgroundColor: theme.card,
     padding: 16,
     borderRadius: 16,
     marginBottom: 10,
@@ -557,12 +562,12 @@ const styles = StyleSheet.create({
   workoutActivity: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.textPrimary,
   },
   workoutSource: {
     fontSize: 12,
-    color: colors.textSecondary,
-    backgroundColor: colors.cardLight,
+    color: theme.textSecondary,
+    backgroundColor: theme.cardLight,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
@@ -570,12 +575,12 @@ const styles = StyleSheet.create({
   },
   workoutDetails: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginTop: 8,
   },
   workoutDate: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: theme.textMuted,
     marginTop: 4,
   },
   insightsSection: {
@@ -609,11 +614,11 @@ const styles = StyleSheet.create({
   highlightTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.textPrimary,
   },
   highlightSubtitle: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginTop: 2,
   },
   highlightValue: {
@@ -625,7 +630,7 @@ const styles = StyleSheet.create({
     color: '#a78bfa',
   },
   activityCard: {
-    backgroundColor: colors.card,
+    backgroundColor: theme.card,
     borderRadius: 14,
     padding: 14,
     flexDirection: 'row',
@@ -644,17 +649,17 @@ const styles = StyleSheet.create({
   activityName: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.textPrimary,
   },
   activityCount: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.textSecondary,
     marginTop: 2,
   },
   activityMinutes: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.textSecondary,
+    color: theme.textSecondary,
   },
   pacingCard: {
     backgroundColor: 'rgba(99, 102, 241, 0.15)',

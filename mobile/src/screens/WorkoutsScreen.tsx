@@ -4,8 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import { WorkoutSession } from '../../shared/types';
 import { AddWorkoutModal } from '../components/AddWorkoutModal';
+import { useSettings } from '../context/SettingsContext';
+import { darkTheme, lightTheme } from '../theme/themes';
 
 export function WorkoutsScreen() {
+  const { isDark, settings } = useSettings();
+  const theme = isDark ? darkTheme : lightTheme;
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -74,6 +78,8 @@ export function WorkoutsScreen() {
     setShowAddModal(true);
   };
 
+  const styles = createStyles(isDark, theme);
+
   const AddWorkoutButton = () => (
     <TouchableOpacity 
       style={styles.addButton} 
@@ -111,16 +117,16 @@ export function WorkoutsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isDark: boolean, theme: typeof darkTheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f1a',
+    backgroundColor: theme.background,
   },
   title: {
     fontSize: 32,
     fontWeight: '800',
     padding: 16,
-    color: '#fff',
+    color: theme.textPrimary,
     letterSpacing: -0.5,
   },
   list: {
@@ -153,7 +159,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   card: {
-    backgroundColor: '#242438',
+    backgroundColor: theme.card,
     padding: 18,
     borderRadius: 18,
     marginBottom: 12,
@@ -174,12 +180,12 @@ const styles = StyleSheet.create({
   activity: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.textPrimary,
   },
   source: {
     fontSize: 13,
-    color: '#a1a1aa',
-    backgroundColor: '#2d2d44',
+    color: theme.textSecondary,
+    backgroundColor: theme.cardLight,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -192,17 +198,17 @@ const styles = StyleSheet.create({
   },
   stat: {
     fontSize: 14,
-    color: '#a1a1aa',
+    color: theme.textSecondary,
     fontWeight: '600',
   },
   date: {
     fontSize: 12,
-    color: '#71717a',
+    color: theme.textMuted,
     marginTop: 10,
   },
   notes: {
     fontSize: 14,
-    color: '#a1a1aa',
+    color: theme.textSecondary,
     marginTop: 10,
     fontStyle: 'italic',
   },

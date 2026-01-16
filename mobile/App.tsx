@@ -3,17 +3,22 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { WorkoutsScreen } from './src/screens/WorkoutsScreen';
 import { GoalsScreen } from './src/screens/GoalsScreen';
 import { FloatingAddButton } from './src/components/FloatingAddButton';
 import { AddWorkoutModal } from './src/components/AddWorkoutModal';
+import { SettingsButton } from './src/components/SettingsButton';
+import { SettingsModal } from './src/components/SettingsModal';
 
 type Tab = 'dashboard' | 'workouts' | 'goals';
 
-export default function App() {
+function AppContent() {
+  const { isDark } = useSettings();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleWorkoutAdded = useCallback(() => {
@@ -31,12 +36,15 @@ export default function App() {
     }
   };
 
+  const styles = createStyles(isDark);
+
   return (
-    <SafeAreaProvider>
+    <>
       <View style={styles.container}>
         <View style={styles.content}>
           {renderScreen()}
         </View>
+        <SettingsButton onPress={() => setShowSettings(true)} />
         <FloatingAddButton onPress={() => setShowAddModal(true)} />
         <SafeAreaView edges={['bottom']} style={styles.tabBar}>
           <TouchableOpacity
@@ -73,24 +81,38 @@ export default function App() {
         onClose={() => setShowAddModal(false)}
         onSuccess={handleWorkoutAdded}
       />
-      <StatusBar style="auto" />
+      <SettingsModal
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <SettingsProvider>
+        <AppContent />
+      </SettingsProvider>
     </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f1a',
+    backgroundColor: isDark ? '#0f0f1a' : '#f8fafc',
   },
   content: {
     flex: 1,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: isDark ? '#1a1a2e' : '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#2d2d44',
+    borderTopColor: isDark ? '#2d2d44' : '#e2e8f0',
     paddingTop: 10,
     paddingBottom: 4,
   },
@@ -104,11 +126,11 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    color: '#a1a1aa',
+    color: isDark ? '#a1a1aa' : '#64748b',
     marginTop: 4,
     fontWeight: '600',
   },
   activeLabel: {
-    color: '#818cf8',
+    color: '#6366f1',
   },
 });
