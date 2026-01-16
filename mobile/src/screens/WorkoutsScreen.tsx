@@ -51,7 +51,7 @@ export function WorkoutsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>2026 Workouts</Text>
+      <Text style={styles.title}>Workouts</Text>
       <FlatList
         data={workouts}
         renderItem={renderWorkout}

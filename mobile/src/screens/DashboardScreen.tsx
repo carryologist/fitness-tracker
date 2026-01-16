@@ -137,7 +137,7 @@ export function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>2026 Fitness Dashboard</Text>
+        <Text style={styles.title}>Fitness Dashboard</Text>
         
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
@@ -263,6 +263,143 @@ export function DashboardScreen() {
               </View>
               <ProgressBar progress={goalProgress.progress.sessions} color="#10b981" />
             </View>
+          </View>
+        )}
+
+        {/* Top Sessions & Pacing Insights */}
+        {workouts.length > 0 && goalProgress && (
+          <View style={styles.insightsSection}>
+            {/* Top Activities - Single Session */}
+            <Text style={styles.sectionTitle}>Top Activities - Single Session</Text>
+            
+            {/* Longest Distance */}
+            {(() => {
+              const maxMiles = workouts.reduce((max, w) => 
+                (w.miles || 0) > (max.miles || 0) ? w : max, workouts[0]);
+              if (maxMiles.miles && maxMiles.miles > 0) {
+                return (
+                  <View style={styles.highlightCard}>
+                    <View style={styles.highlightLeft}>
+                      <Text style={styles.highlightIcon}>📈</Text>
+                      <View>
+                        <Text style={styles.highlightTitle}>Longest Distance</Text>
+                        <Text style={styles.highlightSubtitle}>{maxMiles.activity} • {maxMiles.source}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.highlightValue}>{maxMiles.miles.toFixed(1)} mi</Text>
+                  </View>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Most Weight Lifted */}
+            {(() => {
+              const maxWeight = workouts.reduce((max, w) => 
+                (w.weightLifted || 0) > (max.weightLifted || 0) ? w : max, workouts[0]);
+              if (maxWeight.weightLifted && maxWeight.weightLifted > 0) {
+                return (
+                  <View style={[styles.highlightCard, styles.highlightCardPurple]}>
+                    <View style={styles.highlightLeft}>
+                      <Text style={styles.highlightIcon}>🏋️</Text>
+                      <View>
+                        <Text style={styles.highlightTitle}>Most Weight Lifted</Text>
+                        <Text style={styles.highlightSubtitle}>{maxWeight.activity} • {maxWeight.source}</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.highlightValue, styles.highlightValuePurple]}>
+                      {formatNumber(maxWeight.weightLifted)} lbs
+                    </Text>
+                  </View>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Top Activities - All Time */}
+            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Top Activities - All Time</Text>
+            {(() => {
+              const activityMap = new Map<string, { count: number; minutes: number }>();
+              workouts.forEach(w => {
+                const existing = activityMap.get(w.activity) || { count: 0, minutes: 0 };
+                activityMap.set(w.activity, {
+                  count: existing.count + 1,
+                  minutes: existing.minutes + w.minutes,
+                });
+              });
+              const topActivities = Array.from(activityMap.entries())
+                .sort((a, b) => b[1].minutes - a[1].minutes)
+                .slice(0, 3);
+              
+              return topActivities.map(([activity, stats]) => (
+                <View key={activity} style={styles.activityCard}>
+                  <View style={styles.activityLeft}>
+                    <Text style={styles.activityIcon}>
+                      {activity.toLowerCase().includes('cycling') ? '🚴' : 
+                       activity.toLowerCase().includes('weight') ? '🏋️' : '🏃'}
+                    </Text>
+                    <View>
+                      <Text style={styles.activityName}>{activity}</Text>
+                      <Text style={styles.activityCount}>{stats.count} sessions</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.activityMinutes}>{formatNumber(stats.minutes)} min</Text>
+                </View>
+              ));
+            })()}
+
+            {/* Q Pacing Insights */}
+            {(() => {
+              const now = new Date();
+              const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+              const currentYear = now.getFullYear();
+              
+              // Calculate days remaining in quarter
+              const quarterEnd = new Date(currentYear, currentQuarter * 3, 0);
+              const daysRemaining = Math.max(0, Math.floor((quarterEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+              
+              // Sessions needed
+              const sessionsNeeded = Math.max(0, goalProgress.target.sessions - goalProgress.actual.sessions);
+              
+              // Required pace
+              const dailyPace = daysRemaining > 0 ? sessionsNeeded / daysRemaining : 0;
+              let paceText = 'On track!';
+              if (dailyPace > 0) {
+                if (dailyPace < 0.5) paceText = 'Every other day';
+                else if (dailyPace < 1) paceText = `Every ${Math.round(1/dailyPace)} days`;
+                else paceText = `${dailyPace.toFixed(1)} sessions/day`;
+              }
+
+              return (
+                <View style={styles.pacingCard}>
+                  <Text style={styles.pacingTitle}>Q{currentQuarter} Pacing Insights</Text>
+                  
+                  <View style={styles.pacingRow}>
+                    <View style={styles.pacingLeft}>
+                      <Text style={styles.pacingIcon}>🎯</Text>
+                      <Text style={styles.pacingLabel}>Sessions needed</Text>
+                    </View>
+                    <Text style={styles.pacingValue}>{sessionsNeeded} sessions</Text>
+                  </View>
+                  
+                  <View style={styles.pacingRow}>
+                    <View style={styles.pacingLeft}>
+                      <Text style={styles.pacingIcon}>📅</Text>
+                      <Text style={styles.pacingLabel}>Days remaining</Text>
+                    </View>
+                    <Text style={styles.pacingValue}>{daysRemaining} days</Text>
+                  </View>
+                  
+                  <View style={styles.pacingRow}>
+                    <View style={styles.pacingLeft}>
+                      <Text style={styles.pacingIcon}>⏱️</Text>
+                      <Text style={styles.pacingLabel}>Required pace</Text>
+                    </View>
+                    <Text style={styles.pacingValue}>{paceText}</Text>
+                  </View>
+                </View>
+              );
+            })()}
           </View>
         )}
 
@@ -451,5 +588,120 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 4,
+  },
+  insightsSection: {
+    margin: 16,
+    marginTop: 8,
+  },
+  highlightCard: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  highlightCardPurple: {
+    backgroundColor: '#faf5ff',
+    borderColor: '#e9d5ff',
+  },
+  highlightLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  highlightIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  highlightTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  highlightSubtitle: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  highlightValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  highlightValuePurple: {
+    color: '#7c3aed',
+  },
+  activityCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  activityLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activityIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  activityName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  activityCount: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  activityMinutes: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  pacingCard: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+  },
+  pacingTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1e40af',
+    marginBottom: 16,
+  },
+  pacingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  pacingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pacingIcon: {
+    fontSize: 16,
+    marginRight: 10,
+  },
+  pacingLabel: {
+    fontSize: 15,
+    color: '#1e40af',
+  },
+  pacingValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1e3a8a',
   },
 });

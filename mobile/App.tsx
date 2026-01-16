@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -6,18 +6,26 @@ import { StatusBar } from 'expo-status-bar';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { WorkoutsScreen } from './src/screens/WorkoutsScreen';
 import { GoalsScreen } from './src/screens/GoalsScreen';
+import { FloatingAddButton } from './src/components/FloatingAddButton';
+import { AddWorkoutModal } from './src/components/AddWorkoutModal';
 
 type Tab = 'dashboard' | 'workouts' | 'goals';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleWorkoutAdded = useCallback(() => {
+    setRefreshKey(k => k + 1);
+  }, []);
 
   const renderScreen = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardScreen />;
+        return <DashboardScreen key={refreshKey} />;
       case 'workouts':
-        return <WorkoutsScreen />;
+        return <WorkoutsScreen key={refreshKey} />;
       case 'goals':
         return <GoalsScreen />;
     }
@@ -29,6 +37,7 @@ export default function App() {
         <View style={styles.content}>
           {renderScreen()}
         </View>
+        <FloatingAddButton onPress={() => setShowAddModal(true)} />
         <SafeAreaView edges={['bottom']} style={styles.tabBar}>
           <TouchableOpacity
             style={styles.tab}
@@ -59,6 +68,11 @@ export default function App() {
           </TouchableOpacity>
         </SafeAreaView>
       </View>
+      <AddWorkoutModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={handleWorkoutAdded}
+      />
       <StatusBar style="auto" />
     </SafeAreaProvider>
   );
