@@ -1,53 +1,73 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors } from '../theme/colors';
 
 interface StatCardProps {
   title: string;
   value: string | number;
   icon?: string;
+  gradient?: readonly [string, string, ...string[]];
 }
 
-export function StatCard({ title, value, icon }: StatCardProps) {
+export function StatCard({ title, value, icon, gradient }: StatCardProps) {
+  const gradientColors = gradient || ['#6366f1', '#8b5cf6'] as const;
+  
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        {icon && <Text style={styles.icon}>{icon}</Text>}
+    <View style={styles.cardWrapper}>
+      <LinearGradient
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.card}
+      >
+        <View style={styles.iconContainer}>
+          {icon && <Text style={styles.icon}>{icon}</Text>}
+        </View>
+        <Text style={styles.value}>{value}</Text>
         <Text style={styles.title}>{title}</Text>
-      </View>
-      <Text style={styles.value}>{value}</Text>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    margin: 6,
+  cardWrapper: {
     width: '46%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    margin: 6,
+    borderRadius: 20,
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  header: {
-    flexDirection: 'row',
+  card: {
+    borderRadius: 20,
+    padding: 16,
+    minHeight: 110,
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   icon: {
-    fontSize: 14,
-    marginRight: 6,
+    fontSize: 18,
   },
   value: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 4,
   },
   title: {
-    fontSize: 12,
-    color: '#6b7280',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
   },
 });

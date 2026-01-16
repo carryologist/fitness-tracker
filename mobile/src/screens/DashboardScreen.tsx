@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../api/client';
 import { WorkoutSession, Goal } from '../../shared/types';
 import { StatCard } from '../components/StatCard';
 import { ProgressBar } from '../components/ProgressBar';
+import { colors } from '../theme/colors';
 
 type ViewMode = 'quarterly' | 'annual';
 
@@ -141,10 +143,10 @@ export function DashboardScreen() {
         
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
-          <StatCard title="Sessions" value={totalSessions} icon="📅" />
-          <StatCard title="Minutes" value={formatNumber(totalMinutes)} icon="⏱️" />
-          <StatCard title="Miles" value={totalMiles.toFixed(1)} icon="🚴" />
-          <StatCard title="Weight Lifted" value={formatNumber(totalWeight)} icon="🏋️" />
+          <StatCard title="Sessions" value={totalSessions} icon="📅" gradient={['#6366f1', '#8b5cf6']} />
+          <StatCard title="Minutes" value={formatNumber(totalMinutes)} icon="⏱️" gradient={['#06b6d4', '#22d3ee']} />
+          <StatCard title="Miles" value={totalMiles.toFixed(1)} icon="🚴" gradient={['#10b981', '#34d399']} />
+          <StatCard title="Weight Lifted" value={formatNumber(totalWeight)} icon="🏋️" gradient={['#f97316', '#fb923c']} />
         </View>
 
         {/* Goal Progress Section */}
@@ -201,7 +203,7 @@ export function DashboardScreen() {
                   <Text style={styles.progressValueLight}>{formatNumber(goalProgress.target.weight)} lbs</Text>
                 </View>
               </View>
-              <ProgressBar progress={goalProgress.progress.weight} color="#f97316" />
+              <ProgressBar progress={goalProgress.progress.weight} color="#f97316" gradientColors={['#f97316', '#fb923c']} />
             </View>
 
             {/* Minutes Progress */}
@@ -231,7 +233,7 @@ export function DashboardScreen() {
                   <Text style={styles.progressValueLight}>{formatNumber(goalProgress.target.minutes)} min</Text>
                 </View>
               </View>
-              <ProgressBar progress={goalProgress.progress.minutes} color="#3b82f6" />
+              <ProgressBar progress={goalProgress.progress.minutes} color="#3b82f6" gradientColors={['#06b6d4', '#22d3ee']} />
             </View>
 
             {/* Sessions Progress */}
@@ -261,7 +263,7 @@ export function DashboardScreen() {
                   <Text style={styles.progressValueLight}>{goalProgress.target.sessions} sessions</Text>
                 </View>
               </View>
-              <ProgressBar progress={goalProgress.progress.sessions} color="#10b981" />
+              <ProgressBar progress={goalProgress.progress.sessions} color="#10b981" gradientColors={['#10b981', '#34d399']} />
             </View>
           </View>
         )}
@@ -431,14 +433,15 @@ export function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '800',
     padding: 16,
     paddingBottom: 8,
-    color: '#1a1a1a',
+    color: colors.textPrimary,
+    letterSpacing: -0.5,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -457,46 +460,36 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
+    backgroundColor: colors.card,
+    borderRadius: 10,
     padding: 4,
   },
   toggleButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   toggleActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.primary,
   },
   toggleText: {
     fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '500',
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   toggleTextActive: {
-    color: '#3b82f6',
+    color: '#fff',
   },
   progressCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -504,25 +497,25 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   progressIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#ffedd5',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(249, 115, 22, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   progressIcon: {
-    fontSize: 20,
+    fontSize: 22,
   },
   progressTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   progressStatus: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 2,
   },
   progressStats: {
@@ -531,35 +524,30 @@ const styles = StyleSheet.create({
   progressRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 6,
   },
   progressLabel: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   progressValue: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   progressValueLight: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textMuted,
   },
   recentSection: {
     margin: 16,
     marginTop: 8,
   },
   workoutCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    borderRadius: 16,
+    marginBottom: 10,
   },
   workoutHeader: {
     flexDirection: 'row',
@@ -568,25 +556,26 @@ const styles = StyleSheet.create({
   },
   workoutActivity: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   workoutSource: {
     fontSize: 12,
-    color: '#6b7280',
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    color: colors.textSecondary,
+    backgroundColor: colors.cardLight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   workoutDetails: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 8,
   },
   workoutDate: {
     fontSize: 12,
-    color: '#999',
+    color: colors.textMuted,
     marginTop: 4,
   },
   insightsSection: {
@@ -594,10 +583,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   highlightCard: {
-    backgroundColor: '#ecfdf5',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderWidth: 1,
-    borderColor: '#a7f3d0',
-    borderRadius: 12,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -605,8 +594,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   highlightCardPurple: {
-    backgroundColor: '#faf5ff',
-    borderColor: '#e9d5ff',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    borderColor: 'rgba(139, 92, 246, 0.3)',
   },
   highlightLeft: {
     flexDirection: 'row',
@@ -614,94 +603,94 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   highlightIcon: {
-    fontSize: 20,
-    marginRight: 12,
+    fontSize: 22,
+    marginRight: 14,
   },
   highlightTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   highlightSubtitle: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   highlightValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#059669',
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#34d399',
   },
   highlightValuePurple: {
-    color: '#7c3aed',
+    color: '#a78bfa',
   },
   activityCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: 14,
     padding: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
   },
   activityLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   activityIcon: {
-    fontSize: 18,
-    marginRight: 12,
+    fontSize: 20,
+    marginRight: 14,
   },
   activityName: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   activityCount: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   activityMinutes: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '700',
+    color: colors.textSecondary,
   },
   pacingCard: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
     borderWidth: 1,
-    borderColor: '#bfdbfe',
-    borderRadius: 12,
-    padding: 16,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderRadius: 20,
+    padding: 20,
     marginTop: 20,
   },
   pacingTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1e40af',
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#818cf8',
     marginBottom: 16,
   },
   pacingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   pacingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   pacingIcon: {
-    fontSize: 16,
-    marginRight: 10,
+    fontSize: 18,
+    marginRight: 12,
   },
   pacingLabel: {
     fontSize: 15,
-    color: '#1e40af',
+    color: '#a5b4fc',
   },
   pacingValue: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#1e3a8a',
+    fontWeight: '800',
+    color: '#c7d2fe',
   },
 });

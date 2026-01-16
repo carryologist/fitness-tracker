@@ -81,17 +81,18 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f0f1a',
   },
   content: {
     flex: 1,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: '#1a1a2e',
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 8,
+    borderTopColor: '#2d2d44',
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   tab: {
     flex: 1,
@@ -99,14 +100,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   tabIcon: {
-    fontSize: 20,
+    fontSize: 22,
   },
   tabLabel: {
-    fontSize: 12,
-    color: '#9ca3af',
+    fontSize: 11,
+    color: '#71717a',
     marginTop: 4,
+    fontWeight: '600',
   },
   activeLabel: {
-    color: '#3b82f6',
+    color: '#818cf8',
   },
 });

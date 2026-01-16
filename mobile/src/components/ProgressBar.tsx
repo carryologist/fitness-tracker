@@ -1,13 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface ProgressBarProps {
   progress: number;
   color: string;
+  gradientColors?: readonly [string, string, ...string[]];
 }
 
-export function ProgressBar({ progress, color }: ProgressBarProps) {
+export function ProgressBar({ progress, color, gradientColors }: ProgressBarProps) {
   const clampedProgress = Math.min(Math.max(progress, 0), 100);
+  const defaultGradient = [color, color] as const;
   
   return (
     <View style={styles.container}>
@@ -16,11 +19,11 @@ export function ProgressBar({ progress, color }: ProgressBarProps) {
         <Text style={styles.percentage}>{Math.round(clampedProgress)}%</Text>
       </View>
       <View style={styles.track}>
-        <View 
-          style={[
-            styles.fill, 
-            { width: `${clampedProgress}%`, backgroundColor: color }
-          ]} 
+        <LinearGradient
+          colors={gradientColors || defaultGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.fill, { width: `${clampedProgress}%` }]}
         />
       </View>
     </View>
@@ -34,25 +37,25 @@ const styles = StyleSheet.create({
   labelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   label: {
     fontSize: 13,
-    color: '#6b7280',
+    color: 'rgba(255,255,255,0.6)',
   },
   percentage: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
   },
   track: {
-    height: 8,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 4,
+    height: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 5,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 5,
   },
 });
