@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
+import { HealthKitProvider } from './src/context/HealthKitContext';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { WorkoutsScreen } from './src/screens/WorkoutsScreen';
 import { GoalsScreen } from './src/screens/GoalsScreen';
@@ -107,7 +108,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SettingsProvider>
-        <AppContent />
+        <HealthKitProvider>
+          <AppContent />
+        </HealthKitProvider>
       </SettingsProvider>
     </SafeAreaProvider>
   );

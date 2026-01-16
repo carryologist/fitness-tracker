@@ -13,8 +13,21 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fitnesstracker.mobile",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "This app reads your workout data from Apple Health to automatically sync workouts from Peloton, Tonal, and Cannondale."
+      }
     },
+    "plugins": [
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "This app reads your workout data from Apple Health to automatically sync workouts from Peloton, Tonal, and Cannondale.",
+          "background": false
+        }
+      ]
+    ],
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

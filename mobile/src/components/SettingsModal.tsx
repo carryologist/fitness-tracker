@@ -6,9 +6,12 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings, ThemeMode } from '../context/SettingsContext';
+import { useHealthKit } from '../context/HealthKitContext';
 
 interface SettingsModalProps {
   visible: boolean;
@@ -18,8 +21,25 @@ interface SettingsModalProps {
 const SOURCES = ['Peloton', 'Tonal', 'Cannondale', 'Other'];
 const ACTIVITIES = ['Cycling', 'Weight Lifting', 'Running', 'Walking', 'Yoga', 'Other'];
 
+function formatLastSync(date: Date | null): string {
+  if (!date) return 'Never';
+  
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hr ago`;
+  
+  return date.toLocaleDateString();
+}
+
 export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { settings, updateSettings, isDark } = useSettings();
+  const healthKit = useHealthKit();
 
   const styles = createStyles(isDark);
 
@@ -121,6 +141,60 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
               </View>
             </View>
           </View>
+
+          {/* Apple Health Section - iOS only */}
+          {Platform.OS === 'ios' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>APPLE HEALTH</Text>
+              <View style={styles.card}>
+                {healthKit.authStatus === 'authorized' ? (
+                  <>
+                    <View style={styles.aboutRow}>
+                      <Text style={styles.aboutLabel}>Status</Text>
+                      <View style={styles.statusBadge}>
+                        <Text style={styles.statusText}>✓ Connected</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.aboutRow, { marginTop: 16 }]}>
+                      <Text style={styles.aboutLabel}>Last synced</Text>
+                      <Text style={styles.aboutValue}>{formatLastSync(healthKit.lastSyncTime)}</Text>
+                    </View>
+                    {healthKit.syncError && (
+                      <Text style={styles.errorText}>{healthKit.syncError}</Text>
+                    )}
+                    <TouchableOpacity
+                      style={[styles.syncButton, healthKit.isSyncing && styles.syncButtonDisabled]}
+                      onPress={() => healthKit.syncNow()}
+                      disabled={healthKit.isSyncing}
+                    >
+                      {healthKit.isSyncing ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.syncButtonText}>Sync Now</Text>
+                      )}
+                    </TouchableOpacity>
+                    <Text style={styles.healthNote}>
+                      Workouts from Peloton, Tonal, and Cannondale are automatically synced when you open the app.
+                    </Text>
+                  </>
+                ) : healthKit.authStatus === 'unavailable' ? (
+                  <Text style={styles.aboutLabel}>Apple Health is not available on this device.</Text>
+                ) : (
+                  <>
+                    <Text style={styles.aboutLabel}>
+                      Connect to Apple Health to automatically sync workouts from Peloton, Tonal, and Cannondale.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.connectButton}
+                      onPress={() => healthKit.requestPermissions()}
+                    >
+                      <Text style={styles.connectButtonText}>Connect Apple Health</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </View>
+          )}
 
           {/* About Section */}
           <View style={styles.section}>
@@ -233,5 +307,56 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: isDark ? '#fff' : '#0f172a',
+  },
+  statusBadge: {
+    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#22c55e',
+  },
+  syncButton: {
+    backgroundColor: '#6366f1',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  syncButtonDisabled: {
+    opacity: 0.7,
+  },
+  syncButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  connectButton: {
+    backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#6366f1',
+  },
+  connectButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6366f1',
+  },
+  healthNote: {
+    fontSize: 12,
+    color: isDark ? '#71717a' : '#94a3b8',
+    marginTop: 12,
+    lineHeight: 18,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#ef4444',
+    marginTop: 8,
   },
 });
