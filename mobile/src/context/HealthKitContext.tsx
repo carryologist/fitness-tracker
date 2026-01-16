@@ -54,8 +54,13 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const status = await getAuthorizationStatus();
-      setAuthStatus(status);
+      // Check if user has previously connected (stored locally)
+      const hasConnected = await AsyncStorage.getItem('healthkit_connected');
+      if (hasConnected === 'true') {
+        setAuthStatus('authorized');
+      } else {
+        setAuthStatus('notDetermined');
+      }
 
       // Load last sync time
       const storedTime = await AsyncStorage.getItem(LAST_SYNC_KEY);
@@ -73,7 +78,7 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
     init();
   }, []);
 
-  // Auto-sync on app foreground (if authorized)
+  // Auto-sync on app foreground (only if user has explicitly connected)
   useEffect(() => {
     if (authStatus !== 'authorized') return;
 
@@ -84,9 +89,6 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    // Also sync on initial mount if authorized
-    syncNow();
 
     return () => subscription.remove();
   }, [authStatus]);
@@ -97,6 +99,7 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
     const granted = await requestHealthKitPermissions();
     if (granted) {
       setAuthStatus('authorized');
+      await AsyncStorage.setItem('healthkit_connected', 'true');
       // Trigger initial sync after permissions granted
       syncNow();
     }
