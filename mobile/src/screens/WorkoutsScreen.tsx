@@ -9,6 +9,7 @@ export function WorkoutsScreen() {
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingWorkout, setEditingWorkout] = useState<WorkoutSession | null>(null);
 
   const loadWorkouts = async () => {
     try {
@@ -36,10 +37,17 @@ export function WorkoutsScreen() {
   };
 
   const renderWorkout = ({ item }: { item: WorkoutSession }) => (
-    <View style={styles.card}>
+    <TouchableOpacity 
+      style={styles.card} 
+      onPress={() => handleEditWorkout(item)}
+      activeOpacity={0.7}
+    >
       <View style={styles.header}>
         <Text style={styles.activity}>{item.activity}</Text>
-        <Text style={styles.source}>{item.source}</Text>
+        <View style={styles.headerRight}>
+          <Text style={styles.editIcon}>✏️</Text>
+          <Text style={styles.source}>{item.source}</Text>
+        </View>
       </View>
       <View style={styles.stats}>
         <Text style={styles.stat}>{item.minutes} min</Text>
@@ -48,17 +56,28 @@ export function WorkoutsScreen() {
       </View>
       <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
       {item.notes && <Text style={styles.notes}>{item.notes}</Text>}
-    </View>
+    </TouchableOpacity>
   );
 
   const handleWorkoutAdded = () => {
     loadWorkouts();
+    setEditingWorkout(null);
+  };
+
+  const handleEditWorkout = (workout: WorkoutSession) => {
+    setEditingWorkout(workout);
+    setShowAddModal(true);
+  };
+
+  const handleAddNew = () => {
+    setEditingWorkout(null);
+    setShowAddModal(true);
   };
 
   const AddWorkoutButton = () => (
     <TouchableOpacity 
       style={styles.addButton} 
-      onPress={() => setShowAddModal(true)}
+      onPress={handleAddNew}
       activeOpacity={0.8}
     >
       <Text style={styles.addButtonIcon}>+</Text>
@@ -81,8 +100,12 @@ export function WorkoutsScreen() {
       />
       <AddWorkoutModal
         visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingWorkout(null);
+        }}
         onSuccess={handleWorkoutAdded}
+        editingWorkout={editingWorkout}
       />
     </SafeAreaView>
   );
@@ -143,6 +166,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editIcon: {
+    fontSize: 14,
   },
   activity: {
     fontSize: 18,

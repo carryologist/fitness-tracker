@@ -31,6 +31,17 @@ export const api = {
       body: JSON.stringify(workout),
     }),
 
+  updateWorkout: (id: string, workout: Partial<Omit<WorkoutSession, 'id' | 'createdAt' | 'updatedAt'>>) =>
+    fetchApi<{ workout: WorkoutSession }>('/api/workouts', {
+      method: 'PUT',
+      body: JSON.stringify({ id, ...workout }),
+    }),
+
+  deleteWorkout: (id: string) =>
+    fetchApi<{ success: boolean }>(`/api/workouts?id=${id}`, {
+      method: 'DELETE',
+    }),
+
   // Goals
   getGoals: async (): Promise<Goal[]> => {
     const data = await fetchApi<{ goals: Goal[] }>('/api/goals');

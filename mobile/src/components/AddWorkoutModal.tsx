@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,17 +13,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../api/client';
+import { WorkoutSession } from '../../shared/types';
 
 interface AddWorkoutModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editingWorkout?: WorkoutSession | null;
 }
 
 const SOURCES = ['Peloton', 'Tonal', 'Cannondale', 'Other'];
 const ACTIVITIES = ['Cycling', 'Weight Lifting', 'Running', 'Walking', 'Yoga', 'Other'];
 
-export function AddWorkoutModal({ visible, onClose, onSuccess }: AddWorkoutModalProps) {
+export function AddWorkoutModal({ visible, onClose, onSuccess, editingWorkout }: AddWorkoutModalProps) {
   const [source, setSource] = useState('Peloton');
   const [activity, setActivity] = useState('Cycling');
   const [minutes, setMinutes] = useState('');
@@ -33,6 +35,57 @@ export function AddWorkoutModal({ visible, onClose, onSuccess }: AddWorkoutModal
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
 
+  // Populate form when editing
+  useEffect(() => {
+    if (editingWorkout) {
+      setSource(editingWorkout.source);
+      setActivity(editingWorkout.activity);
+      setMinutes(editingWorkout.minutes.toString());
+      setMiles(editingWorkout.miles?.toString() || '');
+      setWeightLifted(editingWorkout.weightLifted?.toString() || '');
+      setNotes(editingWorkout.notes || '');
+      setDate(new Date(editingWorkout.date).toISOString().split('T')[0]);
+    } else {
+      // Reset form for new workout
+      setSource('Peloton');
+      setActivity('Cycling');
+      setMinutes('');
+      setMiles('');
+      setWeightLifted('');
+      setNotes('');
+      setDate(new Date().toISOString().split('T')[0]);
+    }
+  }, [editingWorkout, visible]);
+
+  const handleDelete = () => {
+    if (!editingWorkout) return;
+    
+    Alert.alert(
+      'Delete Workout',
+      'Are you sure you want to delete this workout? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              await api.deleteWorkout(editingWorkout.id);
+              onSuccess();
+              onClose();
+            } catch (error) {
+              console.error('Failed to delete workout:', error);
+              Alert.alert('Error', 'Failed to delete workout. Please try again.');
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSave = async () => {
     if (!minutes || parseInt(minutes) <= 0) {
       Alert.alert('Error', 'Please enter valid minutes');
@@ -41,7 +94,7 @@ export function AddWorkoutModal({ visible, onClose, onSuccess }: AddWorkoutModal
 
     setSaving(true);
     try {
-      await api.createWorkout({
+      const workoutData = {
         date,
         source,
         activity,
@@ -49,7 +102,13 @@ export function AddWorkoutModal({ visible, onClose, onSuccess }: AddWorkoutModal
         miles: miles ? parseFloat(miles) : undefined,
         weightLifted: weightLifted ? parseFloat(weightLifted) : undefined,
         notes: notes || undefined,
-      });
+      };
+
+      if (editingWorkout) {
+        await api.updateWorkout(editingWorkout.id, workoutData);
+      } else {
+        await api.createWorkout(workoutData);
+      }
       
       // Reset form
       setMinutes('');
@@ -79,13 +138,21 @@ export function AddWorkoutModal({ visible, onClose, onSuccess }: AddWorkoutModal
             <TouchableOpacity onPress={onClose}>
               <Text style={styles.cancelButton}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Add Workout</Text>
+            <Text style={styles.headerTitle}>
+              {editingWorkout ? 'Edit Workout' : 'Add Workout'}
+            </Text>
             <TouchableOpacity onPress={handleSave} disabled={saving}>
               <Text style={[styles.saveButton, saving && styles.saveButtonDisabled]}>
                 {saving ? 'Saving...' : 'Save'}
               </Text>
             </TouchableOpacity>
           </View>
+
+          {editingWorkout && (
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} disabled={saving}>
+              <Text style={styles.deleteButtonText}>🗑️ Delete Workout</Text>
+            </TouchableOpacity>
+          )}
 
           <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
             {/* Date */}
@@ -207,6 +274,21 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  deleteButton: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#dc2626',
+    fontSize: 16,
+    fontWeight: '600',
   },
   headerTitle: {
     fontSize: 17,
