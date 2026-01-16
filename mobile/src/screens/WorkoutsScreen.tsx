@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import { WorkoutSession } from '../../shared/types';
+import { AddWorkoutModal } from '../components/AddWorkoutModal';
 
 export function WorkoutsScreen() {
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const loadWorkouts = async () => {
     try {
@@ -49,17 +51,38 @@ export function WorkoutsScreen() {
     </View>
   );
 
+  const handleWorkoutAdded = () => {
+    loadWorkouts();
+  };
+
+  const AddWorkoutButton = () => (
+    <TouchableOpacity 
+      style={styles.addButton} 
+      onPress={() => setShowAddModal(true)}
+      activeOpacity={0.8}
+    >
+      <Text style={styles.addButtonIcon}>+</Text>
+      <Text style={styles.addButtonText}>Add Workout</Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>Workouts</Text>
       <FlatList
         data={workouts}
         renderItem={renderWorkout}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={<AddWorkoutButton />}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+      />
+      <AddWorkoutModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={handleWorkoutAdded}
       />
     </SafeAreaView>
   );
@@ -79,6 +102,31 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
     paddingTop: 0,
+  },
+  addButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  addButtonIcon: {
+    fontSize: 22,
+    color: '#fff',
+    fontWeight: '500',
+    marginRight: 8,
+  },
+  addButtonText: {
+    fontSize: 17,
+    color: '#fff',
+    fontWeight: '600',
   },
   card: {
     backgroundColor: '#fff',
