@@ -7,9 +7,7 @@ import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { WorkoutsScreen } from './src/screens/WorkoutsScreen';
 import { GoalsScreen } from './src/screens/GoalsScreen';
-import { FloatingAddButton } from './src/components/FloatingAddButton';
 import { AddWorkoutModal } from './src/components/AddWorkoutModal';
-import { SettingsButton } from './src/components/SettingsButton';
 import { SettingsModal } from './src/components/SettingsModal';
 
 type Tab = 'dashboard' | 'workouts' | 'goals';
@@ -41,11 +39,18 @@ function AppContent() {
   return (
     <>
       <View style={styles.container}>
+        <SafeAreaView edges={['top']} style={styles.headerRibbon}>
+          <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.headerButton}>
+            <Text style={styles.headerIcon}>⚙️</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Fitness Tracker</Text>
+          <TouchableOpacity onPress={() => setShowAddModal(true)} style={styles.headerButton}>
+            <Text style={styles.headerIcon}>➕</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
         <View style={styles.content}>
           {renderScreen()}
         </View>
-        <SettingsButton onPress={() => setShowSettings(true)} />
-        <FloatingAddButton onPress={() => setShowAddModal(true)} />
         <SafeAreaView edges={['bottom']} style={styles.tabBar}>
           <TouchableOpacity
             style={styles.tab}
@@ -104,6 +109,27 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: isDark ? '#0f0f1a' : '#f8fafc',
+  },
+  headerRibbon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: isDark ? '#1a1a2e' : '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#2d2d44' : '#e2e8f0',
+  },
+  headerButton: {
+    padding: 8,
+  },
+  headerIcon: {
+    fontSize: 22,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: isDark ? '#fff' : '#1e293b',
   },
   content: {
     flex: 1,

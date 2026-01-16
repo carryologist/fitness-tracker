@@ -144,7 +144,7 @@ export function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Fitness Dashboard</Text>
+        <Text style={styles.title}>Dashboard</Text>
         
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
