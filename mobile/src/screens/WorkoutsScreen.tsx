@@ -11,7 +11,12 @@ export function WorkoutsScreen() {
   const loadWorkouts = async () => {
     try {
       const data = await api.getWorkouts();
-      setWorkouts(data);
+      // Filter to 2026 data only
+      const filtered = data.filter((w) => {
+        const year = new Date(w.date).getFullYear();
+        return year === 2026;
+      });
+      setWorkouts(filtered);
     } catch (error) {
       console.error('Failed to load workouts:', error);
     } finally {
@@ -46,7 +51,7 @@ export function WorkoutsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Workouts</Text>
+      <Text style={styles.title}>2026 Workouts</Text>
       <FlatList
         data={workouts}
         renderItem={renderWorkout}
