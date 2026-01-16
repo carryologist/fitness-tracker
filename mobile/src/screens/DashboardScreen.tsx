@@ -443,7 +443,8 @@ const createStyles = (isDark: boolean, theme: typeof darkTheme) => StyleSheet.cr
   title: {
     fontSize: 32,
     fontWeight: '800',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 8,
     color: theme.textPrimary,
     letterSpacing: -0.5,
