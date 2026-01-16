@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
@@ -44,8 +45,15 @@ function AppContent() {
             <Text style={styles.headerIcon}>⚙️</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Fitness Tracker</Text>
-          <TouchableOpacity onPress={() => setShowAddModal(true)} style={styles.headerButton}>
-            <Text style={styles.headerIcon}>➕</Text>
+          <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.8}>
+            <LinearGradient
+              colors={['#6366f1', '#8b5cf6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.addButton}
+            >
+              <Text style={styles.addButtonText}>+</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </SafeAreaView>
         <View style={styles.content}>
@@ -130,6 +138,23 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: isDark ? '#fff' : '#1e293b',
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+  addButtonText: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: '600',
+    marginTop: -2,
   },
   content: {
     flex: 1,
