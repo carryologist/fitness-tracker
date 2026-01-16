@@ -1,17 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import { Goal } from '../../shared/types';
+import { GoalModal } from '../components/GoalModal';
 
 export function GoalsScreen() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
 
   const loadGoals = async () => {
     try {
       const data = await api.getGoals();
-      setGoals(data);
+      // Sort by year descending (newest first)
+      const sorted = data.sort((a, b) => b.year - a.year);
+      setGoals(sorted);
     } catch (error) {
       console.error('Failed to load goals:', error);
     } finally {
@@ -28,19 +33,52 @@ export function GoalsScreen() {
     loadGoals();
   };
 
+  const handleAddGoal = () => {
+    setEditingGoal(null);
+    setShowModal(true);
+  };
+
+  const handleEditGoal = (goal: Goal) => {
+    setEditingGoal(goal);
+    setShowModal(true);
+  };
+
+  const handleModalSuccess = () => {
+    loadGoals();
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>Goals</Text>
+
+        {/* Add Goal Button */}
+        <TouchableOpacity style={styles.addButton} onPress={handleAddGoal} activeOpacity={0.8}>
+          <Text style={styles.addButtonIcon}>+</Text>
+          <Text style={styles.addButtonText}>Add Goal</Text>
+        </TouchableOpacity>
         
-        {goals.map((goal) => (
-          <View key={goal.id} style={styles.card}>
-            <Text style={styles.goalName}>{goal.name}</Text>
-            <Text style={styles.year}>{goal.year}</Text>
+        {goals.map((goal, index) => (
+          <TouchableOpacity 
+            key={goal.id} 
+            style={[styles.card, index === 0 && styles.currentYearCard]}
+            onPress={() => handleEditGoal(goal)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.cardHeader}>
+              <View>
+                <Text style={styles.goalName}>{goal.name}</Text>
+                <Text style={styles.year}>{goal.year}</Text>
+              </View>
+              <View style={styles.editBadge}>
+                <Text style={styles.editBadgeText}>Tap to edit</Text>
+              </View>
+            </View>
             
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Annual Targets</Text>
@@ -81,9 +119,16 @@ export function GoalsScreen() {
                 <Text style={styles.value}>{goal.quarterlySessionsTarget}</Text>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <GoalModal
+        visible={showModal}
+        onClose={() => setShowModal(false)}
+        onSuccess={handleModalSuccess}
+        editingGoal={editingGoal}
+      />
     </SafeAreaView>
   );
 }
@@ -99,6 +144,32 @@ const styles = StyleSheet.create({
     padding: 16,
     color: '#1a1a1a',
   },
+  addButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  addButtonIcon: {
+    fontSize: 22,
+    color: '#fff',
+    fontWeight: '500',
+    marginRight: 8,
+  },
+  addButtonText: {
+    fontSize: 17,
+    color: '#fff',
+    fontWeight: '600',
+  },
   card: {
     backgroundColor: '#fff',
     margin: 16,
@@ -110,6 +181,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  currentYearCard: {
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  editBadge: {
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  editBadgeText: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   goalName: {
     fontSize: 22,

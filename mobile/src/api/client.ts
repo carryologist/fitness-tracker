@@ -36,4 +36,28 @@ export const api = {
     const data = await fetchApi<{ goals: Goal[] }>('/api/goals');
     return data.goals || [];
   },
+
+  createGoal: (goal: {
+    name: string;
+    year: number;
+    annualWeightTarget: number;
+    minutesPerSession: number;
+    weeklySessionsTarget: number;
+  }) =>
+    fetchApi<{ goal: Goal }>('/api/goals', {
+      method: 'POST',
+      body: JSON.stringify(goal),
+    }),
+
+  updateGoal: (id: string, goal: {
+    name: string;
+    year: number;
+    annualWeightTarget: number;
+    minutesPerSession: number;
+    weeklySessionsTarget: number;
+  }) =>
+    fetchApi<{ goal: Goal }>('/api/goals', {
+      method: 'PUT',
+      body: JSON.stringify({ id, ...goal }),
+    }),
 };
