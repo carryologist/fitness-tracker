@@ -19,11 +19,22 @@ const ACTIVITY_TYPE_MAP: Partial<Record<WorkoutActivityType, string>> = {
 };
 
 // Normalize source name from HealthKit bundle ID or name
-function normalizeSourceName(sourceName: string, bundleId?: string): string | null {
+// Also handles outdoor cycling from Peloton -> Cannondale mapping
+function normalizeSourceName(
+  sourceName: string, 
+  bundleId?: string,
+  isIndoor?: boolean,
+  workoutType?: WorkoutActivityType
+): string | null {
   const lowerName = sourceName.toLowerCase();
   const lowerBundle = bundleId?.toLowerCase() || '';
   
+  // Check if this is a Peloton workout
   if (lowerName.includes('peloton') || lowerBundle.includes('peloton')) {
+    // If it's outdoor cycling from Peloton, map to Cannondale
+    if (workoutType === WorkoutActivityType.cycling && isIndoor === false) {
+      return 'Cannondale';
+    }
     return 'Peloton';
   }
   if (lowerName.includes('tonal') || lowerBundle.includes('tonal')) {
@@ -121,7 +132,11 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
       const sourceName = workout.sourceRevision?.source?.name || '';
       const bundleId = workout.sourceRevision?.source?.bundleIdentifier || '';
       
-      const source = normalizeSourceName(sourceName, bundleId);
+      // Check if indoor workout (HealthKit metadata)
+      // metadataIndoorWorkout is true for indoor, false for outdoor, undefined if not set
+      const isIndoor = workout.metadataIndoorWorkout;
+      
+      const source = normalizeSourceName(sourceName, bundleId, isIndoor, workout.workoutActivityType);
       if (!source) continue; // Skip non-matching sources
       
       const activity = getActivity(source, workout.workoutActivityType);
