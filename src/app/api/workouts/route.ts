@@ -56,9 +56,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create workout in database
+    // Parse date as noon local time to avoid timezone issues
+    const workoutDate = new Date(date + 'T12:00:00')
     const newWorkout = await prisma.workoutSession.create({
       data: {
-        date: new Date(date),
+        date: workoutDate,
         source: source,
         activity: activity,
         minutes: parseInt(minutes),
@@ -140,7 +142,7 @@ export async function PUT(request: NextRequest) {
       weightLifted?: number | null
       notes?: string | null
     } = {}
-    if (date) updateData.date = new Date(date)
+    if (date) updateData.date = new Date(date + 'T12:00:00')
     if (source !== undefined) updateData.source = String(source)
     if (activity !== undefined) updateData.activity = String(activity)
     if (minutes !== undefined) updateData.minutes = parseInt(minutes)
