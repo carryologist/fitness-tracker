@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../api/client';
@@ -6,6 +6,7 @@ import { WorkoutSession } from '../../shared/types';
 import { AddWorkoutModal } from '../components/AddWorkoutModal';
 import { useSettings } from '../context/SettingsContext';
 import { darkTheme, lightTheme } from '../theme/themes';
+import { applyCreditMultiplierToAll, CreditedWorkout } from '../utils/workoutCredits';
 
 export function WorkoutsScreen() {
   const { isDark, settings } = useSettings();
@@ -31,6 +32,12 @@ export function WorkoutsScreen() {
     }
   };
 
+  // Apply outdoor credit multiplier
+  const creditedWorkouts = useMemo(
+    () => applyCreditMultiplierToAll(workouts, settings.outdoorMultiplier),
+    [workouts, settings.outdoorMultiplier]
+  );
+
   useEffect(() => {
     loadWorkouts();
   }, []);
@@ -40,22 +47,25 @@ export function WorkoutsScreen() {
     loadWorkouts();
   };
 
-  const renderWorkout = ({ item }: { item: WorkoutSession }) => (
+  const renderWorkout = ({ item }: { item: CreditedWorkout }) => (
     <TouchableOpacity 
       style={styles.card} 
       onPress={() => handleEditWorkout(item)}
       activeOpacity={0.7}
     >
       <View style={styles.header}>
-        <Text style={styles.activity}>{item.activity}</Text>
+        <View style={styles.activityRow}>
+          <Text style={styles.activity}>{item.activity}</Text>
+          {item.isOutdoor && <Text style={styles.outdoorBadge}>🌲 {settings.outdoorMultiplier}x</Text>}
+        </View>
         <View style={styles.headerRight}>
           <Text style={styles.editIcon}>✏️</Text>
           <Text style={styles.source}>{item.source}</Text>
         </View>
       </View>
       <View style={styles.stats}>
-        <Text style={styles.stat}>{item.minutes} min</Text>
-        {item.miles && <Text style={styles.stat}>{item.miles.toFixed(1)} mi</Text>}
+        <Text style={styles.stat}>{item.creditedMinutes} min</Text>
+        {item.creditedMiles && <Text style={styles.stat}>{item.creditedMiles.toFixed(1)} mi</Text>}
         {item.weightLifted && <Text style={styles.stat}>{item.weightLifted.toLocaleString()} lbs</Text>}
       </View>
       <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
@@ -95,7 +105,7 @@ export function WorkoutsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>Workouts</Text>
       <FlatList
-        data={workouts}
+        data={creditedWorkouts}
         renderItem={renderWorkout}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
@@ -168,6 +178,21 @@ const createStyles = (isDark: boolean, theme: typeof darkTheme) => StyleSheet.cr
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  outdoorBadge: {
+    fontSize: 12,
+    color: '#22c55e',
+    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    overflow: 'hidden',
+    fontWeight: '600',
   },
   headerRight: {
     flexDirection: 'row',

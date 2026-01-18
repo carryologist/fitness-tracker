@@ -8,6 +8,7 @@ import { StatCard } from '../components/StatCard';
 import { ProgressBar } from '../components/ProgressBar';
 import { useSettings } from '../context/SettingsContext';
 import { darkTheme, lightTheme } from '../theme/themes';
+import { applyCreditMultiplierToAll } from '../utils/workoutCredits';
 
 type ViewMode = 'quarterly' | 'annual';
 
@@ -21,7 +22,7 @@ function formatNumber(num: number): string {
 }
 
 export function DashboardScreen() {
-  const { isDark } = useSettings();
+  const { isDark, settings } = useSettings();
   const theme = isDark ? darkTheme : lightTheme;
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -59,11 +60,17 @@ export function DashboardScreen() {
     loadData();
   };
 
-  // Calculate stats for 2026
-  const totalMinutes = workouts.reduce((sum, w) => sum + w.minutes, 0);
-  const totalSessions = workouts.length;
-  const totalWeight = workouts.reduce((sum, w) => sum + (w.weightLifted || 0), 0);
-  const totalMiles = workouts.reduce((sum, w) => sum + (w.miles || 0), 0);
+  // Apply outdoor credit multiplier
+  const creditedWorkouts = useMemo(
+    () => applyCreditMultiplierToAll(workouts, settings.outdoorMultiplier),
+    [workouts, settings.outdoorMultiplier]
+  );
+
+  // Calculate stats for 2026 using credited values
+  const totalMinutes = creditedWorkouts.reduce((sum, w) => sum + w.creditedMinutes, 0);
+  const totalSessions = creditedWorkouts.length;
+  const totalWeight = creditedWorkouts.reduce((sum, w) => sum + (w.weightLifted || 0), 0);
+  const totalMiles = creditedWorkouts.reduce((sum, w) => sum + (w.creditedMiles || 0), 0);
 
   const currentGoal = goals.find(g => g.year === 2026) || goals[0];
 
@@ -96,14 +103,14 @@ export function DashboardScreen() {
       targetWeight = currentGoal.annualWeightTarget;
     }
 
-    // Filter workouts for the period
-    const periodWorkouts = workouts.filter((w) => {
+    // Filter workouts for the period (use credited workouts)
+    const periodWorkouts = creditedWorkouts.filter((w) => {
       const d = new Date(w.date);
       return d >= periodStart && d <= periodEnd;
     });
 
     const actualSessions = periodWorkouts.length;
-    const actualMinutes = periodWorkouts.reduce((sum, w) => sum + w.minutes, 0);
+    const actualMinutes = periodWorkouts.reduce((sum, w) => sum + w.creditedMinutes, 0);
     const actualWeight = periodWorkouts.reduce((sum, w) => sum + (w.weightLifted || 0), 0);
 
     // Calculate expected progress
@@ -126,7 +133,7 @@ export function DashboardScreen() {
         weight: (actualWeight / targetWeight) * 100,
       },
     };
-  }, [workouts, currentGoal, viewMode]);
+  }, [creditedWorkouts, currentGoal, viewMode]);
 
   const getStatus = (actual: number, expected: number) => {
     if (actual >= expected) return { text: 'On Track', color: '#10b981' };

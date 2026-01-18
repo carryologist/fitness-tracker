@@ -10,6 +10,7 @@ interface Settings {
   defaultSource: string;
   defaultActivity: string;
   units: Units;
+  outdoorMultiplier: number;
 }
 
 interface SettingsContextType {
@@ -23,6 +24,7 @@ const defaultSettings: Settings = {
   defaultSource: 'Peloton',
   defaultActivity: 'Cycling',
   units: 'imperial',
+  outdoorMultiplier: 1.5,
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);

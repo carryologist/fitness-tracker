@@ -142,6 +142,30 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
             </View>
           </View>
 
+          {/* Outdoor Bonus Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>OUTDOOR BONUS</Text>
+            <View style={styles.card}>
+              <Text style={styles.label}>Cannondale Multiplier</Text>
+              <Text style={styles.helperText}>
+                Outdoor rides get bonus credit for minutes and miles
+              </Text>
+              <View style={styles.optionsRow}>
+                {[1, 1.25, 1.5, 1.75, 2].map((multiplier) => (
+                  <TouchableOpacity
+                    key={multiplier}
+                    style={[styles.option, settings.outdoorMultiplier === multiplier && styles.optionSelected]}
+                    onPress={() => updateSettings({ outdoorMultiplier: multiplier })}
+                  >
+                    <Text style={[styles.optionText, settings.outdoorMultiplier === multiplier && styles.optionTextSelected]}>
+                      {multiplier}x
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+
           {/* Apple Health Section - iOS only */}
           {Platform.OS === 'ios' && (
             <View style={styles.section}>
@@ -264,6 +288,12 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     fontWeight: '600',
     color: isDark ? '#fff' : '#0f172a',
     marginBottom: 14,
+  },
+  helperText: {
+    fontSize: 13,
+    color: isDark ? '#71717a' : '#64748b',
+    marginBottom: 14,
+    marginTop: -8,
   },
   optionsRow: {
     flexDirection: 'row',
