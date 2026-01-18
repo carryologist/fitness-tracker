@@ -420,15 +420,18 @@ export function DashboardScreen() {
         {/* Recent Workouts */}
         <View style={styles.recentSection}>
           <Text style={styles.sectionTitle}>Recent Workouts</Text>
-          {workouts.slice(0, 5).map((workout) => (
+          {creditedWorkouts.slice(0, 5).map((workout) => (
             <View key={workout.id} style={styles.workoutCard}>
               <View style={styles.workoutHeader}>
-                <Text style={styles.workoutActivity}>{workout.activity}</Text>
+                <View style={styles.workoutActivityRow}>
+                  <Text style={styles.workoutActivity}>{workout.activity}</Text>
+                  {workout.isOutdoor && <Text style={styles.outdoorBadge}>🌲 {settings.outdoorMultiplier}x</Text>}
+                </View>
                 <Text style={styles.workoutSource}>{workout.source}</Text>
               </View>
               <Text style={styles.workoutDetails}>
-                {workout.minutes} min
-                {workout.miles ? ` • ${workout.miles.toFixed(1)} mi` : ''}
+                {workout.creditedMinutes} min
+                {workout.creditedMiles ? ` • ${workout.creditedMiles.toFixed(1)} mi` : ''}
                 {workout.weightLifted ? ` • ${formatNumber(workout.weightLifted)} lbs` : ''}
               </Text>
               <Text style={styles.workoutDate}>
@@ -567,10 +570,25 @@ const createStyles = (isDark: boolean, theme: typeof darkTheme) => StyleSheet.cr
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  workoutActivityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   workoutActivity: {
     fontSize: 16,
     fontWeight: '700',
     color: theme.textPrimary,
+  },
+  outdoorBadge: {
+    fontSize: 11,
+    color: '#22c55e',
+    backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+    fontWeight: '600',
   },
   workoutSource: {
     fontSize: 12,
