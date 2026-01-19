@@ -7,12 +7,13 @@ import { StatusBar } from 'expo-status-bar';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { HealthKitProvider } from './src/context/HealthKitContext';
 import { DashboardScreen } from './src/screens/DashboardScreen';
+import { ChartsScreen } from './src/screens/ChartsScreen';
 import { WorkoutsScreen } from './src/screens/WorkoutsScreen';
 import { GoalsScreen } from './src/screens/GoalsScreen';
 import { AddWorkoutModal } from './src/components/AddWorkoutModal';
 import { SettingsModal } from './src/components/SettingsModal';
 
-type Tab = 'dashboard' | 'workouts' | 'goals';
+type Tab = 'dashboard' | 'charts' | 'workouts' | 'goals';
 
 function AppContent() {
   const { isDark } = useSettings();
@@ -29,6 +30,8 @@ function AppContent() {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardScreen key={refreshKey} />;
+      case 'charts':
+        return <ChartsScreen key={refreshKey} />;
       case 'workouts':
         return <WorkoutsScreen key={refreshKey} />;
       case 'goals':
@@ -65,9 +68,18 @@ function AppContent() {
             style={styles.tab}
             onPress={() => setActiveTab('dashboard')}
           >
-            <Text style={styles.tabIcon}>📊</Text>
+            <Text style={styles.tabIcon}>🏠</Text>
             <Text style={[styles.tabLabel, activeTab === 'dashboard' && styles.activeLabel]}>
               Dashboard
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={() => setActiveTab('charts')}
+          >
+            <Text style={styles.tabIcon}>📊</Text>
+            <Text style={[styles.tabLabel, activeTab === 'charts' && styles.activeLabel]}>
+              Charts
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
