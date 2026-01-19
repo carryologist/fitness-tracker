@@ -154,14 +154,35 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
       let weightLifted: number | undefined;
       
       try {
-        // Try cycling distance first, then walking/running distance
-        const cyclingStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceCycling', 'mi');
-        if (cyclingStats?.sumQuantity) {
-          miles = Math.round(cyclingStats.sumQuantity.quantity * 10) / 10;
-        } else {
-          const walkRunStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceWalkingRunning', 'mi');
-          if (walkRunStats?.sumQuantity) {
-            miles = Math.round(walkRunStats.sumQuantity.quantity * 10) / 10;
+        // First check totalDistance property on workout (most reliable)
+        if (workout.totalDistance) {
+          const distanceObj = workout.totalDistance as { quantity?: number; unit?: string } | number;
+          let distanceMeters: number;
+          if (typeof distanceObj === 'number') {
+            distanceMeters = distanceObj;
+          } else if (distanceObj.quantity !== undefined) {
+            // Convert based on unit - default is meters
+            distanceMeters = distanceObj.unit === 'mi' 
+              ? distanceObj.quantity * 1609.34 
+              : distanceObj.quantity;
+          } else {
+            distanceMeters = 0;
+          }
+          if (distanceMeters > 0) {
+            miles = Math.round((distanceMeters / 1609.34) * 10) / 10;
+          }
+        }
+        
+        // Fallback to statistics if totalDistance not available
+        if (!miles) {
+          const cyclingStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceCycling', 'mi');
+          if (cyclingStats?.sumQuantity) {
+            miles = Math.round(cyclingStats.sumQuantity.quantity * 10) / 10;
+          } else {
+            const walkRunStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceWalkingRunning', 'mi');
+            if (walkRunStats?.sumQuantity) {
+              miles = Math.round(walkRunStats.sumQuantity.quantity * 10) / 10;
+            }
           }
         }
       } catch (e) {
