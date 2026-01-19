@@ -1,7 +1,5 @@
-import {
+import HealthKit, {
   isHealthDataAvailable,
-  requestAuthorization,
-  getRequestStatusForAuthorization,
   queryWorkoutSamples,
   WorkoutActivityType,
   WorkoutTypeIdentifier,
@@ -87,9 +85,14 @@ export function isHealthKitAvailableSync(): boolean {
 
 export async function requestHealthKitPermissions(): Promise<boolean> {
   try {
-    await requestAuthorization({
-      toRead: [WorkoutTypeIdentifier],
-    });
+    // Check availability first
+    if (!isHealthDataAvailable()) {
+      console.error('HealthKit not available on this device');
+      return false;
+    }
+    
+    // Use the default export's method which may be more stable
+    await HealthKit.requestAuthorization([WorkoutTypeIdentifier], []);
     return true;
   } catch (error) {
     console.error('HealthKit authorization failed:', error);
@@ -102,10 +105,8 @@ export async function getAuthorizationStatus(): Promise<'authorized' | 'notDeter
     // Check if HealthKit is available
     if (!isHealthDataAvailable()) return 'denied';
     
-    // Check authorization status
-    const status = await getRequestStatusForAuthorization({
-      toRead: [WorkoutTypeIdentifier],
-    });
+    // Check authorization status using default export
+    const status = await HealthKit.getRequestStatusForAuthorization([WorkoutTypeIdentifier], []);
     
     // Status 1 = unnecessary (already granted), 2 = required (not yet granted)
     return status === 1 ? 'authorized' : 'notDetermined';
