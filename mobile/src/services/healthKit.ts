@@ -149,18 +149,38 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
       const durationMinutes = Math.round(durationSeconds / 60);
       if (durationMinutes < 1) continue; // Skip very short workouts
       
-      // Get distance via statistics if available
+      // Get distance and weight via statistics if available
       let miles: number | undefined;
+      let weightLifted: number | undefined;
+      
       try {
-        const stats = await workout.getAllStatistics();
-        const distanceStats = stats['HKQuantityTypeIdentifierDistanceWalkingRunning'] 
-          || stats['HKQuantityTypeIdentifierDistanceCycling'];
-        if (distanceStats?.sumQuantity) {
-          // Convert meters to miles
-          miles = Math.round((distanceStats.sumQuantity.quantity / 1609.344) * 10) / 10;
+        // Try cycling distance first, then walking/running distance
+        const cyclingStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceCycling', 'mi');
+        if (cyclingStats?.sumQuantity) {
+          miles = Math.round(cyclingStats.sumQuantity.quantity * 10) / 10;
+        } else {
+          const walkRunStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceWalkingRunning', 'mi');
+          if (walkRunStats?.sumQuantity) {
+            miles = Math.round(walkRunStats.sumQuantity.quantity * 10) / 10;
+          }
         }
-      } catch {
-        // Stats not available, continue without distance
+      } catch (e) {
+        console.log('Could not get distance stats:', e);
+      }
+      
+      // For strength training, try to get total weight lifted (Tonal may provide this)
+      if (activity === 'Weight Lifting') {
+        try {
+          // Try to get exercise time stats as a fallback, or any weight-related stats
+          const allStats = await workout.getAllStatistics();
+          console.log('Tonal workout stats:', JSON.stringify(Object.keys(allStats)));
+          
+          // Check for any weight/energy stats that Tonal might provide
+          // Tonal doesn't have a standard "total weight lifted" in HealthKit,
+          // but we log available stats for future reference
+        } catch (e) {
+          console.log('Could not get weight stats:', e);
+        }
       }
       
       mappedWorkouts.push({
@@ -170,9 +190,7 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
         activity,
         minutes: durationMinutes,
         miles: miles && miles > 0 ? miles : undefined,
-        // Note: HealthKit doesn't directly store total weight lifted,
-        // this would need to come from individual exercise sets if available
-        weightLifted: undefined,
+        weightLifted: weightLifted,
       });
     }
     
