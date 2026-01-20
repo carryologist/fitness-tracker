@@ -91,8 +91,9 @@ export async function requestHealthKitPermissions(): Promise<boolean> {
       return false;
     }
     
-    // v13 API takes a single object argument
-    await HealthKit.requestAuthorization({
+    // Use the named export directly instead of default export
+    const { requestAuthorization } = await import('@kingstinct/react-native-healthkit');
+    await requestAuthorization({
       toRead: [WorkoutTypeIdentifier],
     });
     return true;
