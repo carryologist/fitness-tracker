@@ -211,16 +211,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     </Text>
                     <TouchableOpacity
                       style={styles.connectButton}
-                      onPress={async () => {
-                        Alert.alert('Debug', `Starting... isAvailable: ${healthKit.isAvailable}, status: ${healthKit.authStatus}`);
-                        try {
-                          const result = await healthKit.requestPermissions();
-                          Alert.alert('Debug', `Result: ${result}`);
-                        } catch (e: unknown) {
-                          const msg = e instanceof Error ? e.message : String(e);
-                          Alert.alert('Error', msg);
-                        }
-                      }}
+                      onPress={() => healthKit.requestPermissions()}
                     >
                       <Text style={styles.connectButtonText}>Connect Apple Health</Text>
                     </TouchableOpacity>
