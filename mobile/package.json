@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@kingstinct/react-native-healthkit": "^13.1.0",
+    "react-native-nitro-modules": "^0.33.2",
     "react-native-svg": "^15.9.0",
     "react-native-gifted-charts": "^1.4.54",
     "@react-native-async-storage/async-storage": "^2.2.0",

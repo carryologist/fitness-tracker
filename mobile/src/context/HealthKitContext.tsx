@@ -39,12 +39,6 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
   // Initialize on mount
   useEffect(() => {
     async function init() {
-      // Temporarily disabled due to iOS 26 compatibility issues
-      // TODO: Re-enable when @kingstinct/react-native-healthkit supports iOS 26
-      setIsAvailable(false);
-      setAuthStatus('unavailable');
-      return;
-
       // Only available on iOS
       if (Platform.OS !== 'ios') {
         setIsAvailable(false);
