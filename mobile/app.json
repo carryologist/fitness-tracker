@@ -16,7 +16,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fitnesstracker.mobile",
       "infoPlist": {
-        "NSHealthShareUsageDescription": "This app reads your workout data from Apple Health to automatically sync workouts from Peloton, Tonal, and Cannondale."
+        "NSHealthShareUsageDescription": "This app reads your workout data from Apple Health to automatically sync workouts from Peloton, Tonal, and Cannondale.",
+        "NSHealthUpdateUsageDescription": "This app does not write data to Apple Health."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
       }
     },
     "plugins": [
