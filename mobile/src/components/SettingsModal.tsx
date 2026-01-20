@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings, ThemeMode } from '../context/SettingsContext';
@@ -210,7 +211,16 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     </Text>
                     <TouchableOpacity
                       style={styles.connectButton}
-                      onPress={() => healthKit.requestPermissions()}
+                      onPress={async () => {
+                        Alert.alert('Debug', `Starting... isAvailable: ${healthKit.isAvailable}, status: ${healthKit.authStatus}`);
+                        try {
+                          const result = await healthKit.requestPermissions();
+                          Alert.alert('Debug', `Result: ${result}`);
+                        } catch (e: unknown) {
+                          const msg = e instanceof Error ? e.message : String(e);
+                          Alert.alert('Error', msg);
+                        }
+                      }}
                     >
                       <Text style={styles.connectButtonText}>Connect Apple Health</Text>
                     </TouchableOpacity>
