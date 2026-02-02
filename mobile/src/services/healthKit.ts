@@ -230,6 +230,7 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
 
 // Helper to generate a unique key for deduplication
 export function getWorkoutKey(workout: HealthKitWorkout | WorkoutSession): string {
-  const date = new Date(workout.date).toISOString().split('T')[0];
-  return `${date}-${workout.source}-${workout.activity}-${workout.minutes}`;
+  // Include full ISO timestamp to handle multiple workouts on same day
+  const timestamp = new Date(workout.date).toISOString();
+  return `${timestamp}-${workout.source}-${workout.activity}-${workout.minutes}`;
 }

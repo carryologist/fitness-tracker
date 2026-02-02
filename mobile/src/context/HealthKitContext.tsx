@@ -119,16 +119,28 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
       const startOfYear = new Date(new Date().getFullYear(), 0, 1);
       const since = lastSyncTime && lastSyncTime > startOfYear ? lastSyncTime : startOfYear;
       
+      console.log('[HealthKit] Fetching workouts since:', since.toISOString());
       const healthKitWorkouts = await fetchWorkoutsSince(since);
+      console.log('[HealthKit] Found', healthKitWorkouts.length, 'workouts from HealthKit');
 
       // Get existing workouts from API for deduplication
       const existingWorkouts = await api.getWorkouts();
+      console.log('[HealthKit] Found', existingWorkouts.length, 'existing workouts in API');
       const existingKeys = new Set(existingWorkouts.map(getWorkoutKey));
 
       // Filter out already synced workouts
       const newWorkouts = healthKitWorkouts.filter((w) => {
         const key = getWorkoutKey(w);
-        return !existingKeys.has(key) && !syncedIds.has(w.id);
+        const isDuplicate = existingKeys.has(key) || syncedIds.has(w.id);
+        if (isDuplicate) {
+          console.log('[HealthKit] Skipping duplicate:', w.date, w.source, w.activity, w.minutes, 'min');
+        }
+        return !isDuplicate;
+      });
+
+      console.log('[HealthKit] After filtering:', newWorkouts.length, 'new workouts to sync');
+      newWorkouts.forEach(w => {
+        console.log('[HealthKit] New workout:', w.date, w.source, w.activity, w.minutes, 'min', w.miles || 0, 'mi');
       });
 
       let synced = 0;
@@ -137,6 +149,7 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
       // Create new workouts
       for (const workout of newWorkouts) {
         try {
+          console.log('[HealthKit] Syncing workout:', workout.date, workout.source, workout.activity);
           await api.createWorkout({
             date: workout.date,
             source: workout.source,
@@ -148,8 +161,9 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
           });
           newSyncedIds.add(workout.id);
           synced++;
+          console.log('[HealthKit] Successfully synced workout');
         } catch (error) {
-          console.error('Failed to create workout:', error);
+          console.error('[HealthKit] Failed to create workout:', error);
         }
       }
 
