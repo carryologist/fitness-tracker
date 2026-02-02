@@ -161,8 +161,8 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
       
       try {
         // First check totalDistance property on workout (most reliable)
-        if (workout.totalDistance) {
-          const distanceObj = workout.totalDistance as { quantity?: number; unit?: string } | number;
+        if ((workout as any).totalDistance) {
+          const distanceObj = (workout as any).totalDistance as { quantity?: number; unit?: string } | number;
           let distanceMeters: number;
           if (typeof distanceObj === 'number') {
             distanceMeters = distanceObj;
