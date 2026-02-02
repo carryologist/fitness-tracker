@@ -24,6 +24,7 @@ interface HealthKitContextType {
   syncError: string | null;
   requestPermissions: () => Promise<boolean>;
   syncNow: () => Promise<{ synced: number; skipped: number }>;
+  resetSync: () => Promise<void>;
 }
 
 const HealthKitContext = createContext<HealthKitContextType | undefined>(undefined);
@@ -186,6 +187,15 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAvailable, authStatus, isSyncing, lastSyncTime, syncedIds]);
 
+  const resetSync = useCallback(async () => {
+    console.log('[HealthKit] Resetting sync state...');
+    await AsyncStorage.removeItem(LAST_SYNC_KEY);
+    await AsyncStorage.removeItem(SYNCED_IDS_KEY);
+    setLastSyncTime(null);
+    setSyncedIds(new Set());
+    console.log('[HealthKit] Sync state reset');
+  }, []);
+
   return (
     <HealthKitContext.Provider
       value={{
@@ -196,6 +206,7 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
         syncError,
         requestPermissions,
         syncNow,
+        resetSync,
       }}
     >
       {children}

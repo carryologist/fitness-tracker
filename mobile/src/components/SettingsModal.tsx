@@ -198,6 +198,29 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                         <Text style={styles.syncButtonText}>Sync Now</Text>
                       )}
                     </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.resetButton]}
+                      onPress={async () => {
+                        Alert.alert(
+                          'Reset Sync State',
+                          'This will clear the sync history and re-sync all workouts from this year. Continue?',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Reset',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await healthKit.resetSync();
+                                Alert.alert('Success', 'Sync state reset. Tap "Sync Now" to re-sync all workouts.');
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                      disabled={healthKit.isSyncing}
+                    >
+                      <Text style={styles.resetButtonText}>Reset Sync</Text>
+                    </TouchableOpacity>
                     <Text style={styles.healthNote}>
                       Workouts from Peloton, Tonal, and Cannondale are automatically synced when you open the app.
                     </Text>
@@ -364,6 +387,20 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  resetButton: {
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.2)',
+  },
+  resetButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ef4444',
   },
   connectButton: {
     backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)',
