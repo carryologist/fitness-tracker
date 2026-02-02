@@ -56,8 +56,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Create workout in database
-    // Parse date as noon local time to avoid timezone issues
-    const workoutDate = new Date(date + 'T12:00:00')
+    // Parse date - handle both ISO timestamps and date-only strings
+    const workoutDate = date.includes('T') 
+      ? new Date(date)  // Full ISO timestamp from HealthKit
+      : new Date(date + 'T12:00:00')  // Date-only string from manual entry
     const newWorkout = await prisma.workoutSession.create({
       data: {
         date: workoutDate,
