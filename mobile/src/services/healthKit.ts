@@ -160,9 +160,12 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
       let weightLifted: number | undefined;
       
       try {
+        console.log(`[HealthKit] Getting distance for ${source} ${activity} workout...`);
+        
         // First check totalDistance property on workout (most reliable)
         if ((workout as any).totalDistance) {
           const distanceObj = (workout as any).totalDistance as { quantity?: number; unit?: string } | number;
+          console.log(`[HealthKit] totalDistance found:`, JSON.stringify(distanceObj));
           let distanceMeters: number;
           if (typeof distanceObj === 'number') {
             distanceMeters = distanceObj;
@@ -176,23 +179,34 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
           }
           if (distanceMeters > 0) {
             miles = Math.round((distanceMeters / 1609.34) * 10) / 10;
+            console.log(`[HealthKit] Calculated miles from totalDistance: ${miles}`);
           }
+        } else {
+          console.log(`[HealthKit] totalDistance not available, trying statistics...`);
         }
         
         // Fallback to statistics if totalDistance not available
         if (!miles) {
           const cyclingStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceCycling', 'mi');
+          console.log(`[HealthKit] Cycling stats:`, cyclingStats);
           if (cyclingStats?.sumQuantity) {
             miles = Math.round(cyclingStats.sumQuantity.quantity * 10) / 10;
+            console.log(`[HealthKit] Got miles from cycling stats: ${miles}`);
           } else {
             const walkRunStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceWalkingRunning', 'mi');
+            console.log(`[HealthKit] Walk/run stats:`, walkRunStats);
             if (walkRunStats?.sumQuantity) {
               miles = Math.round(walkRunStats.sumQuantity.quantity * 10) / 10;
+              console.log(`[HealthKit] Got miles from walk/run stats: ${miles}`);
             }
           }
         }
+        
+        if (!miles) {
+          console.log(`[HealthKit] No distance data found for this workout`);
+        }
       } catch (e) {
-        console.log('Could not get distance stats:', e);
+        console.log('[HealthKit] Error getting distance stats:', e);
       }
       
       // For strength training, try to get total weight lifted (Tonal may provide this)
