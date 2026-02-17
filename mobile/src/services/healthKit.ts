@@ -3,6 +3,7 @@ import HealthKit, {
   queryWorkoutSamples,
   WorkoutActivityType,
   WorkoutTypeIdentifier,
+  HKQuantityTypeIdentifier,
 } from '@kingstinct/react-native-healthkit';
 import { WorkoutSession } from '../../shared/types';
 
@@ -94,7 +95,12 @@ export async function requestHealthKitPermissions(): Promise<boolean> {
     // Use the named export directly instead of default export
     const { requestAuthorization } = await import('@kingstinct/react-native-healthkit');
     await requestAuthorization({
-      toRead: [WorkoutTypeIdentifier],
+      toRead: [
+        WorkoutTypeIdentifier,
+        HKQuantityTypeIdentifier.distanceCycling,
+        HKQuantityTypeIdentifier.distanceWalkingRunning,
+        HKQuantityTypeIdentifier.activeEnergyBurned,
+      ],
     });
     return true;
   } catch (error) {
