@@ -260,7 +260,7 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
         }
       }
       
-      mappedWorkouts.push({
+      const workoutData = {
         id: workout.uuid,
         date: workout.startDate.toISOString(),
         source,
@@ -268,7 +268,10 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
         minutes: durationMinutes,
         miles: miles && miles > 0 ? miles : undefined,
         weightLifted: weightLifted,
-      });
+      };
+      
+      console.log(`[HealthKit] Pushing workout to array:`, JSON.stringify(workoutData));
+      mappedWorkouts.push(workoutData);
     }
     
     return mappedWorkouts;
