@@ -151,6 +151,14 @@ export function HealthKitProvider({ children }: { children: React.ReactNode }) {
       for (const workout of newWorkouts) {
         try {
           console.log('[HealthKit] Syncing workout:', workout.date, workout.source, workout.activity);
+          console.log('[HealthKit] Workout data being sent:', JSON.stringify({
+            date: workout.date,
+            source: workout.source,
+            activity: workout.activity,
+            minutes: workout.minutes,
+            miles: workout.miles,
+            weightLifted: workout.weightLifted,
+          }));
           await api.createWorkout({
             date: workout.date,
             source: workout.source,
