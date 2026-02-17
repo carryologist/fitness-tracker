@@ -161,52 +161,88 @@ export async function fetchWorkoutsSince(since: Date): Promise<HealthKitWorkout[
       
       try {
         console.log(`[HealthKit] Getting distance for ${source} ${activity} workout...`);
+        console.log(`[HealthKit] Workout object keys:`, Object.keys(workout));
         
-        // First check totalDistance property on workout (most reliable)
+        // Method 1: Check totalDistance property (iOS 16+)
         if ((workout as any).totalDistance) {
-          const distanceObj = (workout as any).totalDistance as { quantity?: number; unit?: string } | number;
+          const distanceObj = (workout as any).totalDistance;
           console.log(`[HealthKit] totalDistance found:`, JSON.stringify(distanceObj));
-          let distanceMeters: number;
-          if (typeof distanceObj === 'number') {
-            distanceMeters = distanceObj;
-          } else if (distanceObj.quantity !== undefined) {
-            // Convert based on unit - default is meters
-            distanceMeters = distanceObj.unit === 'mi' 
-              ? distanceObj.quantity * 1609.34 
-              : distanceObj.quantity;
-          } else {
-            distanceMeters = 0;
+          
+          // Handle HKQuantity object
+          if (distanceObj && typeof distanceObj === 'object') {
+            // Try quantity property (new API)
+            if (distanceObj.quantity !== undefined) {
+              const distanceMeters = distanceObj.unit === 'mi' 
+                ? distanceObj.quantity * 1609.34 
+                : distanceObj.quantity;
+              
+              if (distanceMeters > 0) {
+                miles = Math.round((distanceMeters / 1609.34) * 10) / 10;
+                console.log(`[HealthKit] Got miles from totalDistance.quantity: ${miles}`);
+              }
+            }
+            // Try direct number value
+            else if (typeof distanceObj === 'number') {
+              const distanceMeters = distanceObj;
+              miles = Math.round((distanceMeters / 1609.34) * 10) / 10;
+              console.log(`[HealthKit] Got miles from totalDistance number: ${miles}`);
+            }
           }
-          if (distanceMeters > 0) {
-            miles = Math.round((distanceMeters / 1609.34) * 10) / 10;
-            console.log(`[HealthKit] Calculated miles from totalDistance: ${miles}`);
-          }
-        } else {
-          console.log(`[HealthKit] totalDistance not available, trying statistics...`);
         }
         
-        // Fallback to statistics if totalDistance not available
+        // Method 2: Try totalDistance() method if it exists (some iOS versions)
+        if (!miles && typeof (workout as any).totalDistance === 'function') {
+          try {
+            const distanceValue = await (workout as any).totalDistance();
+            console.log(`[HealthKit] totalDistance() method returned:`, distanceValue);
+            if (distanceValue && distanceValue.quantity) {
+              const distanceMeters = distanceValue.quantity;
+              miles = Math.round((distanceMeters / 1609.34) * 10) / 10;
+              console.log(`[HealthKit] Got miles from totalDistance() method: ${miles}`);
+            }
+          } catch (methodError) {
+            console.log(`[HealthKit] totalDistance() method failed:`, methodError);
+          }
+        }
+        
+        // Method 3: Use statistics API (most reliable fallback)
         if (!miles) {
-          const cyclingStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceCycling', 'mi');
-          console.log(`[HealthKit] Cycling stats:`, cyclingStats);
-          if (cyclingStats?.sumQuantity) {
-            miles = Math.round(cyclingStats.sumQuantity.quantity * 10) / 10;
-            console.log(`[HealthKit] Got miles from cycling stats: ${miles}`);
-          } else {
-            const walkRunStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceWalkingRunning', 'mi');
-            console.log(`[HealthKit] Walk/run stats:`, walkRunStats);
-            if (walkRunStats?.sumQuantity) {
-              miles = Math.round(walkRunStats.sumQuantity.quantity * 10) / 10;
-              console.log(`[HealthKit] Got miles from walk/run stats: ${miles}`);
+          console.log(`[HealthKit] Trying statistics API...`);
+          
+          // Try cycling distance
+          try {
+            const cyclingStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceCycling', 'mi');
+            console.log(`[HealthKit] Cycling stats:`, JSON.stringify(cyclingStats));
+            if (cyclingStats?.sumQuantity?.quantity) {
+              miles = Math.round(cyclingStats.sumQuantity.quantity * 10) / 10;
+              console.log(`[HealthKit] Got miles from cycling stats: ${miles}`);
+            }
+          } catch (cyclingError) {
+            console.log(`[HealthKit] Cycling stats error:`, cyclingError);
+          }
+          
+          // Try walking/running distance
+          if (!miles) {
+            try {
+              const walkRunStats = await workout.getStatistic('HKQuantityTypeIdentifierDistanceWalkingRunning', 'mi');
+              console.log(`[HealthKit] Walk/run stats:`, JSON.stringify(walkRunStats));
+              if (walkRunStats?.sumQuantity?.quantity) {
+                miles = Math.round(walkRunStats.sumQuantity.quantity * 10) / 10;
+                console.log(`[HealthKit] Got miles from walk/run stats: ${miles}`);
+              }
+            } catch (walkRunError) {
+              console.log(`[HealthKit] Walk/run stats error:`, walkRunError);
             }
           }
         }
         
         if (!miles) {
-          console.log(`[HealthKit] No distance data found for this workout`);
+          console.log(`[HealthKit] WARNING: No distance data found for this workout`);
+        } else {
+          console.log(`[HealthKit] SUCCESS: Final miles value: ${miles}`);
         }
       } catch (e) {
-        console.log('[HealthKit] Error getting distance stats:', e);
+        console.log('[HealthKit] FATAL ERROR getting distance stats:', e);
       }
       
       // For strength training, try to get total weight lifted (Tonal may provide this)
