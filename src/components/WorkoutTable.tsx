@@ -94,18 +94,33 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
                 {session.activity}
               </td>
               <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-                {formatNumber(session.minutes)}
+                <div className="flex items-center justify-end gap-1">
+                  {session.source === 'Cannondale' && session.adjustedMinutes && session.adjustedMinutes !== session.minutes ? (
+                    <>
+                      <span title={`Outdoor bonus applied (${session.minutes} × multiplier)`} className="text-green-600 dark:text-green-400">
+                        <Bike className="w-3 h-3 inline-block" />
+                      </span>
+                      <span>{formatNumber(session.adjustedMinutes)}</span>
+                    </>
+                  ) : (
+                    <span>{formatNumber(session.minutes)}</span>
+                  )}
+                </div>
               </td>
               <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm">
                 <div className="flex items-center justify-end gap-1">
-                  {session.source === 'Cannondale' && session.miles ? (
-                    <span title="1.5× miles multiplier applied for goal tracking" className="text-green-600 dark:text-green-400">
-                      <Bike className="w-3 h-3 inline-block" />
+                  {session.source === 'Cannondale' && session.adjustedMiles && session.adjustedMiles !== session.miles ? (
+                    <>
+                      <span title={`Outdoor bonus applied (${session.miles} × multiplier)`} className="text-green-600 dark:text-green-400">
+                        <Bike className="w-3 h-3 inline-block" />
+                      </span>
+                      <span className="text-gray-700 dark:text-gray-300">{formatNumber(session.adjustedMiles)}</span>
+                    </>
+                  ) : (
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {session.miles ? formatNumber(session.miles) : '—'}
                     </span>
-                  ) : null}
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {session.miles ? formatNumber(session.miles) : '—'}
-                  </span>
+                  )}
                 </div>
               </td>
               <td className="py-2 sm:py-3 px-2 text-right text-xs sm:text-sm text-gray-700 dark:text-gray-300">

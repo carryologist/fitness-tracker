@@ -770,7 +770,7 @@ export function WorkoutDashboard() {
           </div>
           <div className="p-6">
             <WorkoutTable
-              sessions={currentYearSessions}
+              sessions={enhancedSessions}
               onDelete={handleDeleteWorkout}
             />
           </div>
