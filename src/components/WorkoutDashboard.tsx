@@ -9,7 +9,7 @@ import { GoalTracker } from './GoalTracker'
 import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
-import { Plus, X, Target, Calendar, ArrowLeftRight } from 'lucide-react'
+import { Plus, X, Target, Calendar, ArrowLeftRight, Link2 } from 'lucide-react'
 import { applyWorkoutMultipliers } from '../utils/workoutMultipliers'
 
 export interface WorkoutSession {
@@ -184,6 +184,8 @@ export function WorkoutDashboard() {
   const [showAddWorkout, setShowAddWorkout] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
+  const [stravaConnected, setStravaConnected] = useState(false)
+  const [stravaSyncing, setStravaSyncing] = useState(false)
 
   // Filter sessions by current year
   const currentYearSessions = sessions.filter(session => {
@@ -271,6 +273,17 @@ export function WorkoutDashboard() {
       
       // Also save to localStorage for offline access
       saveGoalsToStorage(savedGoals)
+
+      // Check Strava connection status
+      try {
+        const stravaRes = await fetch('/api/strava/sync')
+        if (stravaRes.ok) {
+          const stravaData = await stravaRes.json()
+          setStravaConnected(stravaData.connected)
+        }
+      } catch {
+        // Strava status check is non-critical
+      }
       
       setLoading(false)
     } catch (error) {
@@ -441,6 +454,22 @@ export function WorkoutDashboard() {
     setEditingGoal(undefined)
   }
 
+  const handleStravaSync = async () => {
+    setStravaSyncing(true)
+    try {
+      const res = await fetch('/api/strava/sync', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        console.log(`Strava sync: ${data.synced} new, ${data.skipped} skipped, ${data.filtered} filtered`)
+        if (data.synced > 0) await loadData()
+      }
+    } catch (error) {
+      console.error('Strava sync failed:', error)
+    } finally {
+      setStravaSyncing(false)
+    }
+  }
+
   // Get current goal for the year
   const getCurrentGoal = (): Goal | null => {
     return goals.find(g => g.year === currentYear) || null
@@ -544,6 +573,24 @@ export function WorkoutDashboard() {
                   <span>2026</span>
                 </button>
               </div>
+              {stravaConnected ? (
+                <button
+                  onClick={handleStravaSync}
+                  disabled={stravaSyncing}
+                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm text-sm"
+                >
+                  <Link2 className="w-4 h-4" />
+                  <span>{stravaSyncing ? 'Syncing…' : 'Sync Strava'}</span>
+                </button>
+              ) : (
+                <a
+                  href="/api/strava/auth"
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm text-sm"
+                >
+                  <Link2 className="w-4 h-4" />
+                  <span>Connect Strava</span>
+                </a>
+              )}
               <ThemeToggle />
               <button
                 onClick={() => setShowAddWorkout(true)}

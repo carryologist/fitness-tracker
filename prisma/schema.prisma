@@ -20,11 +20,25 @@ model WorkoutSession {
   minutes      Int      // Duration in minutes
   miles        Float?   // Distance for cardio activities
   weightLifted Float?   // Total weight lifted for strength training
-  notes        String?
+  notes            String?
+  stravaActivityId BigInt?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("workout_sessions")
+}
+
+model StravaCredential {
+  id           String   @id @default(cuid())
+  athleteId    Int      @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    Int      // Unix timestamp
+  scope        String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  @@map("workout_sessions")
+  @@map("strava_credentials")
 }
 
 // Goal tracking for quarterly and annual targets
