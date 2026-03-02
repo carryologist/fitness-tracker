@@ -1,29 +1,29 @@
 import { WorkoutSession } from '../components/WorkoutDashboard'
 
 /**
- * Apply special multipliers to workout miles based on source
- *
- * Currently supported multipliers:
- * - Cannondale: 1.5x miles
+ * Apply outdoor multiplier to Cannondale rides (miles and minutes).
  *
  * @param sessions Array of workout sessions
+ * @param multiplier Outdoor multiplier from settings (default 1.5)
  * @returns Array of workout sessions with multipliers applied
  */
-export function applyWorkoutMultipliers(sessions: WorkoutSession[]): WorkoutSession[] {
+export function applyWorkoutMultipliers(
+  sessions: WorkoutSession[],
+  multiplier: number = 1.5,
+): WorkoutSession[] {
   return sessions.map(session => {
-    // Apply 1.5x multiplier to Cannondale rides
-    if (session.source === 'Cannondale' && session.miles) {
+    if (session.source === 'Cannondale') {
       return {
         ...session,
-        // Keep the original miles value but create a new property for the multiplied value
-        adjustedMiles: session.miles * 1.5
+        adjustedMiles: session.miles ? session.miles * multiplier : session.miles,
+        adjustedMinutes: Math.round(session.minutes * multiplier),
       };
     }
 
-    // For non-Cannondale rides, set adjustedMiles to regular miles
     return {
       ...session,
-      adjustedMiles: session.miles
+      adjustedMiles: session.miles,
+      adjustedMinutes: session.minutes,
     };
   });
 }

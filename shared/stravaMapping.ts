@@ -15,8 +15,12 @@ export function mapStravaToSource(activity: StravaActivity): MappedWorkout | nul
   const sportType = activity.sport_type;
   const name = (activity.name ?? '').toLowerCase();
 
-  // Peloton: indoor cycling or Peloton-tagged activities
+  // Peloton: check if indoor or outdoor
   if (gearName.includes('peloton') || name.includes('peloton')) {
+    // Peloton outdoor rides → Cannondale (trainer=false means outdoor)
+    if (sportType === 'Ride' && activity.trainer === false) {
+      return { source: 'Cannondale', activityType: 'Cycling' };
+    }
     if (['Ride', 'VirtualRide'].includes(sportType)) return { source: 'Peloton', activityType: 'Cycling' };
     if (sportType === 'Run') return { source: 'Peloton', activityType: 'Running' };
     if (sportType === 'Yoga') return { source: 'Peloton', activityType: 'Yoga' };

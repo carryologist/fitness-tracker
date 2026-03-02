@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { SettingsProvider } from '../context/SettingsContext'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -32,5 +33,5 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
 
-  return <>{children}</>
+  return <SettingsProvider>{children}</SettingsProvider>
 }
