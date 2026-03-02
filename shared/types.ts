@@ -9,6 +9,7 @@ export interface WorkoutSession {
   miles?: number;
   weightLifted?: number;
   notes?: string;
+  stravaActivityId?: number;
   createdAt: string;
   updatedAt: string;
 }
