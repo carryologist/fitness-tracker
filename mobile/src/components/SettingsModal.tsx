@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Platform,
+
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSettings, ThemeMode } from '../context/SettingsContext';
-import { useHealthKit } from '../context/HealthKitContext';
+import { useStrava } from '../context/StravaContext';
 
 interface SettingsModalProps {
   visible: boolean;
@@ -40,7 +40,7 @@ function formatLastSync(date: Date | null): string {
 
 export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { settings, updateSettings, isDark } = useSettings();
-  const healthKit = useHealthKit();
+  const strava = useStrava();
 
   const styles = createStyles(isDark);
 
@@ -167,82 +167,97 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
             </View>
           </View>
 
-          {/* Apple Health Section - iOS only */}
-          {Platform.OS === 'ios' && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>APPLE HEALTH</Text>
-              <View style={styles.card}>
-                {healthKit.authStatus === 'authorized' ? (
-                  <>
-                    <View style={styles.aboutRow}>
-                      <Text style={styles.aboutLabel}>Status</Text>
-                      <View style={styles.statusBadge}>
-                        <Text style={styles.statusText}>✓ Connected</Text>
-                      </View>
+          {/* Strava Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>STRAVA</Text>
+            <View style={styles.card}>
+              {strava.authStatus === 'authorized' ? (
+                <>
+                  <View style={styles.aboutRow}>
+                    <Text style={styles.aboutLabel}>Status</Text>
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusText}>✓ Connected</Text>
                     </View>
-                    <View style={[styles.aboutRow, { marginTop: 16 }]}>
-                      <Text style={styles.aboutLabel}>Last synced</Text>
-                      <Text style={styles.aboutValue}>{formatLastSync(healthKit.lastSyncTime)}</Text>
-                    </View>
-                    {healthKit.syncError && (
-                      <Text style={styles.errorText}>{healthKit.syncError}</Text>
+                  </View>
+                  <View style={[styles.aboutRow, { marginTop: 16 }]}>
+                    <Text style={styles.aboutLabel}>Last synced</Text>
+                    <Text style={styles.aboutValue}>{formatLastSync(strava.lastSyncTime)}</Text>
+                  </View>
+                  {strava.syncError && (
+                    <Text style={styles.errorText}>{strava.syncError}</Text>
+                  )}
+                  <TouchableOpacity
+                    style={[styles.syncButton, strava.isSyncing && styles.syncButtonDisabled]}
+                    onPress={() => strava.syncNow()}
+                    disabled={strava.isSyncing}
+                  >
+                    {strava.isSyncing ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.syncButtonText}>Sync Now</Text>
                     )}
-                    <TouchableOpacity
-                      style={[styles.syncButton, healthKit.isSyncing && styles.syncButtonDisabled]}
-                      onPress={() => healthKit.syncNow()}
-                      disabled={healthKit.isSyncing}
-                    >
-                      {healthKit.isSyncing ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                      ) : (
-                        <Text style={styles.syncButtonText}>Sync Now</Text>
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.resetButton]}
-                      onPress={async () => {
-                        Alert.alert(
-                          'Reset Sync State',
-                          'This will clear the sync history and re-sync all workouts from this year. Continue?',
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            {
-                              text: 'Reset',
-                              style: 'destructive',
-                              onPress: async () => {
-                                await healthKit.resetSync();
-                                Alert.alert('Success', 'Sync state reset. Tap "Sync Now" to re-sync all workouts.');
-                              },
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.resetButton]}
+                    onPress={async () => {
+                      Alert.alert(
+                        'Reset Sync State',
+                        'This will clear the sync history and re-sync all workouts from this year. Continue?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Reset',
+                            style: 'destructive',
+                            onPress: async () => {
+                              await strava.resetSync();
+                              Alert.alert('Success', 'Sync state reset. Tap "Sync Now" to re-sync all workouts.');
                             },
-                          ]
-                        );
-                      }}
-                      disabled={healthKit.isSyncing}
-                    >
-                      <Text style={styles.resetButtonText}>Reset Sync</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.healthNote}>
-                      Workouts from Peloton, Tonal, and Cannondale are automatically synced when you open the app.
-                    </Text>
-                  </>
-                ) : healthKit.authStatus === 'unavailable' ? (
-                  <Text style={styles.aboutLabel}>Apple Health is not available on this device.</Text>
-                ) : (
-                  <>
-                    <Text style={styles.aboutLabel}>
-                      Connect to Apple Health to automatically sync workouts from Peloton, Tonal, and Cannondale.
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.connectButton}
-                      onPress={() => healthKit.requestPermissions()}
-                    >
-                      <Text style={styles.connectButtonText}>Connect Apple Health</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
+                          },
+                        ]
+                      );
+                    }}
+                    disabled={strava.isSyncing}
+                  >
+                    <Text style={styles.resetButtonText}>Reset Sync</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.resetButton, { marginTop: 12 }]}
+                    onPress={async () => {
+                      Alert.alert(
+                        'Disconnect Strava',
+                        'This will disconnect your Strava account and clear all sync data. Continue?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Disconnect',
+                            style: 'destructive',
+                            onPress: () => strava.disconnect(),
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Text style={styles.resetButtonText}>Disconnect</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.healthNote}>
+                    Workouts from Peloton, Tonal, and Cannondale are automatically synced when you open the app.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.aboutLabel}>
+                    Connect to Strava to automatically sync workouts from Peloton, Tonal, and Cannondale.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.connectButton}
+                    onPress={() => strava.connect()}
+                  >
+                    <Text style={styles.connectButtonText}>Connect Strava</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
-          )}
+          </View>
 
           {/* About Section */}
           <View style={styles.section}>

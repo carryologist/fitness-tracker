@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
-import { HealthKitProvider } from './src/context/HealthKitContext';
+import { StravaProvider } from './src/context/StravaContext';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { ChartsScreen } from './src/screens/ChartsScreen';
 import { WorkoutsScreen } from './src/screens/WorkoutsScreen';
@@ -120,9 +120,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SettingsProvider>
-        <HealthKitProvider>
+        <StravaProvider>
           <AppContent />
-        </HealthKitProvider>
+        </StravaProvider>
       </SettingsProvider>
     </SafeAreaProvider>
   );
