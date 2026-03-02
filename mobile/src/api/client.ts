@@ -1,7 +1,7 @@
 import { WorkoutSession, Goal } from '../../shared/types';
 
 // Configure your API base URL
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://robs-fitness-tracker.vercel.app';
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -70,5 +70,14 @@ export const api = {
     fetchApi<{ goal: Goal }>('/api/goals', {
       method: 'PUT',
       body: JSON.stringify({ id, ...goal }),
+    }),
+
+  // Strava
+  getStravaStatus: () =>
+    fetchApi<{ connected: boolean; athleteId: number | null }>('/api/strava/sync'),
+
+  syncStrava: () =>
+    fetchApi<{ synced: number; skipped: number; filtered: number; total: number }>('/api/strava/sync', {
+      method: 'POST',
     }),
 };

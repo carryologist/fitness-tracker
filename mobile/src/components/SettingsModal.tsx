@@ -220,25 +220,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   >
                     <Text style={styles.resetButtonText}>Reset Sync</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.resetButton, { marginTop: 12 }]}
-                    onPress={async () => {
-                      Alert.alert(
-                        'Disconnect Strava',
-                        'This will disconnect your Strava account and clear all sync data. Continue?',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Disconnect',
-                            style: 'destructive',
-                            onPress: () => strava.disconnect(),
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <Text style={styles.resetButtonText}>Disconnect</Text>
-                  </TouchableOpacity>
+
                   <Text style={styles.healthNote}>
                     Workouts from Peloton, Tonal, and Cannondale are automatically synced when you open the app.
                   </Text>
@@ -246,7 +228,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
               ) : (
                 <>
                   <Text style={styles.aboutLabel}>
-                    Connect to Strava to automatically sync workouts from Peloton, Tonal, and Cannondale.
+                    Connect to Strava to automatically sync workouts from Peloton, Tonal, and Cannondale. This will open your browser to authorize.
                   </Text>
                   <TouchableOpacity
                     style={styles.connectButton}
