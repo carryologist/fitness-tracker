@@ -15,34 +15,28 @@ export function mapStravaToSource(activity: StravaActivity): MappedWorkout | nul
   const sportType = activity.sport_type;
   const name = (activity.name ?? '').toLowerCase();
 
-  // Peloton: check if indoor or outdoor
+  // Cannondale: check first — Cannondale app pushes rides with GPS distance.
+  // Prioritize over Peloton since outdoor rides may have both sources.
+  if (gearName.includes('cannondale') || name.includes('cannondale')) {
+    return { source: 'Cannondale', activityType: 'Cycling' };
+  }
+
+  // Peloton: indoor rides, runs, yoga, strength
   if (gearName.includes('peloton') || name.includes('peloton')) {
-    // Peloton outdoor rides → Cannondale (detect "outdoor" in activity name)
+    // Skip Peloton outdoor rides — Cannondale app handles those
     if (sportType === 'Ride' && name.includes('outdoor')) {
-      return { source: 'Cannondale', activityType: 'Cycling' };
+      return null;
     }
     if (['Ride', 'VirtualRide'].includes(sportType)) return { source: 'Peloton', activityType: 'Cycling' };
     if (sportType === 'Run') return { source: 'Peloton', activityType: 'Running' };
     if (sportType === 'Yoga') return { source: 'Peloton', activityType: 'Yoga' };
     if (['WeightTraining', 'Workout'].includes(sportType)) return { source: 'Peloton', activityType: 'Weight Lifting' };
-    // Default Peloton-tagged activity
     return { source: 'Peloton', activityType: 'Cycling' };
   }
 
-  // Tonal: strength training tagged as Tonal
+  // Tonal: strength training
   if (gearName.includes('tonal') || name.includes('tonal')) {
-    if (['WeightTraining', 'Workout'].includes(sportType)) return { source: 'Tonal', activityType: 'Weight Lifting' };
     return { source: 'Tonal', activityType: 'Weight Lifting' };
-  }
-
-  // Cannondale: outdoor cycling with Cannondale gear, or untagged rides
-  if (gearName.includes('cannondale')) {
-    return { source: 'Cannondale', activityType: 'Cycling' };
-  }
-
-  // Untagged outdoor rides default to Cannondale
-  if (sportType === 'Ride' && !activity.trainer) {
-    return { source: 'Cannondale', activityType: 'Cycling' };
   }
 
   return null; // Filter out — doesn't match known sources
