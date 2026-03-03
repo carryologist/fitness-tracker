@@ -67,21 +67,21 @@ export async function POST() {
         continue;
       }
 
-      // Map to source
-      const mapped = mapStravaToSource(activity);
-      if (!mapped) {
-        filtered++;
-        continue;
-      }
-
-      // Fetch detail for calories/gear info if needed
-      let detail = activity;
+      // Fetch detail for gear info if needed (list endpoint only returns gear_id, not gear name)
+      let enrichedActivity = activity;
       if (!activity.gear && activity.gear_id) {
         try {
-          detail = await fetchActivityDetail(tokens.access_token, activity.id);
+          enrichedActivity = await fetchActivityDetail(tokens.access_token, activity.id);
         } catch {
           // Use summary data if detail fetch fails
         }
+      }
+
+      // Map to source
+      const mapped = mapStravaToSource(enrichedActivity);
+      if (!mapped) {
+        filtered++;
+        continue;
       }
 
       const durationMinutes = Math.round(activity.moving_time / 60);
@@ -114,8 +114,31 @@ export async function POST() {
   }
 }
 
-// Also support GET for status check
-export async function GET() {
+// GET: status check, with optional ?debug=1 to see raw activities
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  if (url.searchParams.get('debug') === '1') {
+    try {
+      const credential = await prisma.stravaCredential.findFirst();
+      if (!credential) return NextResponse.json({ error: 'Not connected' }, { status: 401 });
+      const clientId = process.env.STRAVA_CLIENT_ID!;
+      const clientSecret = process.env.STRAVA_CLIENT_SECRET!;
+      const tokens = await refreshTokenIfNeeded(
+        { access_token: credential.accessToken, refresh_token: credential.refreshToken, expires_at: credential.expiresAt },
+        clientId, clientSecret,
+      );
+      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+      const activities = await fetchActivities(tokens.access_token, Math.floor(startOfYear.getTime() / 1000));
+      const summary = activities.map((a: any) => ({
+        id: a.id, name: a.name, sport_type: a.sport_type, gear_id: a.gear_id,
+        gear_name: a.gear?.name ?? null, distance: a.distance, moving_time: a.moving_time,
+        start_date: a.start_date, trainer: a.trainer,
+      }));
+      return NextResponse.json({ count: activities.length, activities: summary });
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+  }
   try {
     const credential = await prisma.stravaCredential.findFirst();
     return NextResponse.json({
