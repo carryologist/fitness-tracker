@@ -39,6 +39,16 @@ export function mapStravaToSource(activity: StravaActivity): MappedWorkout | nul
     return { source: 'Tonal', activityType: 'Weight Lifting' };
   }
 
+  // Indoor trainer rides without a known gear/name → Peloton (most likely source)
+  if (['Ride', 'VirtualRide'].includes(sportType) && activity.trainer) {
+    return { source: 'Peloton', activityType: 'Cycling' };
+  }
+
+  // Outdoor rides without a known gear/name → Cannondale
+  if (sportType === 'Ride' && !activity.trainer) {
+    return { source: 'Cannondale', activityType: 'Cycling' };
+  }
+
   return null; // Filter out — doesn't match known sources
 }
 
