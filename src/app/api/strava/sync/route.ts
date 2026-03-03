@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { refreshTokenIfNeeded, fetchActivities, fetchActivityDetail } from '../../../../../shared/strava';
-import { mapStravaToSource, metersToMiles } from '../../../../../shared/stravaMapping';
+import { refreshTokenIfNeeded, fetchActivities, fetchActivityDetail } from '@/lib/strava';
+import { mapStravaToSource, metersToMiles } from '@/lib/stravaMapping';
 
 const prisma = new PrismaClient();
 

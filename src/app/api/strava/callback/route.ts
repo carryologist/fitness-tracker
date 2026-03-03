@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { exchangeCode } from '../../../../../shared/strava';
+import { exchangeCode } from '@/lib/strava';
 
 const prisma = new PrismaClient();
 

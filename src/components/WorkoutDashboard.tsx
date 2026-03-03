@@ -9,6 +9,7 @@ import { GoalTracker } from './GoalTracker'
 import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
+import { AuthHeader } from './AuthHeader'
 import { Plus, X, Target, Calendar, ArrowLeftRight, Link2, Settings } from 'lucide-react'
 import { applyWorkoutMultipliers } from '../utils/workoutMultipliers'
 import { useSettings } from '../context/SettingsContext'
@@ -630,6 +631,7 @@ export function WorkoutDashboard() {
                 </a>
               )}
               <ThemeToggle />
+              <AuthHeader />
               <button
                 onClick={() => setShowAddWorkout(true)}
                 className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"

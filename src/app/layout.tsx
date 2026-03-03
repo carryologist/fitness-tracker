@@ -4,6 +4,7 @@ import './globals.css'
 import { ClientLayout } from '@/components/ClientLayout'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ThemeScript } from './theme-script'
+import { SessionProvider } from 'next-auth/react'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -27,11 +28,13 @@ export default function RootLayout({
         <ThemeScript />
       </head>
       <body className={inter.className} suppressHydrationWarning>
-        <ErrorBoundary>
-          <ClientLayout>
-            {children}
-          </ClientLayout>
-        </ErrorBoundary>
+        <SessionProvider>
+          <ErrorBoundary>
+            <ClientLayout>
+              {children}
+            </ClientLayout>
+          </ErrorBoundary>
+        </SessionProvider>
       </body>
     </html>
   )
