@@ -774,21 +774,6 @@ export function WorkoutDashboard() {
           />
         </div>
 
-        {/* Add Workout Form */}
-        <div className="card p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add Workout</h2>
-          <WorkoutForm onSubmit={(data) => {
-            // Make sure newly added workouts use the currently selected year
-            const adjustedDate = new Date(data.date);
-            adjustedDate.setFullYear(currentYear);
-
-            handleAddWorkout({
-              ...data,
-              date: adjustedDate
-            })
-          }} />
-        </div>
-
         {/* Workout History */}
         <div className="card">
           <div className="p-6 border-b border-gray-200 dark:border-dark-border">
