@@ -84,8 +84,9 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
         <tbody>
           {sortedSessions.map((session) => (
             <tr key={session.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-              <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm text-gray-900 dark:text-gray-100">
-                {format(new Date(session.date), 'MMM d, yyyy')}
+              <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                <span className="sm:hidden">{format(new Date(session.date), 'M/d/yy')}</span>
+                <span className="hidden sm:inline">{format(new Date(session.date), 'MMM d, yyyy')}</span>
               </td>
               <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 {session.source}

@@ -498,7 +498,34 @@ export function WorkoutDashboard() {
                   Fitness Tracker
                 </h1>
               </div>
-              <ThemeToggle />
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  title="Settings"
+                >
+                  <Settings className="w-4 h-4 text-gray-500" />
+                </button>
+                {stravaConnected ? (
+                  <button
+                    onClick={handleStravaSync}
+                    disabled={stravaSyncing}
+                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    <span>{stravaSyncing ? 'Syncing…' : 'Sync'}</span>
+                  </button>
+                ) : (
+                  <a
+                    href="/api/strava/auth"
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    <span>Strava</span>
+                  </a>
+                )}
+                <ThemeToggle />
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
@@ -528,7 +555,7 @@ export function WorkoutDashboard() {
               </div>
               <button
                 onClick={() => setShowAddWorkout(true)}
-                className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm"
+                className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add</span>
@@ -537,8 +564,8 @@ export function WorkoutDashboard() {
           </div>
 
           {/* Desktop Layout - Horizontal */}
-          <div className="hidden sm:flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center justify-between h-16 gap-4">
+            <div className="flex items-center gap-3 shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/fitness-logo.svg"
@@ -546,17 +573,17 @@ export function WorkoutDashboard() {
                 className="w-10 h-10 rounded-lg shadow-sm"
               />
               <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
                   Fitness Tracker
                 </h1>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Track your progress</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Track your progress</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mr-2">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                 <button
                   onClick={() => setCurrentYear(2025)}
-                  className={`px-3 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
+                  className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
                     currentYear === 2025
                     ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
@@ -567,7 +594,7 @@ export function WorkoutDashboard() {
                 </button>
                 <button
                   onClick={() => setCurrentYear(2026)}
-                  className={`px-3 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
+                  className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
                     currentYear === 2026
                     ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
@@ -582,13 +609,13 @@ export function WorkoutDashboard() {
                 className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 title="Settings"
               >
-                <Settings className="w-5 h-5 text-gray-500" />
+                <Settings className="w-4 h-4 text-gray-500" />
               </button>
               {stravaConnected ? (
                 <button
                   onClick={handleStravaSync}
                   disabled={stravaSyncing}
-                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm text-sm"
+                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
                 >
                   <Link2 className="w-4 h-4" />
                   <span>{stravaSyncing ? 'Syncing…' : 'Sync Strava'}</span>
@@ -596,7 +623,7 @@ export function WorkoutDashboard() {
               ) : (
                 <a
                   href="/api/strava/auth"
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm text-sm"
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
                 >
                   <Link2 className="w-4 h-4" />
                   <span>Connect Strava</span>
@@ -605,9 +632,9 @@ export function WorkoutDashboard() {
               <ThemeToggle />
               <button
                 onClick={() => setShowAddWorkout(true)}
-                className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm"
+                className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 <span>Add Workout</span>
               </button>
             </div>
