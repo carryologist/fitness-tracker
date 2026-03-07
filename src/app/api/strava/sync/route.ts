@@ -17,15 +17,28 @@ export async function POST() {
     const clientSecret = process.env.STRAVA_CLIENT_SECRET!;
 
     // Refresh token if needed
-    const tokens = await refreshTokenIfNeeded(
-      {
-        access_token: credential.accessToken,
-        refresh_token: credential.refreshToken,
-        expires_at: credential.expiresAt,
-      },
-      clientId,
-      clientSecret,
-    );
+    let tokens: Awaited<ReturnType<typeof refreshTokenIfNeeded>>;
+    try {
+      tokens = await refreshTokenIfNeeded(
+        {
+          access_token: credential.accessToken,
+          refresh_token: credential.refreshToken,
+          expires_at: credential.expiresAt,
+        },
+        clientId,
+        clientSecret,
+      );
+    } catch (error: any) {
+      // If token refresh fails with 401, credentials are stale — clear them
+      if (error.message?.includes('401')) {
+        await prisma.stravaCredential.delete({ where: { id: credential.id } });
+        return NextResponse.json(
+          { error: 'Strava authorization expired. Please reconnect.', reconnect: true },
+          { status: 401 },
+        );
+      }
+      throw error;
+    }
 
     // Update stored tokens if they changed
     if (tokens.access_token !== credential.accessToken) {
@@ -147,5 +160,16 @@ export async function GET(request: Request) {
     });
   } catch {
     return NextResponse.json({ connected: false });
+  }
+}
+
+// DELETE: disconnect Strava (clear stored credentials)
+export async function DELETE() {
+  try {
+    await prisma.stravaCredential.deleteMany();
+    return NextResponse.json({ disconnected: true });
+  } catch (error) {
+    console.error('Failed to disconnect Strava:', error);
+    return NextResponse.json({ error: 'Failed to disconnect' }, { status: 500 });
   }
 }

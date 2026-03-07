@@ -10,7 +10,7 @@ import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { AuthHeader } from './AuthHeader'
-import { Plus, X, Target, Calendar, ArrowLeftRight, Link2, Settings } from 'lucide-react'
+import { Plus, X, Target, Calendar, ArrowLeftRight, Link2, Link2Off, Settings } from 'lucide-react'
 import { applyWorkoutMultipliers } from '../utils/workoutMultipliers'
 import { useSettings } from '../context/SettingsContext'
 
@@ -467,11 +467,27 @@ export function WorkoutDashboard() {
         const data = await res.json()
         console.log(`Strava sync: ${data.synced} new, ${data.skipped} skipped, ${data.filtered} filtered`)
         if (data.synced > 0) await loadData()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        if (data.reconnect) {
+          // Credentials were cleared server-side, reset UI
+          setStravaConnected(false)
+        }
       }
     } catch (error) {
       console.error('Strava sync failed:', error)
     } finally {
       setStravaSyncing(false)
+    }
+  }
+
+  const handleStravaDisconnect = async () => {
+    if (!confirm('Disconnect Strava? You can reconnect at any time.')) return
+    try {
+      const res = await fetch('/api/strava/sync', { method: 'DELETE' })
+      if (res.ok) setStravaConnected(false)
+    } catch (error) {
+      console.error('Failed to disconnect Strava:', error)
     }
   }
 
@@ -508,14 +524,23 @@ export function WorkoutDashboard() {
                   <Settings className="w-4 h-4 text-gray-500" />
                 </button>
                 {stravaConnected ? (
-                  <button
-                    onClick={handleStravaSync}
-                    disabled={stravaSyncing}
-                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
-                  >
-                    <Link2 className="w-3.5 h-3.5" />
-                    <span>{stravaSyncing ? 'Syncing…' : 'Sync'}</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={handleStravaSync}
+                      disabled={stravaSyncing}
+                      className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
+                    >
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span>{stravaSyncing ? 'Syncing…' : 'Sync'}</span>
+                    </button>
+                    <button
+                      onClick={handleStravaDisconnect}
+                      className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors"
+                      title="Disconnect Strava"
+                    >
+                      <Link2Off className="w-3.5 h-3.5" />
+                    </button>
+                  </>
                 ) : (
                   <a
                     href="/api/strava/auth"
@@ -613,14 +638,23 @@ export function WorkoutDashboard() {
                 <Settings className="w-4 h-4 text-gray-500" />
               </button>
               {stravaConnected ? (
-                <button
-                  onClick={handleStravaSync}
-                  disabled={stravaSyncing}
-                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
-                >
-                  <Link2 className="w-4 h-4" />
-                  <span>{stravaSyncing ? 'Syncing…' : 'Sync Strava'}</span>
-                </button>
+                <>
+                  <button
+                    onClick={handleStravaSync}
+                    disabled={stravaSyncing}
+                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
+                  >
+                    <Link2 className="w-4 h-4" />
+                    <span>{stravaSyncing ? 'Syncing…' : 'Sync Strava'}</span>
+                  </button>
+                  <button
+                    onClick={handleStravaDisconnect}
+                    className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors"
+                    title="Disconnect Strava"
+                  >
+                    <Link2Off className="w-4 h-4" />
+                  </button>
+                </>
               ) : (
                 <a
                   href="/api/strava/auth"
