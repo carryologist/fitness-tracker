@@ -1,15 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const clientId = process.env.STRAVA_CLIENT_ID;
-  const redirectUri = process.env.STRAVA_REDIRECT_URI;
 
-  if (!clientId || !redirectUri) {
+  if (!clientId) {
     return NextResponse.json(
       { error: 'Strava not configured' },
       { status: 500 },
     );
   }
+
+  // Derive redirect URI from the current request so it always matches the actual domain
+  const redirectUri = process.env.STRAVA_REDIRECT_URI
+    || `${request.nextUrl.origin}/api/strava/callback`;
 
   const url = new URL('https://www.strava.com/oauth/authorize');
   url.searchParams.set('client_id', clientId);

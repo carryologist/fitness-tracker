@@ -154,9 +154,27 @@ export async function GET(request: Request) {
   }
   try {
     const credential = await prisma.stravaCredential.findFirst();
+    if (!credential) {
+      return NextResponse.json({ connected: false, athleteId: null });
+    }
+
+    // Validate the token is still usable
+    const clientId = process.env.STRAVA_CLIENT_ID!;
+    const clientSecret = process.env.STRAVA_CLIENT_SECRET!;
+    try {
+      await refreshTokenIfNeeded(
+        { access_token: credential.accessToken, refresh_token: credential.refreshToken, expires_at: credential.expiresAt },
+        clientId, clientSecret,
+      );
+    } catch {
+      // Token is dead — clear stale credential
+      await prisma.stravaCredential.delete({ where: { id: credential.id } });
+      return NextResponse.json({ connected: false, athleteId: null });
+    }
+
     return NextResponse.json({
-      connected: !!credential,
-      athleteId: credential?.athleteId ?? null,
+      connected: true,
+      athleteId: credential.athleteId,
     });
   } catch {
     return NextResponse.json({ connected: false });
