@@ -21,6 +21,16 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // If ?probe=ID is passed, try every known Strava endpoint for that activity
+  if (request.nextUrl.searchParams.get('probe')) {
+    try {
+      const result = await probeActivity(request);
+      return NextResponse.json(result);
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+  }
+
   const clientId = process.env.STRAVA_CLIENT_ID;
   const clientSecret = process.env.STRAVA_CLIENT_SECRET;
   const envRedirectUri = process.env.STRAVA_REDIRECT_URI;
@@ -133,4 +143,80 @@ async function getActivityDetail(request: NextRequest) {
   const streams = streamsRes.ok ? await streamsRes.json() : { error: streamsRes.status };
 
   return { detail, laps, streams };
+}
+
+/**
+ * Probe every possible Strava API endpoint for a given activity.
+ * Usage: /api/strava/debug?probe=17653119466
+ */
+async function probeActivity(request: NextRequest) {
+  const activityId = request.nextUrl.searchParams.get('probe');
+  if (!activityId) return null;
+
+  const credential = await prisma.stravaCredential.findFirst();
+  if (!credential) return { error: 'Not connected to Strava' };
+
+  const clientId = process.env.STRAVA_CLIENT_ID!.trim();
+  const clientSecret = process.env.STRAVA_CLIENT_SECRET!.trim();
+
+  const tokens = await refreshTokenIfNeeded(
+    { access_token: credential.accessToken, refresh_token: credential.refreshToken, expires_at: credential.expiresAt },
+    clientId, clientSecret,
+  );
+
+  const headers = { Authorization: `Bearer ${tokens.access_token}` };
+  const base = 'https://www.strava.com/api/v3';
+
+  async function tryEndpoint(url: string) {
+    try {
+      const res = await fetch(url, { headers });
+      const body = await res.text();
+      return {
+        status: res.status,
+        data: (() => { try { return JSON.parse(body); } catch { return body; } })(),
+      };
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  }
+
+  // Try every endpoint that might contain weight/volume data
+  const [detail, laps, streams, zones, comments, related] = await Promise.all([
+    tryEndpoint(`${base}/activities/${activityId}?include_all_efforts=true`),
+    tryEndpoint(`${base}/activities/${activityId}/laps`),
+    tryEndpoint(`${base}/activities/${activityId}/streams?keys=watts,heartrate,cadence,distance,altitude,moving,time,latlng&key_by_type=true`),
+    tryEndpoint(`${base}/activities/${activityId}/zones`),
+    tryEndpoint(`${base}/activities/${activityId}/comments`),
+    tryEndpoint(`${base}/activities/${activityId}/related`),
+  ]);
+
+  // Search the full detail response for anything weight/volume related
+  const detailData = detail.status === 200 ? detail.data : {};
+  const allKeys = Object.keys(detailData);
+  const interestingFields: Record<string, any> = {};
+  for (const key of allKeys) {
+    const val = detailData[key];
+    const k = key.toLowerCase();
+    if (k.includes('weight') || k.includes('volume') || k.includes('total') ||
+        k.includes('workout') || k.includes('training') || k.includes('load') ||
+        k.includes('effort') || k.includes('intensity') || k.includes('suffer') ||
+        k.includes('device') || k.includes('manual') || k.includes('calories') ||
+        k.includes('stat') || k.includes('zone')) {
+      interestingFields[key] = val;
+    }
+  }
+
+  return {
+    activityId,
+    interestingFields,
+    allDetailKeys: allKeys,
+    endpoints: {
+      detail: { status: detail.status, keyCount: allKeys.length },
+      laps: { status: laps.status, data: laps.data },
+      streams: { status: streams.status, data: streams.data },
+      zones: { status: zones.status, data: zones.data },
+      comments: { status: comments.status, data: comments.data },
+      related: { status: related.status, data: related.data },
+    },
+  };
 }
