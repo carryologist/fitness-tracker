@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const clientId = process.env.STRAVA_CLIENT_ID;
+  const clientId = process.env.STRAVA_CLIENT_ID?.trim();
 
   if (!clientId) {
     return NextResponse.json(
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Derive redirect URI from the current request so it always matches the actual domain
-  const redirectUri = process.env.STRAVA_REDIRECT_URI
+  const redirectUri = process.env.STRAVA_REDIRECT_URI?.trim()
     || `${request.nextUrl.origin}/api/strava/callback`;
 
   const url = new URL('https://www.strava.com/oauth/authorize');

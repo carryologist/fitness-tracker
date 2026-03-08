@@ -12,9 +12,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/?strava=error', request.url));
   }
 
-  const clientId = process.env.STRAVA_CLIENT_ID!;
-  const clientSecret = process.env.STRAVA_CLIENT_SECRET!;
-
+    const clientId = process.env.STRAVA_CLIENT_ID!.trim();
+    const clientSecret = process.env.STRAVA_CLIENT_SECRET!.trim();
   try {
     const data = await exchangeCode(code, clientId, clientSecret);
 

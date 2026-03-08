@@ -13,8 +13,8 @@ export async function POST() {
       return NextResponse.json({ error: 'Not connected to Strava' }, { status: 401 });
     }
 
-    const clientId = process.env.STRAVA_CLIENT_ID!;
-    const clientSecret = process.env.STRAVA_CLIENT_SECRET!;
+    const clientId = process.env.STRAVA_CLIENT_ID!.trim();
+    const clientSecret = process.env.STRAVA_CLIENT_SECRET!.trim();
 
     // Refresh token if needed
     let tokens: Awaited<ReturnType<typeof refreshTokenIfNeeded>>;
@@ -134,8 +134,8 @@ export async function GET(request: Request) {
     try {
       const credential = await prisma.stravaCredential.findFirst();
       if (!credential) return NextResponse.json({ error: 'Not connected' }, { status: 401 });
-      const clientId = process.env.STRAVA_CLIENT_ID!;
-      const clientSecret = process.env.STRAVA_CLIENT_SECRET!;
+      const clientId = process.env.STRAVA_CLIENT_ID!.trim();
+      const clientSecret = process.env.STRAVA_CLIENT_SECRET!.trim();
       const tokens = await refreshTokenIfNeeded(
         { access_token: credential.accessToken, refresh_token: credential.refreshToken, expires_at: credential.expiresAt },
         clientId, clientSecret,
@@ -159,8 +159,8 @@ export async function GET(request: Request) {
     }
 
     // Validate the token is still usable
-    const clientId = process.env.STRAVA_CLIENT_ID!;
-    const clientSecret = process.env.STRAVA_CLIENT_SECRET!;
+    const clientId = process.env.STRAVA_CLIENT_ID!.trim();
+    const clientSecret = process.env.STRAVA_CLIENT_SECRET!.trim();
     try {
       await refreshTokenIfNeeded(
         { access_token: credential.accessToken, refresh_token: credential.refreshToken, expires_at: credential.expiresAt },
