@@ -119,10 +119,18 @@ async function getActivityDetail(request: NextRequest) {
     clientId, clientSecret,
   );
 
-  // Fetch raw detail — don't use the typed function, we want ALL fields
-  const res = await fetch(`https://www.strava.com/api/v3/activities/${activityId}`, {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
-  });
-  if (!res.ok) return { error: `Strava returned ${res.status}`, body: await res.text() };
-  return res.json();
+  const headers = { Authorization: `Bearer ${tokens.access_token}` };
+
+  // Fetch activity detail, laps, and streams in parallel
+  const [detailRes, lapsRes, streamsRes] = await Promise.all([
+    fetch(`https://www.strava.com/api/v3/activities/${activityId}`, { headers }),
+    fetch(`https://www.strava.com/api/v3/activities/${activityId}/laps`, { headers }),
+    fetch(`https://www.strava.com/api/v3/activities/${activityId}/streams?keys=watts,heartrate,cadence,distance,altitude&key_by_type=true`, { headers }),
+  ]);
+
+  const detail = detailRes.ok ? await detailRes.json() : { error: detailRes.status };
+  const laps = lapsRes.ok ? await lapsRes.json() : { error: lapsRes.status };
+  const streams = streamsRes.ok ? await streamsRes.json() : { error: streamsRes.status };
+
+  return { detail, laps, streams };
 }
