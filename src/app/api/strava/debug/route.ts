@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { refreshTokenIfNeeded, fetchActivityDetail } from '@/lib/strava';
 
 const prisma = new PrismaClient();
 
@@ -10,6 +11,16 @@ const prisma = new PrismaClient();
  * Remove or protect this route before going fully public.
  */
 export async function GET(request: NextRequest) {
+  // If ?activity=ID is passed, return full detail for that activity
+  if (request.nextUrl.searchParams.get('activity')) {
+    try {
+      const detail = await getActivityDetail(request);
+      return NextResponse.json(detail);
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+  }
+
   const clientId = process.env.STRAVA_CLIENT_ID;
   const clientSecret = process.env.STRAVA_CLIENT_SECRET;
   const envRedirectUri = process.env.STRAVA_REDIRECT_URI;
@@ -86,4 +97,32 @@ export async function GET(request: NextRequest) {
       note: 'The "Authorization Callback Domain" in Strava settings must match the host above (no https://, no path).',
     },
   }, { status: 200 });
+}
+
+/**
+ * Fetch full detail for a single Strava activity.
+ * Usage: /api/strava/debug?activity=17653119466
+ * Returns ALL fields Strava provides (useful for seeing what Tonal/Peloton push).
+ */
+async function getActivityDetail(request: NextRequest) {
+  const activityId = request.nextUrl.searchParams.get('activity');
+  if (!activityId) return null;
+
+  const credential = await prisma.stravaCredential.findFirst();
+  if (!credential) return { error: 'Not connected to Strava' };
+
+  const clientId = process.env.STRAVA_CLIENT_ID!.trim();
+  const clientSecret = process.env.STRAVA_CLIENT_SECRET!.trim();
+
+  const tokens = await refreshTokenIfNeeded(
+    { access_token: credential.accessToken, refresh_token: credential.refreshToken, expires_at: credential.expiresAt },
+    clientId, clientSecret,
+  );
+
+  // Fetch raw detail — don't use the typed function, we want ALL fields
+  const res = await fetch(`https://www.strava.com/api/v3/activities/${activityId}`, {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
+  });
+  if (!res.ok) return { error: `Strava returned ${res.status}`, body: await res.text() };
+  return res.json();
 }
