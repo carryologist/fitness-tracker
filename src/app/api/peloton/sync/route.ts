@@ -32,6 +32,7 @@ export async function POST() {
 
     let synced = 0;
     let skipped = 0;
+    let updated = 0;
     let total = 0;
     let page = 0;
 
@@ -75,6 +76,34 @@ export async function POST() {
           continue;
         }
 
+        // Check for a manually-entered row matching date + source that
+        // is missing pelotonWorkoutId (backfill miles/notes & link it)
+        const startOfDay = new Date(mapped.date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(mapped.date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const manualMatch = await prisma.workoutSession.findFirst({
+          where: {
+            source: mapped.source,
+            pelotonWorkoutId: null,
+            date: { gte: startOfDay, lte: endOfDay },
+          },
+        });
+
+        if (manualMatch) {
+          await prisma.workoutSession.update({
+            where: { id: manualMatch.id },
+            data: {
+              miles: mapped.miles ?? manualMatch.miles,
+              notes: mapped.notes ?? manualMatch.notes,
+              pelotonWorkoutId: mapped.pelotonWorkoutId,
+            },
+          });
+          updated++;
+          continue;
+        }
+
         await prisma.workoutSession.create({
           data: {
             date: mapped.date,
@@ -95,7 +124,7 @@ export async function POST() {
       page++;
     }
 
-    return NextResponse.json({ synced, skipped, total });
+    return NextResponse.json({ synced, updated, skipped, total });
   } catch (error) {
     console.error('Peloton sync error:', error);
     const message = error instanceof Error ? error.message : 'Sync failed';

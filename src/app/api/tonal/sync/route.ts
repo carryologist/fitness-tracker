@@ -95,6 +95,7 @@ export async function POST() {
 
     let synced = 0
     let skipped = 0
+    let updated = 0
     let total = 0
     let page = 1
     let hasMore = true
@@ -124,6 +125,34 @@ export async function POST() {
 
         const mapped = mapTonalActivity(activity)
 
+        // Check for a manually-entered row matching date + source that
+        // is missing tonalWorkoutId (backfill weight & link it)
+        const startOfDay = new Date(mapped.date)
+        startOfDay.setHours(0, 0, 0, 0)
+        const endOfDay = new Date(mapped.date)
+        endOfDay.setHours(23, 59, 59, 999)
+
+        const manualMatch = await prisma.workoutSession.findFirst({
+          where: {
+            source: 'Tonal',
+            tonalWorkoutId: null,
+            date: { gte: startOfDay, lte: endOfDay },
+          },
+        })
+
+        if (manualMatch) {
+          await prisma.workoutSession.update({
+            where: { id: manualMatch.id },
+            data: {
+              weightLifted: mapped.weightLifted,
+              notes: mapped.notes,
+              tonalWorkoutId: mapped.tonalWorkoutId,
+            },
+          })
+          updated++
+          continue
+        }
+
         await prisma.workoutSession.create({
           data: {
             source: mapped.source,
@@ -147,9 +176,9 @@ export async function POST() {
       }
     }
 
-    console.log(`✅ Tonal sync complete: ${synced} synced, ${skipped} skipped, ${total} total`)
+    console.log(`✅ Tonal sync complete: ${synced} synced, ${updated} updated, ${skipped} skipped, ${total} total`)
 
-    return NextResponse.json({ synced, skipped, total })
+    return NextResponse.json({ synced, updated, skipped, total })
   } catch (error) {
     console.error('💥 Tonal sync error:', error)
     if (error instanceof ResponseError) {
