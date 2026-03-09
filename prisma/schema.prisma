@@ -46,6 +46,7 @@ model TonalCredential {
   id           String   @id @default(cuid())
   userId       String   @unique  // Tonal user ID from Auth0
   idToken      String   @db.Text // JWT id_token (used as Bearer)
+  accessToken  String?  @db.Text // Auth0 access_token (try first, fall back to idToken)
   refreshToken String?  @db.Text
   expiresAt    Int?               // Unix timestamp
   createdAt    DateTime @default(now())

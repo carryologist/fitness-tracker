@@ -24,12 +24,14 @@ export async function POST() {
       where: { userId },
       update: {
         idToken: authResponse.id_token,
+        accessToken: authResponse.access_token ?? null,
         refreshToken: authResponse.refresh_token ?? null,
         expiresAt,
       },
       create: {
         userId,
         idToken: authResponse.id_token,
+        accessToken: authResponse.access_token ?? null,
         refreshToken: authResponse.refresh_token ?? null,
         expiresAt,
       },

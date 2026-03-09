@@ -1,9 +1,19 @@
 // Tonal API client (reverse-engineered, no official docs)
-// Auth via Auth0 password grant; use id_token (not access_token) as Bearer
+// Auth via Auth0 password grant.
+// The API may accept either the access_token or id_token as Bearer depending
+// on server-side changes.  We try access_token first, then fall back to
+// id_token.  Extra mobile-app headers are included to match the official client.
 
 const TONAL_AUTH_URL = 'https://tonal.auth0.com/oauth/token'
 const TONAL_API_BASE = 'https://api.tonal.com/v6'
 const TONAL_CLIENT_ID = 'ERCyexW-xoVG_Yy3RDe-eV4xsOnRHP6L'
+
+/** Headers that the Tonal iOS app sends alongside every API request. */
+const TONAL_APP_HEADERS: Record<string, string> = {
+  'User-Agent': 'Tonal/5.0 (iOS)',
+  Accept: 'application/json',
+  'x-tonal-app-version': '5.0.0',
+}
 
 export interface TonalAuthResponse {
   access_token: string
@@ -133,7 +143,7 @@ export function getUserIdFromToken(idToken: string): string {
 }
 
 export async function fetchTonalActivitySummaries(
-  idToken: string,
+  token: string,
   userId: string,
   page: number = 1,
   perPage: number = 50
@@ -142,7 +152,8 @@ export async function fetchTonalActivitySummaries(
     `${TONAL_API_BASE}/users/${userId}/activity-summaries?page=${page}&per_page=${perPage}`,
     {
       headers: {
-        Authorization: `Bearer ${idToken}`,
+        ...TONAL_APP_HEADERS,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     }
@@ -156,7 +167,7 @@ export async function fetchTonalActivitySummaries(
 }
 
 export async function fetchTonalWorkoutActivity(
-  idToken: string,
+  token: string,
   userId: string,
   activityId: string
 ): Promise<TonalWorkoutActivity> {
@@ -164,7 +175,8 @@ export async function fetchTonalWorkoutActivity(
     `${TONAL_API_BASE}/users/${userId}/workout-activities/${activityId}`,
     {
       headers: {
-        Authorization: `Bearer ${idToken}`,
+        ...TONAL_APP_HEADERS,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     }

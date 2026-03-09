@@ -28,7 +28,7 @@ class ResponseError extends Error {
   }
 }
 
-/** Refresh the id_token if it is expired. Returns an up-to-date credential. */
+/** Refresh tokens if expired. Returns an up-to-date credential. */
 async function ensureFreshToken(cred: TonalCredential): Promise<TonalCredential> {
   const now = Math.floor(Date.now() / 1000)
   if (cred.expiresAt && cred.expiresAt > now) {
@@ -48,6 +48,7 @@ async function ensureFreshToken(cred: TonalCredential): Promise<TonalCredential>
     where: { id: cred.id },
     data: {
       idToken: authResponse.id_token,
+      accessToken: authResponse.access_token ?? null,
       refreshToken: authResponse.refresh_token ?? cred.refreshToken,
       expiresAt,
       userId,
@@ -56,6 +57,15 @@ async function ensureFreshToken(cred: TonalCredential): Promise<TonalCredential>
 
   console.log('✅ Tonal token refreshed')
   return updated
+}
+
+/**
+ * Pick the best bearer token from the stored credential.
+ * Try access_token first (may be a proper JWT after audience fix),
+ * then fall back to id_token.
+ */
+function pickBearerToken(cred: TonalCredential): string {
+  return cred.accessToken ?? cred.idToken
 }
 
 // ---------------------------------------------------------------------------
@@ -86,10 +96,14 @@ export async function GET() {
 // POST — sync workouts from Tonal
 // ---------------------------------------------------------------------------
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     let cred = await getCredentialOrFail()
     cred = await ensureFreshToken(cred)
+
+    const url = new URL(req.url)
+    const limit = parseInt(url.searchParams.get('limit') || '200')
+    const maxPages = Math.ceil(limit / 50)
 
     console.log('🏋️ Starting Tonal workout sync...')
 
@@ -99,9 +113,12 @@ export async function POST() {
     let total = 0
     let page = 1
     let hasMore = true
+    let consecutiveSkips = 0
+    let caughtUp = false
 
-    while (hasMore) {
-      const response = await fetchTonalActivitySummaries(cred.idToken, cred.userId, page, 50)
+    while (hasMore && !caughtUp) {
+      const token = pickBearerToken(cred)
+      const response = await fetchTonalActivitySummaries(token, cred.userId, page, 50)
       const activities = response.data
 
       if (!activities || activities.length === 0) {
@@ -110,6 +127,8 @@ export async function POST() {
       }
 
       total += activities.length
+
+      let newOnThisPage = false
 
       for (const activity of activities) {
         // Check if already synced via tonalWorkoutId uniqueness
@@ -120,8 +139,19 @@ export async function POST() {
 
         if (existing) {
           skipped++
+          consecutiveSkips++
+
+          // After 5 consecutive already-synced workouts, we've caught up
+          if (consecutiveSkips >= 5) {
+            caughtUp = true
+            break
+          }
           continue
         }
+
+        // New workout — reset consecutive skip counter
+        consecutiveSkips = 0
+        newOnThisPage = true
 
         const mapped = mapTonalActivity(activity)
 
@@ -168,8 +198,16 @@ export async function POST() {
         synced++
       }
 
-      // Check pagination — stop if we got fewer than a full page
-      if (response.pagination && response.pagination.page * response.pagination.per_page < response.pagination.total) {
+      // If no new workouts on this page, everything older is synced too
+      if (!newOnThisPage && !caughtUp) {
+        caughtUp = true
+        break
+      }
+
+      // Check pagination — stop if we got fewer than a full page or hit page cap
+      if (page >= maxPages) {
+        hasMore = false
+      } else if (response.pagination && response.pagination.page * response.pagination.per_page < response.pagination.total) {
         page++
       } else {
         hasMore = false

@@ -18,7 +18,7 @@ export async function GET() {
 }
 
 // POST: sync workouts from Peloton
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const credential = await prisma.pelotonCredential.findFirst();
     if (!credential) {
@@ -28,6 +28,10 @@ export async function POST() {
       );
     }
 
+    const url = new URL(req.url);
+    const limit = parseInt(url.searchParams.get('limit') || '200');
+    const maxPages = Math.ceil(limit / 50);
+
     const { sessionId, userId } = credential;
 
     let synced = 0;
@@ -35,14 +39,18 @@ export async function POST() {
     let updated = 0;
     let total = 0;
     let page = 0;
+    let consecutiveSkips = 0;
+    let caughtUp = false;
 
-    // Page through all workouts
-    while (true) {
+    // Page through workouts (newest first) until we catch up
+    while (!caughtUp) {
       const response = await fetchPelotonWorkouts(sessionId, userId, page);
       const workouts = response.data;
       total += workouts.length;
 
       if (workouts.length === 0) break;
+
+      let newOnThisPage = false;
 
       for (const workout of workouts) {
         // Only sync completed workouts
@@ -57,8 +65,19 @@ export async function POST() {
         });
         if (existing) {
           skipped++;
+          consecutiveSkips++;
+
+          // After 5 consecutive already-synced workouts, we've caught up
+          if (consecutiveSkips >= 5) {
+            caughtUp = true;
+            break;
+          }
           continue;
         }
+
+        // New workout — reset consecutive skip counter
+        consecutiveSkips = 0;
+        newOnThisPage = true;
 
         // Fetch detailed summary if not included in list response
         if (!workout.overall_summary) {
@@ -119,8 +138,15 @@ export async function POST() {
         synced++;
       }
 
-      // Stop if we've fetched the last page
+      // If no new workouts on this page, everything older is synced too
+      if (!newOnThisPage && !caughtUp) {
+        caughtUp = true;
+        break;
+      }
+
+      // Stop if we've fetched the last page or hit the page cap
       if (page + 1 >= response.page_count) break;
+      if (page + 1 >= maxPages) break;
       page++;
     }
 
