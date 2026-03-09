@@ -179,12 +179,20 @@ function parseTonalOCR(text: string) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
 
   // Volume: number followed by "lbs" — OCR may render comma as period, space, or drop it
-  const volumeMatch = text.match(/([\d][\d,. ]+)\s*lbs/i)
+  // OCR commonly misreads "lbs" as "1bs", "1s", "Ibs", "ls", etc.
+  const volumeMatch = text.match(/([\d][\d,. ]+)\s*(?:lbs|1bs|1s|Ibs|ibs|ls)\b/i)
   let weightLifted: number | null = null
   if (volumeMatch) {
-    // Strip anything that's not a digit
     weightLifted = parseInt(volumeMatch[1].replace(/[^\d]/g, ''), 10)
     if (isNaN(weightLifted) || weightLifted === 0) weightLifted = null
+  }
+  // Fallback: look for a large number (4+ digits with comma) on the same line as a MM:SS pattern
+  if (!weightLifted) {
+    const fallbackMatch = text.match(/(\d{1,3},\d{3})\s*\S*\s*[-—]?\s*\d{1,3}:\d{2}/)
+    if (fallbackMatch) {
+      weightLifted = parseInt(fallbackMatch[1].replace(/[^\d]/g, ''), 10)
+      if (isNaN(weightLifted) || weightLifted === 0) weightLifted = null
+    }
   }
 
   // Duration: MM:SS pattern
