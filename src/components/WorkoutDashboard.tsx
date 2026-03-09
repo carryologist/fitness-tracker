@@ -10,7 +10,7 @@ import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { AuthHeader } from './AuthHeader'
-import { Plus, X, Target, Calendar, ArrowLeftRight, Settings, RefreshCw, Upload } from 'lucide-react'
+import { Plus, X, Target, Calendar, ArrowLeftRight, Settings, RefreshCw, Upload, Check } from 'lucide-react'
 import { applyWorkoutMultipliers } from '../utils/workoutMultipliers'
 import { useSettings } from '../context/SettingsContext'
 
@@ -247,6 +247,7 @@ export function WorkoutDashboard() {
   const [showSettings, setShowSettings] = useState(false)
   const [syncing, setSyncing] = useState<'peloton' | 'tonal' | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [syncSuccess, setSyncSuccess] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const tonalFileRef = React.useRef<HTMLInputElement>(null)
 
@@ -579,6 +580,10 @@ export function WorkoutDashboard() {
       if (res.ok && data.success) {
         console.log('Tonal import:', data.workout)
         await loadData()
+        const w = data.workout
+        const detail = w ? `${w.date?.substring(0, 10) || ''} — ${w.weightLifted ? w.weightLifted + ' lbs, ' : ''}${w.minutes} min` : 'Workout imported'
+        setSyncSuccess(detail)
+        setTimeout(() => setSyncSuccess(null), 5000)
       } else {
         setSyncError(`${data.error || 'Import failed'} | OCR: ${rawText.replace(/\n/g, ' ').substring(0, 150)}`)
       }
@@ -630,6 +635,8 @@ export function WorkoutDashboard() {
                   <RefreshCw className={`w-3.5 h-3.5 ${syncing === 'peloton' ? 'animate-spin' : ''}`} />
                   <span>{syncing === 'peloton' ? 'Syncing…' : 'Peloton'}</span>
                 </button>
+                {/* Sync Tonal hidden — API returns 401, keeping code for future use */}
+                {false && (
                 <button
                   onClick={() => handleSync('tonal')}
                   disabled={syncing !== null}
@@ -638,6 +645,7 @@ export function WorkoutDashboard() {
                   <RefreshCw className={`w-3.5 h-3.5 ${syncing === 'tonal' ? 'animate-spin' : ''}`} />
                   <span>{syncing === 'tonal' ? 'Syncing…' : 'Tonal'}</span>
                 </button>
+                )}
                 <button
                   onClick={() => tonalFileRef.current?.click()}
                   disabled={importing}
@@ -741,6 +749,8 @@ export function WorkoutDashboard() {
                 <RefreshCw className={`w-4 h-4 ${syncing === 'peloton' ? 'animate-spin' : ''}`} />
                 <span>{syncing === 'peloton' ? 'Syncing…' : 'Sync Peloton'}</span>
               </button>
+              {/* Sync Tonal hidden — API returns 401, keeping code for future use */}
+              {false && (
               <button
                 onClick={() => handleSync('tonal')}
                 disabled={syncing !== null}
@@ -749,6 +759,7 @@ export function WorkoutDashboard() {
                 <RefreshCw className={`w-4 h-4 ${syncing === 'tonal' ? 'animate-spin' : ''}`} />
                 <span>{syncing === 'tonal' ? 'Syncing…' : 'Sync Tonal'}</span>
               </button>
+              )}
               <button
                 onClick={() => tonalFileRef.current?.click()}
                 disabled={importing}
@@ -780,6 +791,20 @@ export function WorkoutDashboard() {
       </header>
 
       {/* Sync error banner */}
+      {syncSuccess && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3 flex items-center justify-between">
+            <span className="text-sm text-green-700 dark:text-green-300 flex items-center gap-1.5">
+              <Check className="w-4 h-4" />
+              {syncSuccess}
+            </span>
+            <button onClick={() => setSyncSuccess(null)} className="text-green-500 hover:text-green-700 ml-4">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {syncError && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 flex items-center justify-between">
