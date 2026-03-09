@@ -249,6 +249,7 @@ export function WorkoutDashboard() {
   const [syncError, setSyncError] = useState<string | null>(null)
   const [syncSuccess, setSyncSuccess] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState<string | null>(null)
   const tonalFileRef = React.useRef<HTMLInputElement>(null)
 
   // Filter sessions by current year
@@ -545,52 +546,78 @@ export function WorkoutDashboard() {
   }
 
   const handleTonalImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    const fileList = Array.from(files)
+    const total = fileList.length
     setImporting(true)
     setSyncError(null)
-    try {
-      // Run OCR client-side
-      const Tesseract = (await import('tesseract.js')).default
-      const { data: { text: rawText } } = await Tesseract.recognize(file, 'eng')
-      console.log('OCR raw text:', rawText)
+    setSyncSuccess(null)
+    setImportProgress(`0/${total}`)
 
-      // Parse the OCR text
-      const parsed = parseTonalOCR(rawText)
-      
-      if (!parsed.date || !parsed.minutes) {
-        setSyncError(`Could not parse image. OCR text: ${rawText.substring(0, 200)}`)
-        return
+    const successes: string[] = []
+    const failures: string[] = []
+
+    try {
+      const Tesseract = (await import('tesseract.js')).default
+
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i]
+        setImportProgress(`${i + 1}/${total}`)
+        try {
+          const { data: { text: rawText } } = await Tesseract.recognize(file, 'eng')
+          console.log(`OCR [${i + 1}/${total}] raw text:`, rawText)
+
+          const parsed = parseTonalOCR(rawText)
+
+          if (!parsed.date || !parsed.minutes) {
+            failures.push(`${file.name}: Could not parse — ${rawText.substring(0, 100)}`)
+            continue
+          }
+
+          console.log(`Parsed [${i + 1}/${total}]:`, parsed)
+
+          const res = await fetch('/api/tonal/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              weightLifted: parsed.weightLifted,
+              minutes: parsed.minutes,
+              date: parsed.date.toISOString(),
+              notes: parsed.notes,
+            }),
+          })
+          const data = await res.json()
+          if (res.ok && data.success) {
+            const w = data.workout
+            successes.push(w ? `${w.date?.substring(0, 10) || ''} — ${w.weightLifted ? w.weightLifted + ' lbs, ' : ''}${w.minutes} min` : file.name)
+          } else {
+            failures.push(`${file.name}: ${data.error || 'Import failed'}`)
+          }
+        } catch (err) {
+          failures.push(`${file.name}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        }
       }
 
-      console.log('Parsed:', parsed)
+      // Reload data once after all imports
+      if (successes.length > 0) await loadData()
 
-      // Send parsed data to server
-      const res = await fetch('/api/tonal/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          weightLifted: parsed.weightLifted,
-          minutes: parsed.minutes,
-          date: parsed.date.toISOString(),
-          notes: parsed.notes,
-        }),
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        console.log('Tonal import:', data.workout)
-        await loadData()
-        const w = data.workout
-        const detail = w ? `${w.date?.substring(0, 10) || ''} — ${w.weightLifted ? w.weightLifted + ' lbs, ' : ''}${w.minutes} min` : 'Workout imported'
-        setSyncSuccess(detail)
-        setTimeout(() => setSyncSuccess(null), 5000)
-      } else {
-        setSyncError(`${data.error || 'Import failed'} | OCR: ${rawText.replace(/\n/g, ' ').substring(0, 150)}`)
+      // Build summary banners
+      if (successes.length > 0) {
+        const msg = total === 1
+          ? successes[0]
+          : `${successes.length}/${total} imported: ${successes.join(' | ')}`
+        setSyncSuccess(msg)
+        setTimeout(() => setSyncSuccess(null), 8000)
+      }
+      if (failures.length > 0) {
+        setSyncError(failures.join(' · '))
       }
     } catch (error) {
       setSyncError(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setImporting(false)
+      setImportProgress(null)
       if (tonalFileRef.current) tonalFileRef.current.value = ''
     }
   }
@@ -606,6 +633,7 @@ export function WorkoutDashboard() {
         ref={tonalFileRef}
         type="file"
         accept="image/*"
+        multiple
         className="hidden"
         onChange={handleTonalImport}
       />
@@ -653,6 +681,7 @@ export function WorkoutDashboard() {
                   title="Import Tonal screenshot"
                 >
                   <Upload className={`w-3.5 h-3.5 ${importing ? 'animate-pulse' : ''}`} />
+                  {importing && importProgress && <span className="text-[10px]">{importProgress}</span>}
                 </button>
                 <button
                   onClick={() => setShowSettings(true)}
@@ -767,7 +796,7 @@ export function WorkoutDashboard() {
                 title="Import Tonal screenshot"
               >
                 <Upload className={`w-4 h-4 ${importing ? 'animate-pulse' : ''}`} />
-                <span>{importing ? 'Importing…' : 'Import Tonal'}</span>
+                <span>{importing ? `Importing ${importProgress || ''}…` : 'Import Tonal'}</span>
               </button>
               <button
                 onClick={() => setShowSettings(true)}
