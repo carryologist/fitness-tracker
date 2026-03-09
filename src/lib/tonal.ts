@@ -58,28 +58,56 @@ export interface TonalActivitySummariesResponse {
 }
 
 export async function authenticateTonal(email: string, password: string): Promise<TonalAuthResponse> {
-  const res = await fetch(TONAL_AUTH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  // Try multiple Auth0 configurations — the audience param is the usual culprit
+  // for "400: invalid audience specified for password grant exchange".
+  const attempts = [
+    {
       grant_type: 'password',
       client_id: TONAL_CLIENT_ID,
       username: email,
       password: password,
       scope: 'openid profile email offline_access',
-      audience: 'https://tonal.com',
-    }),
-  })
+    },
+    {
+      grant_type: 'password',
+      client_id: TONAL_CLIENT_ID,
+      username: email,
+      password: password,
+      scope: 'openid profile email offline_access',
+      audience: 'https://api.tonal.com',
+    },
+    {
+      grant_type: 'password',
+      client_id: TONAL_CLIENT_ID,
+      username: email,
+      password: password,
+      scope: 'openid profile email offline_access',
+      audience: 'https://tonal.auth0.com/api/v2/',
+    },
+  ]
 
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Tonal auth failed (${res.status}): ${body}`)
+  let lastError = ''
+
+  for (const body of attempts) {
+    const res = await fetch(TONAL_AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+    if (res.ok) {
+      return res.json()
+    }
+
+    lastError = await res.text()
+    console.log(`Tonal auth attempt failed (${res.status}): ${lastError}`)
   }
 
-  return res.json()
+  throw new Error(`Tonal auth failed after all attempts: ${lastError}`)
 }
 
 export async function refreshTonalToken(refreshToken: string): Promise<TonalAuthResponse> {
+  // No audience param — matches the auth fix above
   const res = await fetch(TONAL_AUTH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -91,7 +119,8 @@ export async function refreshTonalToken(refreshToken: string): Promise<TonalAuth
   })
 
   if (!res.ok) {
-    throw new Error(`Tonal token refresh failed (${res.status})`)
+    const body = await res.text()
+    throw new Error(`Tonal token refresh failed (${res.status}): ${body}`)
   }
 
   return res.json()

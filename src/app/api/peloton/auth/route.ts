@@ -18,15 +18,26 @@ export async function POST() {
 
     const auth = await authenticatePeloton(email, password);
 
+    // Compute expiresAt if the OAuth flow returned an expiry window
+    const expiresAt = auth.expires_in
+      ? Math.floor(Date.now() / 1000) + auth.expires_in
+      : null;
+
     // Upsert by Peloton userId (single-user app, but handles re-auth cleanly)
     await prisma.pelotonCredential.upsert({
       where: { userId: auth.user_id },
       update: {
         sessionId: auth.session_id,
+        accessToken: auth.access_token ?? null,
+        refreshToken: auth.refresh_token ?? null,
+        expiresAt,
       },
       create: {
         userId: auth.user_id,
         sessionId: auth.session_id,
+        accessToken: auth.access_token ?? null,
+        refreshToken: auth.refresh_token ?? null,
+        expiresAt,
       },
     });
 

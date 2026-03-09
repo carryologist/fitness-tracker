@@ -6,6 +6,9 @@ const PELOTON_API_BASE = 'https://api.onepeloton.com'
 interface PelotonAuthResponse {
   session_id: string
   user_id: string
+  access_token?: string   // present when OAuth flow succeeds
+  refresh_token?: string  // present when OAuth flow succeeds
+  expires_in?: number     // seconds until access_token expires
 }
 
 interface PelotonWorkout {
@@ -48,10 +51,77 @@ interface PelotonWorkoutsResponse {
   sort_by: string
 }
 
-export async function authenticatePeloton(email: string, password: string): Promise<PelotonAuthResponse> {
+/**
+ * Build auth headers that work for both OAuth Bearer tokens and legacy
+ * session cookies.  If the sessionId contains dots it is likely a JWT /
+ * OAuth access-token, so we send it as a Bearer token; otherwise we fall
+ * back to the old `peloton_session_id` cookie.
+ */
+function pelotonHeaders(sessionId: string): Record<string, string> {
+  if (sessionId.includes('.')) {
+    return {
+      Authorization: `Bearer ${sessionId}`,
+      'Content-Type': 'application/json',
+    }
+  }
+  return {
+    Cookie: `peloton_session_id=${sessionId}`,
+    'Content-Type': 'application/json',
+  }
+}
+
+export async function authenticatePeloton(
+  email: string,
+  password: string,
+): Promise<PelotonAuthResponse> {
+  // ── 1. Try OAuth2 token endpoint first ────────────────────────────
+  try {
+    const oauthRes = await fetch('https://auth.onepeloton.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'password',
+        client_id: 'mgsmWCD0A8Qn6uz6mmqI6qeBNHH9IPwS',
+        username: email,
+        password: password,
+        scope: 'openid profile email offline_access',
+      }),
+    })
+
+    if (oauthRes.ok) {
+      const oauthData = await oauthRes.json()
+
+      // Use the access token to resolve the Peloton user-id
+      const meRes = await fetch(`${PELOTON_API_BASE}/api/me`, {
+        headers: {
+          Authorization: `Bearer ${oauthData.access_token}`,
+        },
+      })
+
+      if (meRes.ok) {
+        const me = await meRes.json()
+        return {
+          session_id: oauthData.access_token,  // treat access token as session
+          user_id: me.id,
+          access_token: oauthData.access_token,
+          refresh_token: oauthData.refresh_token,
+          expires_in: oauthData.expires_in,
+        }
+      }
+    }
+  } catch (err) {
+    // OAuth endpoint unreachable / errored – fall through to legacy flow
+    console.warn('Peloton OAuth attempt failed, trying legacy auth:', err)
+  }
+
+  // ── 2. Fallback: legacy session auth with mobile user-agent ───────
   const res = await fetch(`${PELOTON_API_BASE}/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'peloton-iOS/36.0.0',
+      'Peloton-Platform': 'iOS',
+    },
     body: JSON.stringify({
       username_or_email: email,
       password: password,
@@ -70,16 +140,11 @@ export async function fetchPelotonWorkouts(
   sessionId: string,
   userId: string,
   page: number = 0,
-  limit: number = 50
+  limit: number = 50,
 ): Promise<PelotonWorkoutsResponse> {
   const res = await fetch(
     `${PELOTON_API_BASE}/api/user/${userId}/workouts?joins=ride,ride.instructor&limit=${limit}&page=${page}&sort_by=-created`,
-    {
-      headers: {
-        Cookie: `peloton_session_id=${sessionId}`,
-        'Content-Type': 'application/json',
-      },
-    }
+    { headers: pelotonHeaders(sessionId) },
   )
 
   if (!res.ok) {
@@ -91,16 +156,11 @@ export async function fetchPelotonWorkouts(
 
 export async function fetchPelotonWorkoutSummary(
   sessionId: string,
-  workoutId: string
+  workoutId: string,
 ): Promise<PelotonWorkout['overall_summary']> {
   const res = await fetch(
     `${PELOTON_API_BASE}/api/workout/${workoutId}/summary`,
-    {
-      headers: {
-        Cookie: `peloton_session_id=${sessionId}`,
-        'Content-Type': 'application/json',
-      },
-    }
+    { headers: pelotonHeaders(sessionId) },
   )
 
   if (!res.ok) {
