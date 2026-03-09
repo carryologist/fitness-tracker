@@ -1,13 +1,14 @@
 # Fitness Tracker
 
-Personal fitness tracking application with workout logging, goal setting, progress visualization, and Strava integration.
+Personal fitness tracking application with workout logging, goal setting, progress visualization, and Peloton + Tonal integration.
 
 ## Features
 
 - 📊 **Workout Tracking** - Log workouts with minutes, miles, and weight lifted
 - 🎯 **Goal Setting** - Set and track annual fitness goals
 - 📈 **Progress Charts** - Visualize your progress over time
-- 🏃 **Strava Integration** - Automatically sync activities from Strava
+- 🚴 **Peloton Integration** - Automatically sync indoor and outdoor rides from Peloton
+- 🏋️ **Tonal Integration** - Automatically sync weight lifting sessions with volume data from Tonal
 - 🎨 **Dark Mode** - Beautiful dark/light theme support
 - 🔒 **Secure Authentication** - Google OAuth login
 
@@ -114,17 +115,22 @@ To restrict access to only your Google account, set:
 ALLOWED_EMAIL="your-email@example.com"
 ```
 
-## Strava Integration (Optional)
+## Peloton & Tonal Integration (Optional)
 
-1. Go to [Strava API Settings](https://www.strava.com/settings/api)
-2. Create an application
-3. Add to `.env.local`:
-   ```env
-   STRAVA_CLIENT_ID="your-strava-client-id"
-   STRAVA_CLIENT_SECRET="your-strava-client-secret"
-   STRAVA_REDIRECT_URI="http://localhost:3000/api/strava/callback"
-   ```
-4. Connect Strava from the dashboard
+Both integrations use email/password authentication (no OAuth redirect flow).
+
+Add to `.env.local`:
+```env
+# Peloton (session-cookie auth)
+PELOTON_EMAIL="your-peloton-email"
+PELOTON_PASSWORD="your-peloton-password"
+
+# Tonal (Auth0 password grant)
+TONAL_EMAIL="your-tonal-email"
+TONAL_PASSWORD="your-tonal-password"
+```
+
+Connect each service from the dashboard.
 
 ## Development
 
@@ -142,7 +148,8 @@ npx prisma migrate dev --name <name>  # Create migration
 
 - **WorkoutSession** - Individual workout records
 - **Goal** - Annual fitness goals
-- **StravaCredential** - OAuth tokens for Strava integration
+- **PelotonCredential** - Session credentials for Peloton integration
+- **TonalCredential** - Auth credentials for Tonal integration
 
 ## Project Structure
 
@@ -153,7 +160,8 @@ src/
 │   │   ├── auth/         # NextAuth.js handlers
 │   │   ├── workouts/     # Workout CRUD
 │   │   ├── goals/        # Goal CRUD
-│   │   └── strava/       # Strava integration
+│   │   ├── peloton/      # Peloton integration
+│   │   └── tonal/        # Tonal integration
 │   ├── login/            # Sign-in page
 │   ├── layout.tsx        # Root layout
 │   └── page.tsx          # Dashboard page
@@ -186,7 +194,7 @@ Make sure to:
 - All routes require authentication (except `/login` and `/api/auth/*`)
 - Sessions use JWT for serverless compatibility
 - Optional single-user restriction via `ALLOWED_EMAIL`
-- Strava tokens encrypted in database
+- Peloton and Tonal credentials encrypted in database
 
 ## License
 

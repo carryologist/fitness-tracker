@@ -12,16 +12,16 @@ Personal fitness tracking application with a Next.js web dashboard. Tracks worko
 - **Styling**: Tailwind CSS
 - **Forms**: react-hook-form with Zod validation
 - **Charts**: Recharts
-- **External APIs**: Strava integration for activity sync
+- **External APIs**: Peloton API (ride sync) and Tonal API (weight lifting sync)
 
 ## Project Structure
 
 ```
 src/
 ├── app/           # Next.js App Router pages and API routes
-│   └── api/       # REST endpoints: /goals, /workouts, /strava/*
+│   └── api/       # REST endpoints: /goals, /workouts, /peloton/*, /tonal/*
 ├── components/    # React components (dialogs, charts, forms)
-├── lib/           # Utilities and shared code (utils, strava, stravaMapping, types)
+├── lib/           # Utilities and shared code (utils, peloton, tonal, types)
 ├── types/         # TypeScript type definitions
 ├── utils/         # Helper functions (calculations, formatting)
 └── data/          # Data layer (currently empty - data in database)
@@ -32,11 +32,11 @@ archive/           # Archived code (mobile app)
 
 ## Key Files
 
-- `prisma/schema.prisma` - Database models: `WorkoutSession`, `Goal`, `StravaCredential`
+- `prisma/schema.prisma` - Database models: `WorkoutSession`, `Goal`, `PelotonCredential`, `TonalCredential`
 - `src/app/api/*/route.ts` - API endpoints
 - `src/components/WorkoutDashboard.tsx` - Main dashboard
-- `src/lib/strava.ts` - Strava API integration
-- `src/lib/stravaMapping.ts` - Activity type mapping logic
+- `src/lib/peloton.ts` - Peloton API integration (session-cookie auth)
+- `src/lib/tonal.ts` - Tonal API integration (Auth0 password grant)
 
 ## Essential Commands
 
@@ -52,8 +52,8 @@ npx prisma generate  # Generate Prisma client (runs on postinstall)
 npx prisma migrate dev --name <name>  # Create migration
 npx prisma db push   # Push schema changes without migration
 
-# Strava Integration
-# Set environment variables: STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_WEBHOOK_VERIFY_TOKEN
+# Peloton & Tonal Integration
+# Set environment variables: PELOTON_EMAIL, PELOTON_PASSWORD, TONAL_EMAIL, TONAL_PASSWORD
 ```
 
 ## Patterns
