@@ -9,8 +9,6 @@ export default auth((req) => {
   // Define public paths that don't require authentication
   const isPublicPath = 
     nextUrl.pathname.startsWith('/api/auth') ||
-    nextUrl.pathname.startsWith('/api/strava/webhook') ||
-    nextUrl.pathname.startsWith('/api/strava/debug') ||
     nextUrl.pathname === '/login'
 
   // Allow access to public paths

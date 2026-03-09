@@ -10,7 +10,7 @@ import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { AuthHeader } from './AuthHeader'
-import { Plus, X, Target, Calendar, ArrowLeftRight, Link2, Link2Off, Settings } from 'lucide-react'
+import { Plus, X, Target, Calendar, ArrowLeftRight, Settings, RefreshCw } from 'lucide-react'
 import { applyWorkoutMultipliers } from '../utils/workoutMultipliers'
 import { useSettings } from '../context/SettingsContext'
 
@@ -188,9 +188,8 @@ export function WorkoutDashboard() {
   const [showAddWorkout, setShowAddWorkout] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
-  const [stravaConnected, setStravaConnected] = useState(false)
-  const [stravaSyncing, setStravaSyncing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [syncing, setSyncing] = useState<'peloton' | 'tonal' | null>(null)
 
   // Filter sessions by current year
   const currentYearSessions = sessions.filter(session => {
@@ -279,17 +278,6 @@ export function WorkoutDashboard() {
       // Also save to localStorage for offline access
       saveGoalsToStorage(savedGoals)
 
-      // Check Strava connection status
-      try {
-        const stravaRes = await fetch('/api/strava/sync')
-        if (stravaRes.ok) {
-          const stravaData = await stravaRes.json()
-          setStravaConnected(stravaData.connected)
-        }
-      } catch {
-        // Strava status check is non-critical
-      }
-      
       setLoading(false)
     } catch (error) {
       console.error('Failed to load data:', error)
@@ -459,35 +447,31 @@ export function WorkoutDashboard() {
     setEditingGoal(undefined)
   }
 
-  const handleStravaSync = async () => {
-    setStravaSyncing(true)
+  const handleSync = async (service: 'peloton' | 'tonal') => {
+    setSyncing(service)
     try {
-      const res = await fetch('/api/strava/sync', { method: 'POST' })
-      if (res.ok) {
-        const data = await res.json()
-        console.log(`Strava sync: ${data.synced} new, ${data.skipped} skipped, ${data.filtered} filtered`)
-        if (data.synced > 0) await loadData()
-      } else {
-        const data = await res.json().catch(() => ({}))
-        if (data.reconnect) {
-          // Credentials were cleared server-side, reset UI
-          setStravaConnected(false)
+      // Ensure connected (auth first)
+      const statusRes = await fetch(`/api/${service}/sync`)
+      const statusData = await statusRes.json()
+      if (!statusData.connected) {
+        const authRes = await fetch(`/api/${service}/auth`, { method: 'POST' })
+        if (!authRes.ok) {
+          const err = await authRes.json().catch(() => ({}))
+          console.error(`${service} auth failed:`, err)
+          return
         }
       }
+      // Sync
+      const res = await fetch(`/api/${service}/sync`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        console.log(`${service} sync: ${data.synced} new, ${data.skipped} skipped`)
+        if (data.synced > 0) await loadData()
+      }
     } catch (error) {
-      console.error('Strava sync failed:', error)
+      console.error(`${service} sync failed:`, error)
     } finally {
-      setStravaSyncing(false)
-    }
-  }
-
-  const handleStravaDisconnect = async () => {
-    if (!confirm('Disconnect Strava? You can reconnect at any time.')) return
-    try {
-      const res = await fetch('/api/strava/sync', { method: 'DELETE' })
-      if (res.ok) setStravaConnected(false)
-    } catch (error) {
-      console.error('Failed to disconnect Strava:', error)
+      setSyncing(null)
     }
   }
 
@@ -517,39 +501,28 @@ export function WorkoutDashboard() {
               </div>
               <div className="flex items-center gap-1.5">
                 <button
+                  onClick={() => handleSync('peloton')}
+                  disabled={syncing !== null}
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncing === 'peloton' ? 'animate-spin' : ''}`} />
+                  <span>{syncing === 'peloton' ? 'Syncing…' : 'Peloton'}</span>
+                </button>
+                <button
+                  onClick={() => handleSync('tonal')}
+                  disabled={syncing !== null}
+                  className="bg-gray-900 dark:bg-gray-200 hover:bg-black dark:hover:bg-white disabled:opacity-50 text-white dark:text-gray-900 px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncing === 'tonal' ? 'animate-spin' : ''}`} />
+                  <span>{syncing === 'tonal' ? 'Syncing…' : 'Tonal'}</span>
+                </button>
+                <button
                   onClick={() => setShowSettings(true)}
                   className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   title="Settings"
                 >
                   <Settings className="w-4 h-4 text-gray-500" />
                 </button>
-                {stravaConnected ? (
-                  <>
-                    <button
-                      onClick={handleStravaSync}
-                      disabled={stravaSyncing}
-                      className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
-                    >
-                      <Link2 className="w-3.5 h-3.5" />
-                      <span>{stravaSyncing ? 'Syncing…' : 'Sync'}</span>
-                    </button>
-                    <button
-                      onClick={handleStravaDisconnect}
-                      className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors"
-                      title="Disconnect Strava"
-                    >
-                      <Link2Off className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                ) : (
-                  <a
-                    href="/api/strava/auth"
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
-                  >
-                    <Link2 className="w-3.5 h-3.5" />
-                    <span>Strava</span>
-                  </a>
-                )}
                 <ThemeToggle />
               </div>
             </div>
@@ -631,39 +604,28 @@ export function WorkoutDashboard() {
                 </button>
               </div>
               <button
+                onClick={() => handleSync('peloton')}
+                disabled={syncing !== null}
+                className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing === 'peloton' ? 'animate-spin' : ''}`} />
+                <span>{syncing === 'peloton' ? 'Syncing…' : 'Sync Peloton'}</span>
+              </button>
+              <button
+                onClick={() => handleSync('tonal')}
+                disabled={syncing !== null}
+                className="bg-gray-900 dark:bg-gray-200 hover:bg-black dark:hover:bg-white disabled:opacity-50 text-white dark:text-gray-900 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing === 'tonal' ? 'animate-spin' : ''}`} />
+                <span>{syncing === 'tonal' ? 'Syncing…' : 'Sync Tonal'}</span>
+              </button>
+              <button
                 onClick={() => setShowSettings(true)}
                 className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 title="Settings"
               >
                 <Settings className="w-4 h-4 text-gray-500" />
               </button>
-              {stravaConnected ? (
-                <>
-                  <button
-                    onClick={handleStravaSync}
-                    disabled={stravaSyncing}
-                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
-                  >
-                    <Link2 className="w-4 h-4" />
-                    <span>{stravaSyncing ? 'Syncing…' : 'Sync Strava'}</span>
-                  </button>
-                  <button
-                    onClick={handleStravaDisconnect}
-                    className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 transition-colors"
-                    title="Disconnect Strava"
-                  >
-                    <Link2Off className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <a
-                  href="/api/strava/auth"
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
-                >
-                  <Link2 className="w-4 h-4" />
-                  <span>Connect Strava</span>
-                </a>
-              )}
               <ThemeToggle />
               <AuthHeader />
               <button

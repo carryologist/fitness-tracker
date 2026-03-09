@@ -21,24 +21,37 @@ model WorkoutSession {
   miles        Float?   // Distance for cardio activities
   weightLifted Float?   // Total weight lifted for strength training
   notes            String?
-  stravaActivityId BigInt?  @unique
+  pelotonWorkoutId String?  @unique // Peloton workout ID for dedup
+  tonalWorkoutId   String?  @unique // Tonal workout ID for dedup
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   @@map("workout_sessions")
 }
 
-model StravaCredential {
+model PelotonCredential {
   id           String   @id @default(cuid())
-  athleteId    Int      @unique
-  accessToken  String
-  refreshToken String
-  expiresAt    Int      // Unix timestamp
-  scope        String
+  userId       String   @unique  // Peloton user ID
+  sessionId    String             // Session cookie
+  accessToken  String?            // OAuth access token (if using OAuth flow)
+  refreshToken String?            // OAuth refresh token
+  expiresAt    Int?               // Unix timestamp
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  @@map("strava_credentials")
+  @@map("peloton_credentials")
+}
+
+model TonalCredential {
+  id           String   @id @default(cuid())
+  userId       String   @unique  // Tonal user ID from Auth0
+  idToken      String   @db.Text // JWT id_token (used as Bearer)
+  refreshToken String?  @db.Text
+  expiresAt    Int?               // Unix timestamp
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("tonal_credentials")
 }
 
 // Goal tracking for quarterly and annual targets
