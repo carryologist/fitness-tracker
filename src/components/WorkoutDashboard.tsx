@@ -178,9 +178,14 @@ const saveGoalToAPI = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedA
 function parseTonalOCR(text: string) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
 
-  // Volume: number followed by "lbs"
-  const volumeMatch = text.match(/([\d,]+)\s*lbs/i)
-  const weightLifted = volumeMatch ? parseInt(volumeMatch[1].replace(/,/g, ''), 10) : null
+  // Volume: number followed by "lbs" — OCR may render comma as period, space, or drop it
+  const volumeMatch = text.match(/([\d][\d,. ]+)\s*lbs/i)
+  let weightLifted: number | null = null
+  if (volumeMatch) {
+    // Strip anything that's not a digit
+    weightLifted = parseInt(volumeMatch[1].replace(/[^\d]/g, ''), 10)
+    if (isNaN(weightLifted) || weightLifted === 0) weightLifted = null
+  }
 
   // Duration: MM:SS pattern
   const durationMatch = text.match(/(\d{1,3}):(\d{2})/)
@@ -549,6 +554,8 @@ export function WorkoutDashboard() {
         return
       }
 
+      console.log('Parsed:', parsed)
+
       // Send parsed data to server
       const res = await fetch('/api/tonal/import', {
         method: 'POST',
@@ -565,7 +572,7 @@ export function WorkoutDashboard() {
         console.log('Tonal import:', data.workout)
         await loadData()
       } else {
-        setSyncError(data.error || 'Import failed')
+        setSyncError(`${data.error || 'Import failed'} | OCR: ${rawText.replace(/\n/g, ' ').substring(0, 150)}`)
       }
     } catch (error) {
       setSyncError(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
