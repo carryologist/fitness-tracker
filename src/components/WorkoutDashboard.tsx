@@ -175,6 +175,49 @@ const saveGoalToAPI = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedA
   }
 }
 
+function parseTonalOCR(text: string) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+
+  // Volume: number followed by "lbs"
+  const volumeMatch = text.match(/([\d,]+)\s*lbs/i)
+  const weightLifted = volumeMatch ? parseInt(volumeMatch[1].replace(/,/g, ''), 10) : null
+
+  // Duration: MM:SS pattern
+  const durationMatch = text.match(/(\d{1,3}):(\d{2})/)
+  const minutes = durationMatch
+    ? parseInt(durationMatch[1], 10) + (parseInt(durationMatch[2], 10) > 0 ? 1 : 0)
+    : null
+
+  // Date: M/D/YY pattern
+  const dateMatch = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/)
+  let date: Date | null = null
+  if (dateMatch) {
+    const month = parseInt(dateMatch[1], 10)
+    const day = parseInt(dateMatch[2], 10)
+    let year = parseInt(dateMatch[3], 10)
+    if (year < 100) year += 2000
+    date = new Date(year, month - 1, day, 12, 0, 0)
+  }
+
+  // Workout name: first meaningful line
+  const workoutName = lines.find(l =>
+    l.length > 3 &&
+    !/^TONAL$/i.test(l) &&
+    !/^VOLUME$/i.test(l) &&
+    !/^DURATION$/i.test(l) &&
+    !/^\d/.test(l) &&
+    !l.includes('|') &&
+    !l.includes('lbs')
+  ) || null
+
+  // Coach/details line with bullet separators
+  const detailsLine = lines.find(l => l.includes('•') || l.includes('·')) || null
+
+  const notes = [workoutName, detailsLine].filter(Boolean).join(' — ')
+
+  return { weightLifted, minutes, date, notes }
+}
+
 export function WorkoutDashboard() {
   const { settings, updateSettings } = useSettings()
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
@@ -493,9 +536,30 @@ export function WorkoutDashboard() {
     setImporting(true)
     setSyncError(null)
     try {
-      const formData = new FormData()
-      formData.append('image', file)
-      const res = await fetch('/api/tonal/import', { method: 'POST', body: formData })
+      // Run OCR client-side
+      const Tesseract = (await import('tesseract.js')).default
+      const { data: { text: rawText } } = await Tesseract.recognize(file, 'eng')
+      console.log('OCR raw text:', rawText)
+
+      // Parse the OCR text
+      const parsed = parseTonalOCR(rawText)
+      
+      if (!parsed.date || !parsed.minutes) {
+        setSyncError(`Could not parse image. OCR text: ${rawText.substring(0, 200)}`)
+        return
+      }
+
+      // Send parsed data to server
+      const res = await fetch('/api/tonal/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weightLifted: parsed.weightLifted,
+          minutes: parsed.minutes,
+          date: parsed.date.toISOString(),
+          notes: parsed.notes,
+        }),
+      })
       const data = await res.json()
       if (res.ok && data.success) {
         console.log('Tonal import:', data.workout)
@@ -507,7 +571,6 @@ export function WorkoutDashboard() {
       setSyncError(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setImporting(false)
-      // Reset file input so same file can be re-selected
       if (tonalFileRef.current) tonalFileRef.current.value = ''
     }
   }
