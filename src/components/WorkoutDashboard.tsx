@@ -10,7 +10,7 @@ import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { AuthHeader } from './AuthHeader'
-import { Plus, X, Target, Calendar, ArrowLeftRight, Settings, RefreshCw } from 'lucide-react'
+import { Plus, X, Target, Calendar, ArrowLeftRight, Settings, RefreshCw, Upload } from 'lucide-react'
 import { applyWorkoutMultipliers } from '../utils/workoutMultipliers'
 import { useSettings } from '../context/SettingsContext'
 
@@ -191,6 +191,8 @@ export function WorkoutDashboard() {
   const [showSettings, setShowSettings] = useState(false)
   const [syncing, setSyncing] = useState<'peloton' | 'tonal' | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const tonalFileRef = React.useRef<HTMLInputElement>(null)
 
   // Filter sessions by current year
   const currentYearSessions = sessions.filter(session => {
@@ -485,6 +487,31 @@ export function WorkoutDashboard() {
     }
   }
 
+  const handleTonalImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    setSyncError(null)
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      const res = await fetch('/api/tonal/import', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        console.log('Tonal import:', data.workout)
+        await loadData()
+      } else {
+        setSyncError(data.error || 'Import failed')
+      }
+    } catch (error) {
+      setSyncError(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setImporting(false)
+      // Reset file input so same file can be re-selected
+      if (tonalFileRef.current) tonalFileRef.current.value = ''
+    }
+  }
+
   // Get current goal for the year
   const getCurrentGoal = (): Goal | null => {
     return goals.find(g => g.year === currentYear) || null
@@ -492,6 +519,13 @@ export function WorkoutDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <input
+        ref={tonalFileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleTonalImport}
+      />
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -525,6 +559,14 @@ export function WorkoutDashboard() {
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${syncing === 'tonal' ? 'animate-spin' : ''}`} />
                   <span>{syncing === 'tonal' ? 'Syncing…' : 'Tonal'}</span>
+                </button>
+                <button
+                  onClick={() => tonalFileRef.current?.click()}
+                  disabled={importing}
+                  className="bg-gray-900 dark:bg-gray-200 hover:bg-black dark:hover:bg-white disabled:opacity-50 text-white dark:text-gray-900 p-1.5 rounded-lg transition-colors shadow-sm"
+                  title="Import Tonal screenshot"
+                >
+                  <Upload className={`w-3.5 h-3.5 ${importing ? 'animate-pulse' : ''}`} />
                 </button>
                 <button
                   onClick={() => setShowSettings(true)}
@@ -628,6 +670,15 @@ export function WorkoutDashboard() {
               >
                 <RefreshCw className={`w-4 h-4 ${syncing === 'tonal' ? 'animate-spin' : ''}`} />
                 <span>{syncing === 'tonal' ? 'Syncing…' : 'Sync Tonal'}</span>
+              </button>
+              <button
+                onClick={() => tonalFileRef.current?.click()}
+                disabled={importing}
+                className="bg-gray-900 dark:bg-gray-200 hover:bg-black dark:hover:bg-white disabled:opacity-50 text-white dark:text-gray-900 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
+                title="Import Tonal screenshot"
+              >
+                <Upload className={`w-4 h-4 ${importing ? 'animate-pulse' : ''}`} />
+                <span>{importing ? 'Importing…' : 'Import Tonal'}</span>
               </button>
               <button
                 onClick={() => setShowSettings(true)}

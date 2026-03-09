@@ -6,20 +6,20 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
 // Simple workout session model matching your Google Sheets structure
 model WorkoutSession {
-  id           String   @id @default(cuid())
-  date         DateTime
-  source       String   // "Peloton", "Cannondale", "Tonal", etc.
-  activity     String   // "Cycling", "Weight Lifting", etc.
-  minutes      Int      // Duration in minutes
-  miles        Float?   // Distance for cardio activities
-  weightLifted Float?   // Total weight lifted for strength training
+  id               String   @id @default(cuid())
+  date             DateTime
+  source           String // "Peloton", "Cannondale", "Tonal", etc.
+  activity         String // "Cycling", "Weight Lifting", etc.
+  minutes          Int // Duration in minutes
+  miles            Float? // Distance for cardio activities
+  weightLifted     Float? // Total weight lifted for strength training
   notes            String?
   pelotonWorkoutId String?  @unique // Peloton workout ID for dedup
   tonalWorkoutId   String?  @unique // Tonal workout ID for dedup
@@ -31,11 +31,11 @@ model WorkoutSession {
 
 model PelotonCredential {
   id           String   @id @default(cuid())
-  userId       String   @unique  // Peloton user ID
-  sessionId    String             // Session cookie
-  accessToken  String?            // OAuth access token (if using OAuth flow)
-  refreshToken String?            // OAuth refresh token
-  expiresAt    Int?               // Unix timestamp
+  userId       String   @unique // Peloton user ID
+  sessionId    String // Session cookie
+  accessToken  String? // OAuth access token (if using OAuth flow)
+  refreshToken String? // OAuth refresh token
+  expiresAt    Int? // Unix timestamp
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -44,11 +44,11 @@ model PelotonCredential {
 
 model TonalCredential {
   id           String   @id @default(cuid())
-  userId       String   @unique  // Tonal user ID from Auth0
+  userId       String   @unique // Tonal user ID from Auth0
   idToken      String   @db.Text // JWT id_token (used as Bearer)
   accessToken  String?  @db.Text // Auth0 access_token (try first, fall back to idToken)
   refreshToken String?  @db.Text
-  expiresAt    Int?               // Unix timestamp
+  expiresAt    Int? // Unix timestamp
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -57,24 +57,24 @@ model TonalCredential {
 
 // Goal tracking for quarterly and annual targets
 model Goal {
-  id                      String   @id @default(cuid())
-  name                    String
-  year                    Int
-  
+  id   String @id @default(cuid())
+  name String
+  year Int
+
   // Annual targets
-  annualWeightTarget      Float    // Total lbs for the year
-  minutesPerSession       Int      // Minutes per individual session
-  weeklySessionsTarget    Int      // Sessions per week
-  
+  annualWeightTarget   Float // Total lbs for the year
+  minutesPerSession    Int // Minutes per individual session
+  weeklySessionsTarget Int // Sessions per week
+
   // Calculated fields (derived from above)
-  weeklyMinutesTarget     Int      // minutesPerSession * weeklySessionsTarget
-  annualMinutesTarget     Int      // weeklyMinutesTarget * 52
-  quarterlyWeightTarget   Float    // annualWeightTarget / 4
-  quarterlyMinutesTarget  Int      // annualMinutesTarget / 4
-  quarterlySessionsTarget Int      // weeklySessionsTarget * 13
-  
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  weeklyMinutesTarget     Int // minutesPerSession * weeklySessionsTarget
+  annualMinutesTarget     Int // weeklyMinutesTarget * 52
+  quarterlyWeightTarget   Float // annualWeightTarget / 4
+  quarterlyMinutesTarget  Int // annualMinutesTarget / 4
+  quarterlySessionsTarget Int // weeklySessionsTarget * 13
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("goals")
 }
@@ -83,7 +83,7 @@ model Goal {
 model MonthlySummary {
   id            String   @id @default(cuid())
   year          Int
-  month         Int      // 1-12
+  month         Int // 1-12
   totalMinutes  Int
   totalMiles    Float
   totalSessions Int
