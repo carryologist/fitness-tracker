@@ -190,6 +190,7 @@ export function WorkoutDashboard() {
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined)
   const [showSettings, setShowSettings] = useState(false)
   const [syncing, setSyncing] = useState<'peloton' | 'tonal' | null>(null)
+  const [syncError, setSyncError] = useState<string | null>(null)
 
   // Filter sessions by current year
   const currentYearSessions = sessions.filter(session => {
@@ -449,6 +450,7 @@ export function WorkoutDashboard() {
 
   const handleSync = async (service: 'peloton' | 'tonal') => {
     setSyncing(service)
+    setSyncError(null)
     try {
       // Ensure connected (auth first)
       const statusRes = await fetch(`/api/${service}/sync`)
@@ -456,20 +458,28 @@ export function WorkoutDashboard() {
       if (!statusData.connected) {
         const authRes = await fetch(`/api/${service}/auth`, { method: 'POST' })
         if (!authRes.ok) {
-          const err = await authRes.json().catch(() => ({}))
-          console.error(`${service} auth failed:`, err)
+          const err = await authRes.json().catch(() => ({ error: 'Auth failed' }))
+          const msg = `${service} auth failed: ${err.error || authRes.status}`
+          console.error(msg)
+          setSyncError(msg)
           return
         }
       }
       // Sync
       const res = await fetch(`/api/${service}/sync`, { method: 'POST' })
+      const data = await res.json()
       if (res.ok) {
-        const data = await res.json()
-        console.log(`${service} sync: ${data.synced} new, ${data.skipped} skipped`)
-        if (data.synced > 0) await loadData()
+        console.log(`${service} sync: ${data.synced} new, ${data.updated || 0} updated, ${data.skipped} skipped`)
+        if (data.synced > 0 || data.updated > 0) await loadData()
+      } else {
+        const msg = `${service} sync failed: ${data.error || res.status}`
+        console.error(msg)
+        setSyncError(msg)
       }
     } catch (error) {
-      console.error(`${service} sync failed:`, error)
+      const msg = `${service} sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      console.error(msg)
+      setSyncError(msg)
     } finally {
       setSyncing(null)
     }
@@ -639,6 +649,18 @@ export function WorkoutDashboard() {
           </div>
         </div>
       </header>
+
+      {/* Sync error banner */}
+      {syncError && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 flex items-center justify-between">
+            <span className="text-sm text-red-700 dark:text-red-300">{syncError}</span>
+            <button onClick={() => setSyncError(null)} className="text-red-500 hover:text-red-700 ml-4">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

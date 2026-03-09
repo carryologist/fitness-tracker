@@ -4,8 +4,8 @@ import { authenticateTonal, getUserIdFromToken } from '@/lib/tonal'
 
 export async function POST() {
   try {
-    const email = process.env.TONAL_EMAIL
-    const password = process.env.TONAL_PASSWORD
+    const email = process.env.TONAL_EMAIL?.trim()
+    const password = process.env.TONAL_PASSWORD?.trim()
 
     if (!email || !password) {
       return NextResponse.json(
