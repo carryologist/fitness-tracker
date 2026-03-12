@@ -161,16 +161,32 @@ export async function fetchPelotonWorkoutSummary(
   sessionId: string,
   workoutId: string,
 ): Promise<PelotonWorkout['overall_summary']> {
+  // The old /summary endpoint now returns 404.
+  // Use /performance_graph instead and extract metrics from the summaries array.
   const res = await fetch(
-    `${PELOTON_API_BASE}/api/workout/${workoutId}/summary`,
+    `${PELOTON_API_BASE}/api/workout/${workoutId}/performance_graph?every_n=900`,
     { headers: pelotonHeaders(sessionId) },
   )
 
   if (!res.ok) {
-    throw new Error(`Peloton summary fetch failed (${res.status})`)
+    throw new Error(`Peloton performance_graph fetch failed (${res.status})`)
   }
 
-  return res.json()
+  const pg = await res.json()
+  const summaries: Array<{ slug: string; value: number }> = pg.summaries ?? []
+
+  const val = (slug: string) => summaries.find(s => s.slug === slug)?.value
+
+  return {
+    distance: val('distance'),
+    calories: val('calories'),
+    total_output: val('total_output'),
+    avg_cadence: val('avg_cadence'),
+    avg_resistance: val('avg_resistance'),
+    avg_speed: val('avg_speed'),
+    avg_heart_rate: val('avg_heart_rate'),
+    max_heart_rate: val('max_heart_rate'),
+  }
 }
 
 // Map Peloton fitness_discipline to our source/activity taxonomy
