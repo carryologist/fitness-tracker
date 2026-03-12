@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { fetchPelotonWorkouts, fetchPelotonWorkoutSummary, mapPelotonWorkout } from '@/lib/peloton';
+import { fetchPelotonWorkouts, fetchPelotonWorkoutSummary, mapPelotonWorkout, refreshPelotonCredential } from '@/lib/peloton';
 
 const prisma = new PrismaClient();
 
@@ -17,22 +17,36 @@ export async function GET() {
   }
 }
 
+/**
+ * Return a valid sessionId + userId, re-authenticating if the token is
+ * expired or missing.  Called once before the sync loop starts.
+ */
+async function getValidCredential(): Promise<{ sessionId: string; userId: string }> {
+  const credential = await prisma.pelotonCredential.findFirst();
+
+  if (!credential) {
+    // No credential at all — do a fresh auth
+    return refreshPelotonCredential();
+  }
+
+  // Proactively refresh if expiresAt is within 5 minutes
+  const now = Math.floor(Date.now() / 1000);
+  if (credential.expiresAt && credential.expiresAt < now + 300) {
+    console.log('Peloton token expired or expiring soon, refreshing…');
+    return refreshPelotonCredential();
+  }
+
+  return { sessionId: credential.sessionId, userId: credential.userId };
+}
+
 // POST: sync workouts from Peloton
 export async function POST(req: Request) {
   try {
-    const credential = await prisma.pelotonCredential.findFirst();
-    if (!credential) {
-      return NextResponse.json(
-        { error: 'Not connected to Peloton. Call POST /api/peloton/auth first.' },
-        { status: 401 },
-      );
-    }
+    let { sessionId, userId } = await getValidCredential();
 
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get('limit') || '200');
     const maxPages = Math.ceil(limit / 50);
-
-    const { sessionId, userId } = credential;
 
     let synced = 0;
     let skipped = 0;
@@ -41,10 +55,26 @@ export async function POST(req: Request) {
     let page = 0;
     let consecutiveSkips = 0;
     let caughtUp = false;
+    let retriedAuth = false;
 
     // Page through workouts (newest first) until we catch up
     while (!caughtUp) {
-      const response = await fetchPelotonWorkouts(sessionId, userId, page);
+      let response;
+      try {
+        response = await fetchPelotonWorkouts(sessionId, userId, page);
+      } catch (err) {
+        // If 401 and we haven't retried yet, re-auth and try once more
+        if (!retriedAuth && err instanceof Error && err.message.includes('(401)')) {
+          console.log('Peloton 401 during sync, re-authenticating…');
+          const fresh = await refreshPelotonCredential();
+          sessionId = fresh.sessionId;
+          userId = fresh.userId;
+          retriedAuth = true;
+          response = await fetchPelotonWorkouts(sessionId, userId, page);
+        } else {
+          throw err;
+        }
+      }
       const workouts = response.data;
       total += workouts.length;
 

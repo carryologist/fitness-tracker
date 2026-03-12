@@ -1,7 +1,10 @@
 // Peloton API client (community-reverse-engineered, no official docs)
 // Covers: Peloton indoor rides, outdoor rides tracked via Peloton app (Cannondale)
 
+import { PrismaClient } from '@prisma/client'
+
 const PELOTON_API_BASE = 'https://api.onepeloton.com'
+const prisma = new PrismaClient()
 
 interface PelotonAuthResponse {
   session_id: string
@@ -212,4 +215,42 @@ export function mapPelotonWorkout(workout: PelotonWorkout) {
       .join(' — ') || undefined,
     pelotonWorkoutId: workout.id,
   }
+}
+
+/**
+ * Re-authenticate with Peloton via OAuth2 and persist the new credential.
+ * Used by auth route and by sync route on 401 / token expiry.
+ */
+export async function refreshPelotonCredential(): Promise<{ sessionId: string; userId: string }> {
+  const email = process.env.PELOTON_EMAIL?.trim()
+  const password = process.env.PELOTON_PASSWORD?.trim()
+
+  if (!email || !password) {
+    throw new Error('PELOTON_EMAIL and PELOTON_PASSWORD must be set in environment')
+  }
+
+  const auth = await authenticatePeloton(email, password)
+
+  const expiresAt = auth.expires_in
+    ? Math.floor(Date.now() / 1000) + auth.expires_in
+    : null
+
+  await prisma.pelotonCredential.upsert({
+    where: { userId: auth.user_id },
+    update: {
+      sessionId: auth.session_id,
+      accessToken: auth.access_token ?? null,
+      refreshToken: auth.refresh_token ?? null,
+      expiresAt,
+    },
+    create: {
+      userId: auth.user_id,
+      sessionId: auth.session_id,
+      accessToken: auth.access_token ?? null,
+      refreshToken: auth.refresh_token ?? null,
+      expiresAt,
+    },
+  })
+
+  return { sessionId: auth.session_id, userId: auth.user_id }
 }
