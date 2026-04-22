@@ -9,6 +9,7 @@ export interface Settings {
   defaultActivity: string
   units: Units
   outdoorMultiplier: number
+  defaultCyclingSpeed: number
 }
 
 const defaultSettings: Settings = {
@@ -16,6 +17,7 @@ const defaultSettings: Settings = {
   defaultActivity: 'Cycling',
   units: 'imperial',
   outdoorMultiplier: 1.5,
+  defaultCyclingSpeed: 18,
 }
 
 interface SettingsContextType {

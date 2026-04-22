@@ -11,7 +11,7 @@ import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { AuthHeader } from './AuthHeader'
 import { Plus, X, Target, Calendar, ArrowLeftRight, Settings, RefreshCw, Upload, Check } from 'lucide-react'
-import { applyWorkoutMultipliers } from '../utils/workoutMultipliers'
+import { applyDefaultMileage, applyWorkoutMultipliers } from '../utils/workoutMultipliers'
 import { useSettings } from '../context/SettingsContext'
 
 export interface WorkoutSession {
@@ -23,6 +23,7 @@ export interface WorkoutSession {
   miles?: number
   adjustedMiles?: number // Miles with multiplier applied (for Cannondale)
   adjustedMinutes?: number // Minutes with multiplier applied (for Cannondale)
+  estimatedMiles?: boolean // True when miles were calculated from default cycling speed
   weightLifted?: number
   notes?: string
 }
@@ -257,10 +258,11 @@ export function WorkoutDashboard() {
     return session.date.getFullYear() === currentYear
   })
 
-  // Apply workout multipliers for goal calculations (e.g., Cannondale outdoor bonus)
+  // Apply default mileage for cycling workouts without recorded miles, then outdoor multipliers
   const enhancedSessions = useMemo(() => {
-    return applyWorkoutMultipliers(currentYearSessions, settings.outdoorMultiplier)
-  }, [currentYearSessions, settings.outdoorMultiplier])
+    const withMileage = applyDefaultMileage(currentYearSessions, settings.defaultCyclingSpeed)
+    return applyWorkoutMultipliers(withMileage, settings.outdoorMultiplier)
+  }, [currentYearSessions, settings.defaultCyclingSpeed, settings.outdoorMultiplier])
 
   // Set current date/year on client side only
   useEffect(() => {
@@ -1039,6 +1041,29 @@ export function WorkoutDashboard() {
                 >
                   <X className="w-6 h-6" />
                 </button>
+              </div>
+
+              {/* Default Cycling Speed */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Default Cycling Speed</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Used to estimate mileage when not recorded by the source.
+                </p>
+                <div className="flex gap-2">
+                  {[17, 18, 19].map((speed) => (
+                    <button
+                      key={speed}
+                      onClick={() => updateSettings({ defaultCyclingSpeed: speed })}
+                      className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        settings.defaultCyclingSpeed === speed
+                          ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 ring-2 ring-indigo-500'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {speed} mph
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Outdoor Bonus */}
