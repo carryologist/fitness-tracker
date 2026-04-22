@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { WorkoutSession } from './WorkoutDashboard'
-import { Edit2, Trash2, Bike } from 'lucide-react'
+import { Edit2, Trash2, Bike, Calculator } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutTableProps {
@@ -116,6 +116,13 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
                         <Bike className="w-3 h-3 inline-block" />
                       </span>
                       <span className="text-gray-700 dark:text-gray-300">{formatNumber(session.adjustedMiles)}</span>
+                    </>
+                  ) : session.estimatedMiles ? (
+                    <>
+                      <span title="Estimated from default cycling speed" className="text-amber-500 dark:text-amber-400">
+                        <Calculator className="w-3 h-3 inline-block" />
+                      </span>
+                      <span className="text-gray-700 dark:text-gray-300 italic">{session.miles ? formatNumber(session.miles) : '—'}</span>
                     </>
                   ) : (
                     <span className="text-gray-700 dark:text-gray-300">
