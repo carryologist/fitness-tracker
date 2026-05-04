@@ -215,11 +215,12 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
     <form onSubmit={handleSubmit(onFormSubmit)} className="grid grid-cols-1 gap-4">
       {/* Date */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="workout-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Date
         </label>
         <input
           type="date"
+          id="workout-date"
           {...register('date', { required: 'Date is required' })}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 box-border"
           style={{ maxWidth: '100%' }}
@@ -229,10 +230,11 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
 
       {/* Source */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="workout-source" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Source
         </label>
         <select
+          id="workout-source"
           {...register('source', { required: 'Source is required' })}
           onChange={(e) => {
             setValue('source', e.target.value);
@@ -256,10 +258,11 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
 
       {/* Activity */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="workout-activity" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Activity
         </label>
         <select
+          id="workout-activity"
           {...register('activity', { required: 'Activity is required' })}
           disabled={!source}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
@@ -274,13 +277,14 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
 
       {/* Minutes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="workout-minutes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Minutes
         </label>
         <input
           type="number"
           step="any"
           placeholder="Minutes"
+          id="workout-minutes"
           {...register('minutes', { 
             required: 'Minutes is required',
             min: { value: 0, message: 'Minutes must be positive' }
@@ -293,13 +297,14 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
       {/* Miles (conditional) */}
       {showMiles && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="workout-miles" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Miles
           </label>
           <input
             type="number"
             step="any"
             placeholder="Miles"
+            id="workout-miles"
             {...register('miles', {
               min: { value: 0, message: 'Miles must be positive' }
             })}
@@ -311,11 +316,12 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
       {/* Weight Lifted (conditional) */}
       {showWeight && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="workout-weight" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Weight Lifted (lbs)
           </label>
           <input
             type="text"
+            id="workout-weight"
             placeholder="Weight (lbs)"
             value={formattedWeight}
             onChange={(e) => {
@@ -347,10 +353,11 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
 
       {/* Notes */}
       <div className="col-span-full">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="workout-notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Notes (optional)
         </label>
         <textarea
+          id="workout-notes"
           {...register('notes')}
           placeholder="Any additional notes..."
           rows={3}

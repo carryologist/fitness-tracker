@@ -68,6 +68,7 @@ export function DashboardHeader({
                 disabled={importing}
                 className="bg-gray-700 dark:bg-gray-500 hover:bg-gray-800 dark:hover:bg-gray-400 disabled:opacity-50 text-white dark:text-gray-900 p-1.5 rounded-lg transition-colors shadow-sm"
                 title="Import Tonal screenshot (fallback)"
+                aria-label="Import Tonal screenshot"
               >
                 <Upload className={`w-3.5 h-3.5 ${importing ? 'animate-pulse' : ''}`} />
                 {importing && importProgress && <span className="text-[10px]">{importProgress}</span>}
@@ -76,6 +77,7 @@ export function DashboardHeader({
                 onClick={onSettingsClick}
                 className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 title="Settings"
+                aria-label="Settings"
               >
                 <Settings className="w-4 h-4 text-gray-500" />
               </button>
@@ -189,6 +191,7 @@ export function DashboardHeader({
               onClick={onSettingsClick}
               className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               title="Settings"
+              aria-label="Settings"
             >
               <Settings className="w-4 h-4 text-gray-500" />
             </button>

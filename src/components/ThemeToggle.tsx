@@ -40,7 +40,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <button className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
+      <button className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800" aria-label="Toggle theme">
         <Monitor className="w-5 h-5" />
       </button>
     )
@@ -51,6 +51,7 @@ export function ThemeToggle() {
       onClick={handleThemeChange}
       className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
       title={`Current theme: ${theme}`}
+      aria-label={`Toggle theme, current: ${theme}`}
     >
       {theme === 'light' && <Sun className="w-5 h-5 text-yellow-500" />}
       {theme === 'dark' && <Moon className="w-5 h-5 text-blue-500" />}

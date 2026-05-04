@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { WorkoutTable } from './WorkoutTable'
 import { WorkoutForm } from './WorkoutForm'
 import { MonthlySummary } from './MonthlySummary'
@@ -39,7 +39,8 @@ export function WorkoutDashboard() {
   const [syncSuccess, setSyncSuccess] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [importProgress, setImportProgress] = useState<string | null>(null)
-  const tonalFileRef = React.useRef<HTMLInputElement>(null)
+  const tonalFileRef = useRef<HTMLInputElement>(null)
+  const addWorkoutPanelRef = useRef<HTMLDivElement>(null)
 
   // Filter sessions by current year
   const currentYearSessions = useMemo(() => 
@@ -249,7 +250,7 @@ export function WorkoutDashboard() {
       setSessions(prev => prev.filter(s => s.id !== id))
     } catch (error) {
       console.error('Failed to delete workout:', error)
-      alert('Failed to delete workout. Please try again.')
+      setSyncError('Failed to delete workout. Please try again.')
     }
   }, [])
 
@@ -491,6 +492,33 @@ export function WorkoutDashboard() {
     }
   }
 
+  useEffect(() => {
+    if (!showAddWorkout) return
+    const panel = addWorkoutPanelRef.current
+    if (!panel) return
+    panel.focus()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+      const focusable = panel.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    panel.addEventListener('keydown', handleKeyDown)
+    return () => panel.removeEventListener('keydown', handleKeyDown)
+  }, [showAddWorkout])
+
   // Get current goal for the year (memoized — used 3x in JSX)
   const currentGoal = useMemo<Goal | null>(() => 
     goals.find(g => g.year === currentYear) || null,
@@ -528,7 +556,7 @@ export function WorkoutDashboard() {
               <Check className="w-4 h-4" />
               {syncSuccess}
             </span>
-            <button onClick={() => setSyncSuccess(null)} className="text-green-500 hover:text-green-700 ml-4">
+            <button onClick={() => setSyncSuccess(null)} aria-label="Dismiss success message" className="text-green-500 hover:text-green-700 ml-4">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -539,7 +567,7 @@ export function WorkoutDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-red-700 dark:text-red-300">{syncError}</span>
-            <button onClick={() => setSyncError(null)} className="text-red-500 hover:text-red-700 ml-4">
+            <button onClick={() => setSyncError(null)} aria-label="Dismiss error message" className="text-red-500 hover:text-red-700 ml-4">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -647,6 +675,7 @@ export function WorkoutDashboard() {
                   onClick={() => openEditGoal(currentGoal)}
                   className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                   title="Edit Goal"
+                  aria-label="Edit Goal"
                 >
                   <Target className="w-5 h-5" />
                 </button>
@@ -689,12 +718,13 @@ export function WorkoutDashboard() {
 
         {/* Modals */}
         {showAddWorkout && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-labelledby="add-workout-title" onKeyDown={(e) => { if (e.key === 'Escape') setShowAddWorkout(false) }}>
+            <div ref={addWorkoutPanelRef} tabIndex={-1} className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add Workout</h2>
+                <h2 id="add-workout-title" className="text-xl font-bold text-gray-900 dark:text-white">Add Workout</h2>
                 <button
                   onClick={() => setShowAddWorkout(false)}
+                  aria-label="Close add workout dialog"
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
                   <X className="w-6 h-6" />
