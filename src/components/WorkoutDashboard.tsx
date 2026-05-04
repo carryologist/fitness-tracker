@@ -615,6 +615,14 @@ export function WorkoutDashboard() {
       if (res.ok) {
         console.log(`${service} sync: ${data.synced} new, ${data.updated || 0} updated, ${data.skipped} skipped`)
         if (data.synced > 0 || data.updated > 0) await loadData()
+        // Show success banner with sync summary
+        const parts: string[] = []
+        if (data.synced > 0) parts.push(`${data.synced} new`)
+        if (data.updated > 0) parts.push(`${data.updated} updated`)
+        if (data.skipped > 0) parts.push(`${data.skipped} already synced`)
+        const summary = parts.length > 0 ? parts.join(', ') : 'up to date'
+        setSyncSuccess(`${service.charAt(0).toUpperCase() + service.slice(1)} sync: ${summary}`)
+        setTimeout(() => setSyncSuccess(null), 6000)
       } else {
         const msg = `${service} sync failed: ${data.error || res.status}`
         console.error(msg)
