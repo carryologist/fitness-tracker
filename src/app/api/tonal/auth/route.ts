@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 import { authenticateTonal, getUserIdFromToken } from '@/lib/tonal'
 
 export async function POST() {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const email = process.env.TONAL_EMAIL?.trim()
     const password = process.env.TONAL_PASSWORD?.trim()
@@ -43,6 +49,7 @@ export async function POST() {
   } catch (error) {
     console.error('💥 Tonal auth error:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('Detailed error:', message)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

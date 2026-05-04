@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 import {
   refreshTonalToken,
   fetchTonalActivitySummaries,
@@ -73,6 +74,11 @@ function pickBearerToken(cred: TonalCredential): string {
 // ---------------------------------------------------------------------------
 
 export async function GET() {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const cred = await prisma.tonalCredential.findFirst()
     if (!cred) {
@@ -97,6 +103,11 @@ export async function GET() {
 // ---------------------------------------------------------------------------
 
 export async function POST(req: Request) {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     let cred = await getCredentialOrFail()
     cred = await ensureFreshToken(cred)
@@ -229,7 +240,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status })
     }
     const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('Detailed error:', message)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -238,6 +250,11 @@ export async function POST(req: Request) {
 // ---------------------------------------------------------------------------
 
 export async function DELETE() {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const cred = await prisma.tonalCredential.findFirst()
     if (cred) {
@@ -249,6 +266,7 @@ export async function DELETE() {
   } catch (error) {
     console.error('💥 Tonal disconnect error:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('Detailed error:', message)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

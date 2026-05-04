@@ -9,16 +9,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
-      // Optional: Restrict to specific email for single-user app
+    async signIn({ user }) {
       const allowedEmail = process.env.ALLOWED_EMAIL
-      
-      if (allowedEmail && user.email !== allowedEmail) {
-        console.warn(`Unauthorized login attempt by ${user.email}`)
-        return false // Deny access
+      if (!allowedEmail) {
+        console.error('ALLOWED_EMAIL env var is not set — denying all logins')
+        return false
       }
-      
-      return true // Allow access
+      if (user.email !== allowedEmail) {
+        console.warn(`Unauthorized login attempt: ${user.email?.substring(0, 3)}***`)
+        return false
+      }
+      return true
     },
     async session({ session, token }) {
       // Add user ID to session if needed
