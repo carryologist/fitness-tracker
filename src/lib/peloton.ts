@@ -1,10 +1,9 @@
 // Peloton API client (community-reverse-engineered, no official docs)
 // Covers: Peloton indoor rides, outdoor rides tracked via Peloton app (Cannondale)
 
-import { PrismaClient } from '@prisma/client'
+import prisma from '@/lib/prisma'
 
 const PELOTON_API_BASE = 'https://api.onepeloton.com'
-const prisma = new PrismaClient()
 
 interface PelotonAuthResponse {
   session_id: string

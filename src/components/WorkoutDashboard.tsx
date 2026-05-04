@@ -10,7 +10,7 @@ import { GoalModal } from './GoalModal'
 import { WorkoutSummary } from './WorkoutSummary'
 import { ThemeToggle } from './ThemeToggle'
 import { AuthHeader } from './AuthHeader'
-import { Plus, X, Target, Calendar, ArrowLeftRight, Settings, RefreshCw, Upload, Check } from 'lucide-react'
+import { Plus, X, Target, Calendar, Settings, RefreshCw, Upload, Check } from 'lucide-react'
 import { applyDefaultMileage, applyWorkoutMultipliers } from '../utils/workoutMultipliers'
 import { useSettings } from '../context/SettingsContext'
 
@@ -519,23 +519,6 @@ export function WorkoutDashboard() {
       } : s))
     } catch (e) {
       console.error('Error updating workout:', e)
-    }
-  }
-
-  const deleteSession = async (id: string) => {
-    try {
-      const response = await fetch(`/api/workouts?id=${id}`, {
-        method: 'DELETE',
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete workout')
-      }
-      
-      setSessions(sessions.filter(s => s.id !== id))
-    } catch (error) {
-      console.error('Failed to delete workout:', error)
-      alert('Failed to delete workout. Please try again.')
     }
   }
 

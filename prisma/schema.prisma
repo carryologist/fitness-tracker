@@ -26,6 +26,8 @@ model WorkoutSession {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  @@index([date])
+  @@index([source, date])
   @@map("workout_sessions")
 }
 
