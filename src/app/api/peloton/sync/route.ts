@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
 import { fetchPelotonWorkouts, fetchPelotonWorkoutSummary, mapPelotonWorkout, refreshPelotonCredential } from '@/lib/peloton';
 
 // GET: check connection status
 export async function GET() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const credential = await prisma.pelotonCredential.findFirst();
     return NextResponse.json({
@@ -39,6 +45,11 @@ async function getValidCredential(): Promise<{ sessionId: string; userId: string
 
 // POST: sync workouts from Peloton
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     let { sessionId, userId } = await getValidCredential();
 
@@ -182,12 +193,18 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Peloton sync error:', error);
     const message = error instanceof Error ? error.message : 'Sync failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('Detailed error:', message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 // DELETE: disconnect Peloton (clear stored credentials)
 export async function DELETE() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     await prisma.pelotonCredential.deleteMany();
     return NextResponse.json({ disconnected: true });

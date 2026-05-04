@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 
 interface TonalImportBody {
   weightLifted: number | null
@@ -9,6 +10,11 @@ interface TonalImportBody {
 }
 
 export async function POST(req: Request) {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body: TonalImportBody = await req.json()
 
@@ -17,6 +23,21 @@ export async function POST(req: Request) {
         { success: false, error: 'date and minutes are required' },
         { status: 400 },
       )
+    }
+
+    if (typeof body.minutes !== 'number' || body.minutes < 1 || body.minutes > 480) {
+      return NextResponse.json(
+        { success: false, error: 'minutes must be between 1 and 480' },
+        { status: 400 },
+      )
+    }
+    if (body.weightLifted !== undefined && body.weightLifted !== null) {
+      if (typeof body.weightLifted !== 'number' || body.weightLifted < 0 || body.weightLifted > 200000) {
+        return NextResponse.json(
+          { success: false, error: 'weightLifted must be between 0 and 200000' },
+          { status: 400 },
+        )
+      }
     }
 
     const date = new Date(body.date)
@@ -95,6 +116,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('💥 Tonal import error:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
+    console.error('Detailed error:', message)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }

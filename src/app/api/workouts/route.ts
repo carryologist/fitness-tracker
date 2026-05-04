@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 
 export async function GET() {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     console.log('📊 Fetching workouts from database...')
     
@@ -39,6 +45,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     console.log('💪 Creating new workout:', body)
@@ -51,6 +62,32 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required fields: date, source, activity, minutes' },
         { status: 400 }
       )
+    }
+
+    const parsedMinutes = parseInt(minutes)
+    if (isNaN(parsedMinutes) || parsedMinutes < 0 || parsedMinutes > 1440) {
+      return NextResponse.json(
+        { error: 'minutes must be between 0 and 1440' },
+        { status: 400 }
+      )
+    }
+    if (miles !== undefined && miles !== null) {
+      const parsedMiles = parseFloat(miles)
+      if (isNaN(parsedMiles) || parsedMiles < 0 || parsedMiles > 500) {
+        return NextResponse.json(
+          { error: 'miles must be between 0 and 500' },
+          { status: 400 }
+        )
+      }
+    }
+    if (weightLifted !== undefined && weightLifted !== null) {
+      const parsedWeight = parseFloat(weightLifted)
+      if (isNaN(parsedWeight) || parsedWeight < 0 || parsedWeight > 200000) {
+        return NextResponse.json(
+          { error: 'weightLifted must be between 0 and 200000' },
+          { status: 400 }
+        )
+      }
     }
 
     // Create workout in database
@@ -92,6 +129,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -122,6 +164,11 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     const { id, date, source, activity, minutes, miles, weightLifted, notes } = body
@@ -131,6 +178,34 @@ export async function PUT(request: NextRequest) {
         { error: 'Workout ID is required' },
         { status: 400 }
       )
+    }
+
+    if (minutes !== undefined) {
+      const parsedMinutes = parseInt(minutes)
+      if (isNaN(parsedMinutes) || parsedMinutes < 0 || parsedMinutes > 1440) {
+        return NextResponse.json(
+          { error: 'minutes must be between 0 and 1440' },
+          { status: 400 }
+        )
+      }
+    }
+    if (miles !== undefined && miles !== null) {
+      const parsedMiles = parseFloat(miles)
+      if (isNaN(parsedMiles) || parsedMiles < 0 || parsedMiles > 500) {
+        return NextResponse.json(
+          { error: 'miles must be between 0 and 500' },
+          { status: 400 }
+        )
+      }
+    }
+    if (weightLifted !== undefined && weightLifted !== null) {
+      const parsedWeight = parseFloat(weightLifted)
+      if (isNaN(parsedWeight) || parsedWeight < 0 || parsedWeight > 200000) {
+        return NextResponse.json(
+          { error: 'weightLifted must be between 0 and 200000' },
+          { status: 400 }
+        )
+      }
     }
 
     const updateData: {

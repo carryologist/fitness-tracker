@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { getSession } from '@/lib/auth'
 
 // Migration endpoint to set up database tables
 export async function GET() {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
+  }
+
   try {
     console.log('🚀 Starting database migration...')
     
@@ -112,7 +121,7 @@ export async function GET() {
     
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Internal server error',
       message: 'Database migration failed. Check environment variables and database connection.',
       troubleshooting: {
         checkDatabaseUrl: 'Ensure POSTGRES_PRISMA_URL is set correctly',
@@ -128,5 +137,13 @@ export async function GET() {
 
 // Also support POST for flexibility
 export async function POST() {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
+  }
+
   return GET()
 }
