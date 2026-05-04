@@ -138,20 +138,21 @@ export async function POST(req: Request) {
 
       let newOnThisPage = false
 
+      // Batch-fetch already-synced tonalWorkoutIds for this page
+      const pageActivityIds = activities.map((a: { id: string }) => a.id).filter(Boolean)
+      const alreadySynced = await prisma.workoutSession.findMany({
+        where: { tonalWorkoutId: { in: pageActivityIds } },
+        select: { tonalWorkoutId: true },
+      })
+      const syncedIdSet = new Set(alreadySynced.map((r: { tonalWorkoutId: string | null }) => r.tonalWorkoutId))
+
       for (const activity of activities) {
         const tonalWorkoutId = activity.id
 
-        // Check if already synced via tonalWorkoutId uniqueness
-        const existing = await prisma.workoutSession.findFirst({
-          where: { tonalWorkoutId },
-          select: { id: true },
-        })
-
-        if (existing) {
+        // Check if already synced (batch lookup)
+        if (syncedIdSet.has(tonalWorkoutId)) {
           skipped++
           consecutiveSkips++
-
-          // After 5 consecutive already-synced workouts, we've caught up
           if (consecutiveSkips >= 5) {
             caughtUp = true
             break

@@ -2,14 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { checkAuth } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   await checkAuth()
 
   try {
-    console.log('📊 Fetching workouts from database...')
+    const { searchParams } = new URL(request.url)
+    const yearParam = searchParams.get('year')
+
+    // Build optional year filter
+    const where: { date?: { gte: Date; lt: Date } } = {}
+    if (yearParam) {
+      const year = parseInt(yearParam, 10)
+      if (!isNaN(year) && year >= 2020 && year <= 2100) {
+        where.date = {
+          gte: new Date(year, 0, 1),
+          lt: new Date(year + 1, 0, 1),
+        }
+      }
+    }
+
+    console.log('📊 Fetching workouts from database...', yearParam ? `(year=${yearParam})` : '(all)')
     
-    // Fetch all workout sessions from database
+    // Fetch workout sessions from database
     const workouts = await prisma.workoutSession.findMany({
+      where,
       orderBy: {
         date: 'desc'
       }
