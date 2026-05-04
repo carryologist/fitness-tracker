@@ -56,7 +56,6 @@ export async function POST(req: Request) {
     let updated = 0;
     let total = 0;
     let page = 0;
-    let consecutiveSkips = 0;
     let caughtUp = false;
     let retriedAuth = false;
 
@@ -105,18 +104,10 @@ export async function POST(req: Request) {
         // Check if already synced by pelotonWorkoutId (batch lookup)
         if (syncedIdSet.has(workout.id)) {
           skipped++;
-          consecutiveSkips++;
-
-          // After 5 consecutive already-synced workouts, we've caught up
-          if (consecutiveSkips >= 5) {
-            caughtUp = true;
-            break;
-          }
           continue;
         }
 
-        // New workout — reset consecutive skip counter
-        consecutiveSkips = 0;
+        // New workout
         newOnThisPage = true;
 
         // Fetch detailed summary if not included in list response

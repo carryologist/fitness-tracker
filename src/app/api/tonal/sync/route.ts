@@ -119,7 +119,6 @@ export async function POST(req: Request) {
     let total = 0
     let offset = 0
     let hasMore = true
-    let consecutiveSkips = 0
     let caughtUp = false
     let batchCount = 0
 
@@ -152,16 +151,10 @@ export async function POST(req: Request) {
         // Check if already synced (batch lookup)
         if (syncedIdSet.has(tonalWorkoutId)) {
           skipped++
-          consecutiveSkips++
-          if (consecutiveSkips >= 5) {
-            caughtUp = true
-            break
-          }
           continue
         }
 
-        // New workout — reset consecutive skip counter
-        consecutiveSkips = 0
+        // New workout
         newOnThisPage = true
 
         const mapped = mapTonalActivity(activity)
