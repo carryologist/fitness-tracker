@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { WorkoutSession } from './WorkoutDashboard'
+import { WorkoutSession } from '@/types/workout'
 import { Bike } from 'lucide-react'
 
 interface WorkoutFormData {

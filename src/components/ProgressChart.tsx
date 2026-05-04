@@ -4,7 +4,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval } from 'date-fns'
 import { BarChart3, Calendar } from 'lucide-react'
-import { WorkoutSession } from './WorkoutDashboard'
+import { WorkoutSession } from '@/types/workout'
 import { formatNumber } from '../utils/numberFormat'
 
 type ViewMode = 'annual' | 'monthly' | 'custom'

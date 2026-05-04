@@ -8,7 +8,7 @@ import {
   isWithinInterval,
   differenceInDays
 } from 'date-fns'
-import { WorkoutSession, Goal, GoalProgress } from '../components/WorkoutDashboard'
+import { WorkoutSession, Goal, GoalProgress } from '@/types/workout'
 
 export function calculateGoalProgress(goal: Goal, sessions: WorkoutSession[]): GoalProgress {
   const now = new Date()
