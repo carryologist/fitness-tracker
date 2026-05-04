@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { checkAuth } from '@/lib/auth'
 import { authenticateTonal, getUserIdFromToken } from '@/lib/tonal'
 
 export async function POST() {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     const email = process.env.TONAL_EMAIL?.trim()

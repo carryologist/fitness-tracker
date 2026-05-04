@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { checkAuth } from '@/lib/auth'
 
 // GET /api/goals - Fetch all goals
 export async function GET() {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     const goals = await prisma.goal.findMany({
@@ -26,10 +23,7 @@ export async function GET() {
 
 // POST /api/goals - Create a new goal
 export async function POST(request: NextRequest) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     const body = await request.json()
@@ -103,10 +97,7 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/goals - Update an existing goal
 export async function PUT(request: NextRequest) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     const body = await request.json()

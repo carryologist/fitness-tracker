@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { checkAuth } from '@/lib/auth'
 
 export async function GET() {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     console.log('📊 Fetching workouts from database...')
@@ -45,10 +42,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     const body = await request.json()
@@ -129,10 +123,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     const { searchParams } = new URL(request.url)
@@ -164,10 +155,7 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     const body = await request.json()

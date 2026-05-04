@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { checkAuth } from '@/lib/auth';
 import { refreshPelotonCredential } from '@/lib/peloton';
 
 export async function POST() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  await checkAuth()
 
   try {
     const { userId } = await refreshPelotonCredential();

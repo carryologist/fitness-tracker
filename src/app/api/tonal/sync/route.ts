@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { checkAuth } from '@/lib/auth'
 import {
   refreshTonalToken,
   fetchTonalActivitySummaries,
@@ -74,10 +74,7 @@ function pickBearerToken(cred: TonalCredential): string {
 // ---------------------------------------------------------------------------
 
 export async function GET() {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     const cred = await prisma.tonalCredential.findFirst()
@@ -103,10 +100,7 @@ export async function GET() {
 // ---------------------------------------------------------------------------
 
 export async function POST(req: Request) {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     let cred = await getCredentialOrFail()
@@ -250,10 +244,7 @@ export async function POST(req: Request) {
 // ---------------------------------------------------------------------------
 
 export async function DELETE() {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
 
   try {
     const cred = await prisma.tonalCredential.findFirst()

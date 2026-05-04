@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSession } from '@/lib/auth'
+import { checkAuth } from '@/lib/auth'
 
 // Migration endpoint to set up database tables
 export async function GET() {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
   }
@@ -137,10 +134,7 @@ export async function GET() {
 
 // Also support POST for flexibility
 export async function POST() {
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  await checkAuth()
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
   }

@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { checkAuth } from '@/lib/auth';
 import { fetchPelotonWorkouts, fetchPelotonWorkoutSummary, mapPelotonWorkout, refreshPelotonCredential } from '@/lib/peloton';
 
 // GET: check connection status
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  await checkAuth()
 
   try {
     const credential = await prisma.pelotonCredential.findFirst();
@@ -45,10 +42,7 @@ async function getValidCredential(): Promise<{ sessionId: string; userId: string
 
 // POST: sync workouts from Peloton
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  await checkAuth()
 
   try {
     let { sessionId, userId } = await getValidCredential();
@@ -200,10 +194,7 @@ export async function POST(req: Request) {
 
 // DELETE: disconnect Peloton (clear stored credentials)
 export async function DELETE() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  await checkAuth()
 
   try {
     await prisma.pelotonCredential.deleteMany();
