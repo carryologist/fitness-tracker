@@ -125,14 +125,8 @@ export async function POST(req: Request) {
     while (hasMore && !caughtUp) {
       const token = pickBearerToken(cred)
       console.log(`🔍 Tonal sync: fetching activities for user ${cred.userId}, offset=${offset}, limit=${batchSize}`)
-      const response = await fetchTonalActivitySummaries(token, cred.userId, batchSize, offset)
-      console.log('🔍 Tonal API raw response keys:', Object.keys(response), 'data type:', typeof response.data, 'data length:', Array.isArray(response.data) ? response.data.length : 'not-array')
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        console.log('🔍 First activity:', JSON.stringify(response.data[0]).substring(0, 200))
-      } else {
-        console.log('🔍 Full response (truncated):', JSON.stringify(response).substring(0, 500))
-      }
-      const activities = response.data
+      const activities = await fetchTonalActivitySummaries(token, cred.userId, batchSize, offset)
+      console.log(`🔍 Tonal API returned ${activities.length} activities`)
 
       if (!activities || activities.length === 0) {
         hasMore = false
@@ -145,15 +139,19 @@ export async function POST(req: Request) {
       let newOnThisPage = false
 
       // Batch-fetch already-synced tonalWorkoutIds for this page
-      const pageActivityIds = activities.map((a: { id: string }) => a.id).filter(Boolean)
+      const pageActivityIds = activities.map((a) => a.activityId ?? a.id).filter(Boolean) as string[]
       const alreadySynced = await prisma.workoutSession.findMany({
         where: { tonalWorkoutId: { in: pageActivityIds } },
         select: { tonalWorkoutId: true },
       })
-      const syncedIdSet = new Set(alreadySynced.map((r: { tonalWorkoutId: string | null }) => r.tonalWorkoutId))
+      const syncedIdSet = new Set(alreadySynced.map((r) => r.tonalWorkoutId))
 
       for (const activity of activities) {
-        const tonalWorkoutId = activity.id
+        const tonalWorkoutId = activity.activityId ?? activity.id ?? ''
+        if (!tonalWorkoutId) {
+          skipped++
+          continue
+        }
 
         // Check if already synced (batch lookup)
         if (syncedIdSet.has(tonalWorkoutId)) {
