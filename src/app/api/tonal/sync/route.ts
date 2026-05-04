@@ -124,7 +124,14 @@ export async function POST(req: Request) {
 
     while (hasMore && !caughtUp) {
       const token = pickBearerToken(cred)
+      console.log(`🔍 Tonal sync: fetching activities for user ${cred.userId}, offset=${offset}, limit=${batchSize}`)
       const response = await fetchTonalActivitySummaries(token, cred.userId, batchSize, offset)
+      console.log('🔍 Tonal API raw response keys:', Object.keys(response), 'data type:', typeof response.data, 'data length:', Array.isArray(response.data) ? response.data.length : 'not-array')
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        console.log('🔍 First activity:', JSON.stringify(response.data[0]).substring(0, 200))
+      } else {
+        console.log('🔍 Full response (truncated):', JSON.stringify(response).substring(0, 500))
+      }
       const activities = response.data
 
       if (!activities || activities.length === 0) {

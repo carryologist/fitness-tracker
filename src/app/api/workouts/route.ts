@@ -23,7 +23,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log('📊 Fetching workouts from database...', yearParam ? `(year=${yearParam})` : '(all)')
+    console.log('📊 Fetching workouts from database...', yearParam ? `(year=${yearParam})` : '(all)');
+    // Debug: log year distribution
+    const yearCounts = await prisma.$queryRawUnsafe<{ yr: number; cnt: bigint }[]>(
+      `SELECT EXTRACT(YEAR FROM date)::int AS yr, COUNT(*)::bigint AS cnt FROM "WorkoutSession" GROUP BY yr ORDER BY yr`
+    );
+    console.log('📊 Workouts by year:', yearCounts.map(r => `${r.yr}: ${r.cnt}`).join(', '));
     
     // Fetch workout sessions from database
     const workouts = await prisma.workoutSession.findMany({
