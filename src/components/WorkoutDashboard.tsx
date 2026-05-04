@@ -185,7 +185,7 @@ function ocrNormalize(text: string): string {
     .replace(/O(?=\d)/g, '0')   // capital O before digit → 0
     .replace(/(?<=\d)O/g, '0')  // capital O after digit → 0
     .replace(/(?<=\d)\s*[)\]]/g, '') // stray brackets after digits
-    .replace(/(?<=[\d,])\s+(?=\d)/g, '') // collapse spaces inside numbers
+    .replace(/(\d,)\s+(\d)/g, '$1$2') // collapse spaces in comma-formatted numbers (e.g. "12, 379" → "12,379")
 }
 
 function parseTonalOCR(text: string) {
@@ -195,7 +195,8 @@ function parseTonalOCR(text: string) {
 
   // Volume: number followed by "lbs" — OCR may render comma as period, space, or drop it
   // OCR commonly misreads "lbs" as "1bs", "1s", "Ibs", "ls", etc.
-  const volumeMatch = normalized.match(/([\d][\d,. ]+)\s*(?:lbs|1bs|1s|Ibs|ibs|ls)\b/i)
+  const volumeMatch = normalized.match(/(\d{1,3}[,.]\d{3,})\s*(?:lbs|1bs|1s|Ibs|ibs|ls)\b/i)
+    || normalized.match(/(\d{4,})\s*(?:lbs|1bs|1s|Ibs|ibs|ls)\b/i)
   let weightLifted: number | null = null
   if (volumeMatch) {
     weightLifted = parseInt(volumeMatch[1].replace(/[^\d]/g, ''), 10)
@@ -224,6 +225,22 @@ function parseTonalOCR(text: string) {
       if (isNaN(minutes) || minutes === 0) minutes = null
     }
   }
+  // Fallback: 4-digit number near VOLUME/DURATION keywords where colon was dropped (e.g. "4205" = 42:05)
+  if (!minutes) {
+    const contextMatch = normalized.match(/\b(\d{3,4})\b(?=\s*(?:VOLUME|DURATION|WEIGHT|MIN))/i)
+      || normalized.match(/(?:VOLUME|DURATION|WEIGHT|lbs)\s+\S*\s*(\d{3,4})\b/i)
+    if (contextMatch) {
+      const raw = contextMatch[1]
+      if (raw.length === 4) {
+        // MMSS: first 2 digits = minutes, last 2 = seconds
+        minutes = parseInt(raw.substring(0, 2), 10) + (parseInt(raw.substring(2), 10) > 0 ? 1 : 0)
+      } else if (raw.length === 3) {
+        // MSS: first digit = minutes, last 2 = seconds
+        minutes = parseInt(raw.substring(0, 1), 10) + (parseInt(raw.substring(1), 10) > 0 ? 1 : 0)
+      }
+      if (minutes !== null && (isNaN(minutes) || minutes === 0 || minutes > 300)) minutes = null
+    }
+  }
 
   // Date: M/D/YY pattern — try normalized text first (fixes pipe→slash, l→1, O→0)
   let date: Date | null = null
@@ -244,6 +261,33 @@ function parseTonalOCR(text: string) {
       const month = parseInt(looseDateMatch[1], 10)
       const day = parseInt(looseDateMatch[2], 10)
       let year = parseInt(looseDateMatch[3], 10)
+      if (year < 100) year += 2000
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        date = new Date(year, month - 1, day, 12, 0, 0)
+      }
+    }
+  }
+  // Fallback: look for "Weeks" or week-related text with nearby numbers (e.g. "el Weeks to" → date context)
+  // Try dot-separated dates (e.g. "5.4.26")
+  if (!date) {
+    const dotDateMatch = normalized.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/)
+    if (dotDateMatch) {
+      const month = parseInt(dotDateMatch[1], 10)
+      const day = parseInt(dotDateMatch[2], 10)
+      let year = parseInt(dotDateMatch[3], 10)
+      if (year < 100) year += 2000
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        date = new Date(year, month - 1, day, 12, 0, 0)
+      }
+    }
+  }
+  // Fallback: dash-separated dates (e.g. "5-4-26")
+  if (!date) {
+    const dashDateMatch = normalized.match(/(\d{1,2})-(\d{1,2})-(\d{2,4})/)
+    if (dashDateMatch) {
+      const month = parseInt(dashDateMatch[1], 10)
+      const day = parseInt(dashDateMatch[2], 10)
+      let year = parseInt(dashDateMatch[3], 10)
       if (year < 100) year += 2000
       if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
         date = new Date(year, month - 1, day, 12, 0, 0)
@@ -650,9 +694,53 @@ export function WorkoutDashboard() {
 
           const parsed = parseTonalOCR(rawText)
 
-          if (!parsed.date || !parsed.minutes) {
+          if (!parsed.minutes && !parsed.weightLifted) {
             failures.push(`${file.name}: Could not parse — ${rawText.substring(0, 100)}`)
             continue
+          }
+
+          // If date is missing but we have workout data, prompt the user
+          if (!parsed.date) {
+            const userDate = prompt(
+              `${file.name}: OCR couldn't read the date.\n` +
+              `Parsed: ${parsed.weightLifted ? parsed.weightLifted + ' lbs' : 'no volume'}` +
+              `${parsed.minutes ? ', ' + parsed.minutes + ' min' : ''}\n\n` +
+              `Enter the workout date (MM/DD/YYYY or MM/DD/YY):`,
+              new Date().toLocaleDateString('en-US')
+            )
+            if (!userDate) {
+              failures.push(`${file.name}: Skipped — no date provided`)
+              continue
+            }
+            const parts = userDate.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/)
+            if (parts) {
+              const month = parseInt(parts[1], 10)
+              const day = parseInt(parts[2], 10)
+              let year = parseInt(parts[3], 10)
+              if (year < 100) year += 2000
+              parsed.date = new Date(year, month - 1, day, 12, 0, 0)
+            } else {
+              failures.push(`${file.name}: Invalid date format — ${userDate}`)
+              continue
+            }
+          }
+
+          // If minutes still missing, prompt for that too
+          if (!parsed.minutes) {
+            const userMin = prompt(
+              `${file.name}: OCR couldn't read the duration.\n` +
+              `Parsed: ${parsed.weightLifted ? parsed.weightLifted + ' lbs' : 'no volume'}` +
+              `, date: ${parsed.date.toLocaleDateString()}\n\n` +
+              `Enter workout duration in minutes:`
+            )
+            if (userMin) {
+              const m = parseInt(userMin, 10)
+              if (!isNaN(m) && m > 0) parsed.minutes = m
+            }
+            if (!parsed.minutes) {
+              failures.push(`${file.name}: Skipped — no duration provided`)
+              continue
+            }
           }
 
           console.log(`Parsed [${i + 1}/${total}]:`, parsed)
