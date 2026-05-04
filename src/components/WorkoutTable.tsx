@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { WorkoutSession } from './WorkoutDashboard'
-import { Edit2, Trash2, Bike, Calculator } from 'lucide-react'
+import { Trash2, Bike, Calculator } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutTableProps {
@@ -20,7 +20,7 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   const sortedSessions = useMemo(() => {
-    return sessions.sort((a, b) => {
+    return [...sessions].sort((a, b) => {
       let aValue: string | number
       let bValue: string | number
 

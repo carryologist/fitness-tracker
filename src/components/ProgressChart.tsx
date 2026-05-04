@@ -160,22 +160,9 @@ export function ProgressChart({
   // Format x-axis labels based on screen size
   const formatXAxisTick = (value: string) => {
     if (viewMode === 'annual') {
-      // Always show abbreviated month names for consistency
-      const monthMap: Record<string, string> = {
-        'Jan 2025': 'Jan',
-        'Feb 2025': 'Feb', 
-        'Mar 2025': 'Mar',
-        'Apr 2025': 'Apr',
-        'May 2025': 'May',
-        'Jun 2025': 'Jun',
-        'Jul 2025': 'Jul',
-        'Aug 2025': 'Aug',
-        'Sep 2025': 'Sep',
-        'Oct 2025': 'Oct',
-        'Nov 2025': 'Nov',
-        'Dec 2025': 'Dec'
-      }
-      return monthMap[value] || value.replace(' 2025', '')
+      // Strip the year suffix to show abbreviated month names
+      const match = value.match(/^(\w{3})\s+\d{4}$/)
+      return match ? match[1] : value
     }
     // For daily view, always show day number
     return value

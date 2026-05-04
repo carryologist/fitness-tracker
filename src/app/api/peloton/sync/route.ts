@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { fetchPelotonWorkouts, fetchPelotonWorkoutSummary, mapPelotonWorkout, refreshPelotonCredential } from '@/lib/peloton';
-
-const prisma = new PrismaClient();
 
 // GET: check connection status
 export async function GET() {
