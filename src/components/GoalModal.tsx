@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Goal } from './WorkoutDashboard'
+import { Goal } from '@/types/workout'
 import { X } from 'lucide-react'
 import { createGoal } from '../utils/goalCalculations'
 

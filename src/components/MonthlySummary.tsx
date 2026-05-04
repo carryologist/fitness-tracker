@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { WorkoutSession } from './WorkoutDashboard'
+import { WorkoutSession } from '@/types/workout'
 import { formatNumber } from '../utils/numberFormat'
 
 interface MonthlySummaryProps {

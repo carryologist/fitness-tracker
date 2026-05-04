@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
-import { WorkoutSession } from './WorkoutDashboard'
+import { WorkoutSession } from '@/types/workout'
 import { Trash2, Bike, Calculator } from 'lucide-react'
 import { formatNumber } from '../utils/numberFormat'
 

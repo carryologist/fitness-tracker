@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react'
 import { Activity, TrendingUp, Calendar, Weight, Target, Clock, CalendarDays } from 'lucide-react'
-import { WorkoutSession } from './WorkoutDashboard'
+import { WorkoutSession } from '@/types/workout'
 import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutSummaryProps {

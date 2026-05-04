@@ -16,3 +16,91 @@ export interface WorkoutData {
   exercises: Exercise[];
   date: string;
 }
+
+export interface WorkoutSession {
+  id: string
+  date: Date
+  source: string
+  activity: string
+  minutes: number
+  miles?: number
+  adjustedMiles?: number // Miles with multiplier applied (for Cannondale)
+  adjustedMinutes?: number // Minutes with multiplier applied (for Cannondale)
+  estimatedMiles?: boolean // True when miles were calculated from default cycling speed
+  weightLifted?: number
+  notes?: string
+}
+
+// Type for API payload returned by /api/workouts
+export interface WorkoutApiSession {
+  id: string
+  date: string
+  source: string
+  activity: string
+  minutes: number
+  miles?: number | null
+  weightLifted?: number | null
+  notes?: string | null
+}
+
+export interface Goal {
+  id: string
+  name: string
+  year: number
+  
+  // Annual targets
+  annualWeightTarget: number // Total lbs for the year
+  minutesPerSession: number // Minutes per individual session
+  weeklySessionsTarget: number // Sessions per week
+  
+  // Calculated fields (derived from above)
+  weeklyMinutesTarget: number // minutesPerSession * weeklySessionsTarget
+  annualMinutesTarget: number // weeklyMinutesTarget * 52
+  quarterlyWeightTarget: number // annualWeightTarget / 4
+  quarterlyMinutesTarget: number // annualMinutesTarget / 4
+  quarterlySessionsTarget: number // weeklySessionsTarget * 13
+  
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface GoalProgress {
+  // Current period progress
+  currentQuarter: number
+  currentYear: number
+  
+  // Actual progress
+  actualWeightLifted: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  actualMinutes: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  actualSessions: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  
+  // Expected progress (linear)
+  expectedWeightLifted: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  expectedMinutes: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  expectedSessions: {
+    quarterToDate: number
+    yearToDate: number
+  }
+  
+  // Sessions needed
+  sessionsNeededForQuarter: number
+  sessionsNeededForYear: number
+  
+  // Time remaining
+  daysRemainingInQuarter: number
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import { ProgressChart } from './ProgressChart'
-import { WorkoutSession } from './WorkoutDashboard'
+import { WorkoutSession } from '@/types/workout'
 
 interface ClientProgressChartProps {
   sessions: WorkoutSession[]

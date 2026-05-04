@@ -1,4 +1,4 @@
-import { WorkoutSession } from '../components/WorkoutDashboard'
+import { WorkoutSession } from '@/types/workout'
 
 /**
  * Calculate default mileage for cycling workouts that have no recorded miles.
