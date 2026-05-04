@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { WorkoutSession } from '@/types/workout'
 import { formatNumber } from '../utils/numberFormat'
 
@@ -11,23 +11,16 @@ interface MonthlySummaryProps {
 }
 
 export function MonthlySummary({ sessions, selectedMonths = [], onMonthToggle }: MonthlySummaryProps) {
-  // Use state for current year to avoid hydration mismatch
-  const [currentYear, setCurrentYear] = useState(2025) // Default to 2025
-  
-  useEffect(() => {
-    // Only update on client side
-    setCurrentYear(new Date().getFullYear())
-  }, [])
-  
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ]
 
+  // Sessions are already filtered by year in the parent — just bucket by month
   const monthlyStats = months.map((month, index) => {
     const monthSessions = sessions.filter(session => {
       const date = new Date(session.date)
-      return date.getMonth() === index && date.getFullYear() === currentYear
+      return date.getMonth() === index
     })
 
     return {

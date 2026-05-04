@@ -119,14 +119,14 @@ export async function POST(req: Request) {
     let total = 0
     let offset = 0
     let hasMore = true
-    let consecutiveSkips = 0
     let caughtUp = false
     let batchCount = 0
 
     while (hasMore && !caughtUp) {
       const token = pickBearerToken(cred)
-      const response = await fetchTonalActivitySummaries(token, cred.userId, batchSize, offset)
-      const activities = response.data
+      console.log(`🔍 Tonal sync: fetching activities for user ${cred.userId}, offset=${offset}, limit=${batchSize}`)
+      const activities = await fetchTonalActivitySummaries(token, cred.userId, batchSize, offset)
+      console.log(`🔍 Tonal API returned ${activities.length} activities`)
 
       if (!activities || activities.length === 0) {
         hasMore = false
@@ -138,29 +138,28 @@ export async function POST(req: Request) {
 
       let newOnThisPage = false
 
+      // Batch-fetch already-synced tonalWorkoutIds for this page
+      const pageActivityIds = activities.map((a) => a.activityId ?? a.id).filter(Boolean) as string[]
+      const alreadySynced = await prisma.workoutSession.findMany({
+        where: { tonalWorkoutId: { in: pageActivityIds } },
+        select: { tonalWorkoutId: true },
+      })
+      const syncedIdSet = new Set(alreadySynced.map((r) => r.tonalWorkoutId))
+
       for (const activity of activities) {
-        const tonalWorkoutId = activity.id
-
-        // Check if already synced via tonalWorkoutId uniqueness
-        const existing = await prisma.workoutSession.findFirst({
-          where: { tonalWorkoutId },
-          select: { id: true },
-        })
-
-        if (existing) {
+        const tonalWorkoutId = activity.activityId ?? activity.id ?? ''
+        if (!tonalWorkoutId) {
           skipped++
-          consecutiveSkips++
-
-          // After 5 consecutive already-synced workouts, we've caught up
-          if (consecutiveSkips >= 5) {
-            caughtUp = true
-            break
-          }
           continue
         }
 
-        // New workout — reset consecutive skip counter
-        consecutiveSkips = 0
+        // Check if already synced (batch lookup)
+        if (syncedIdSet.has(tonalWorkoutId)) {
+          skipped++
+          continue
+        }
+
+        // New workout
         newOnThisPage = true
 
         const mapped = mapTonalActivity(activity)

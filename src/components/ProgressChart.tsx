@@ -65,11 +65,13 @@ export function ProgressChart({
         })
       })
 
-      // Get all months in the year
-      const currentYear = new Date().getFullYear()
+      // Get all months in the year — derive year from sessions data
+      const sessionYear = sessions.length > 0
+        ? new Date(sessions[0].date).getFullYear()
+        : new Date().getFullYear()
       const months = eachMonthOfInterval({
-        start: new Date(currentYear, 0, 1),
-        end: new Date(currentYear, 11, 31)
+        start: new Date(sessionYear, 0, 1),
+        end: new Date(sessionYear, 11, 31)
       })
 
       return months.map(month => {

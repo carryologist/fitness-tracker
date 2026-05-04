@@ -56,7 +56,6 @@ export async function POST(req: Request) {
     let updated = 0;
     let total = 0;
     let page = 0;
-    let consecutiveSkips = 0;
     let caughtUp = false;
     let retriedAuth = false;
 
@@ -83,6 +82,16 @@ export async function POST(req: Request) {
 
       if (workouts.length === 0) break;
 
+      // Batch-fetch already-synced pelotonWorkoutIds for this page
+      const pageWorkoutIds = workouts
+        .filter((w: { status: string }) => w.status === 'COMPLETE')
+        .map((w: { id: string }) => w.id);
+      const alreadySynced = await prisma.workoutSession.findMany({
+        where: { pelotonWorkoutId: { in: pageWorkoutIds } },
+        select: { pelotonWorkoutId: true },
+      });
+      const syncedIdSet = new Set(alreadySynced.map((r) => r.pelotonWorkoutId));
+
       let newOnThisPage = false;
 
       for (const workout of workouts) {
@@ -92,24 +101,13 @@ export async function POST(req: Request) {
           continue;
         }
 
-        // Check if already synced by pelotonWorkoutId
-        const existing = await prisma.workoutSession.findFirst({
-          where: { pelotonWorkoutId: workout.id },
-        });
-        if (existing) {
+        // Check if already synced by pelotonWorkoutId (batch lookup)
+        if (syncedIdSet.has(workout.id)) {
           skipped++;
-          consecutiveSkips++;
-
-          // After 5 consecutive already-synced workouts, we've caught up
-          if (consecutiveSkips >= 5) {
-            caughtUp = true;
-            break;
-          }
           continue;
         }
 
-        // New workout — reset consecutive skip counter
-        consecutiveSkips = 0;
+        // New workout
         newOnThisPage = true;
 
         // Fetch detailed summary if not included in list response

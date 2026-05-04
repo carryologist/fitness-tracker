@@ -18,7 +18,26 @@ export interface TonalAuthResponse {
 
 /** Raw activity item from GET /v6/users/:id/activities */
 export interface TonalActivityItem {
-  id: string
+  // Current API field names
+  activityId?: string
+  activityTime?: string
+  activityType?: string
+  workoutPreview?: {
+    activityId?: string
+    workoutId?: string
+    workoutTitle?: string
+    programName?: string
+    coachName?: string
+    level?: string
+    targetArea?: string
+    totalVolume?: number
+    totalReps?: number
+    totalSets?: number
+    durationSeconds?: number
+    [key: string]: unknown
+  }
+  // Legacy field names (kept for backward compat)
+  id?: string
   name?: string
   workout_name?: string
   started_at?: string
@@ -30,10 +49,6 @@ export interface TonalActivityItem {
   total_reps?: number
   total_sets?: number
   workout_id?: string
-}
-
-export interface TonalActivitiesResponse {
-  data: TonalActivityItem[]
 }
 
 export interface TonalWorkoutActivity {
@@ -157,7 +172,7 @@ export async function fetchTonalActivitySummaries(
   userId: string,
   limit: number = 50,
   offset: number = 0
-): Promise<TonalActivitiesResponse> {
+): Promise<TonalActivityItem[]> {
   const params = new URLSearchParams({ limit: String(limit) })
   if (offset > 0) params.set('offset', String(offset))
   const res = await fetch(
@@ -175,7 +190,9 @@ export async function fetchTonalActivitySummaries(
     throw new Error(`Tonal activities fetch failed (${res.status}): ${body}`)
   }
 
-  return res.json()
+  const json = await res.json()
+  // API returns a raw array, not { data: [...] }
+  return Array.isArray(json) ? json : (json.data ?? [])
 }
 
 export async function fetchTonalWorkoutActivity(
@@ -210,15 +227,19 @@ export async function fetchTonalWorkoutActivity(
  *   - started_at for date
  */
 export function mapTonalActivity(activity: TonalActivityItem) {
-  const workoutName = activity.name ?? activity.workout_name ?? 'Tonal Workout'
-  const durationSec = activity.duration_seconds ?? activity.duration ?? 0
+  const preview = activity.workoutPreview
+  const workoutName = preview?.workoutTitle ?? activity.name ?? activity.workout_name ?? 'Tonal Workout'
+  const durationSec = preview?.durationSeconds ?? activity.duration_seconds ?? activity.duration ?? 0
   const minutes = Math.round(durationSec / 60)
-  const totalVolume = activity.total_volume_lbs ?? activity.total_volume ?? 0
-  const totalReps = activity.total_reps ?? 0
-  const totalSets = activity.total_sets ?? 0
-  const dateStr = activity.started_at ?? activity.completed_at
+  const totalVolume = preview?.totalVolume ?? activity.total_volume_lbs ?? activity.total_volume ?? 0
+  const totalReps = preview?.totalReps ?? activity.total_reps ?? 0
+  const totalSets = preview?.totalSets ?? activity.total_sets ?? 0
+  const dateStr = activity.activityTime ?? activity.started_at ?? activity.completed_at
+  const activityId = activity.activityId ?? activity.id
 
   const noteParts: string[] = [workoutName]
+  if (preview?.coachName) noteParts.push(`Coach: ${preview.coachName}`)
+  if (preview?.programName) noteParts.push(preview.programName)
   if (totalSets || totalReps) {
     noteParts.push(`${totalSets} sets, ${totalReps} reps`)
   }
@@ -230,6 +251,6 @@ export function mapTonalActivity(activity: TonalActivityItem) {
     minutes,
     weightLifted: Math.round(totalVolume),
     notes: noteParts.join(' — '),
-    tonalWorkoutId: activity.id,
+    tonalWorkoutId: activityId,
   }
 }

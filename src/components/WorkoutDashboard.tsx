@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { WorkoutTable } from './WorkoutTable'
 import { WorkoutForm } from './WorkoutForm'
 import { MonthlySummary } from './MonthlySummary'
@@ -42,9 +42,10 @@ export function WorkoutDashboard() {
   const tonalFileRef = React.useRef<HTMLInputElement>(null)
 
   // Filter sessions by current year
-  const currentYearSessions = sessions.filter(session => {
-    return session.date.getFullYear() === currentYear
-  })
+  const currentYearSessions = useMemo(() => 
+    sessions.filter(session => session.date.getFullYear() === currentYear),
+    [sessions, currentYear]
+  )
 
   // Apply default mileage for cycling workouts without recorded miles, then outdoor multipliers
   const enhancedSessions = useMemo(() => {
@@ -61,7 +62,7 @@ export function WorkoutDashboard() {
   }, [])
 
   // Handle view change from chart
-  const handleViewChange = (view: 'annual' | 'monthly' | 'custom') => {
+  const handleViewChange = useCallback((view: 'annual' | 'monthly' | 'custom') => {
     setChartView(view)
     if (view === 'annual') {
       setSelectedMonth(null)
@@ -88,19 +89,21 @@ export function WorkoutDashboard() {
         setSelectedMonth(null)
       }
     }
-  }
+  }, [selectedMonths, currentDate, currentYear])
 
-  // Load sessions from localStorage on mount
+  // Load data on mount with abort cleanup
   useEffect(() => {
-    loadData()
+    const controller = new AbortController()
+    loadData(controller.signal)
+    return () => controller.abort()
   }, [])
 
-  const loadData = async () => {
+  const loadData = async (signal?: AbortSignal) => {
     try {
       console.log('🔄 Loading workout data from API...')
       
       // Fetch workouts from API
-      const response = await fetch('/api/workouts')
+      const response = await fetch('/api/workouts', { signal })
       if (!response.ok) {
         throw new Error(`Failed to fetch workouts: ${response.status}`)
       }
@@ -131,6 +134,7 @@ export function WorkoutDashboard() {
 
       setLoading(false)
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
       console.error('Failed to load data:', error)
       console.log('⚠️ Using empty data as fallback')
       setSessions([])
@@ -232,7 +236,7 @@ export function WorkoutDashboard() {
     await addSession(workout)
   }
 
-  const handleDeleteWorkout = async (id: string) => {
+  const handleDeleteWorkout = useCallback(async (id: string) => {
     try {
       const response = await fetch(`/api/workouts?id=${id}`, {
         method: 'DELETE',
@@ -242,12 +246,12 @@ export function WorkoutDashboard() {
         throw new Error('Failed to delete workout')
       }
       
-      setSessions(sessions.filter(s => s.id !== id))
+      setSessions(prev => prev.filter(s => s.id !== id))
     } catch (error) {
       console.error('Failed to delete workout:', error)
       alert('Failed to delete workout. Please try again.')
     }
-  }
+  }, [])
 
   // Goal management functions
   const handleCreateGoal = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -487,10 +491,11 @@ export function WorkoutDashboard() {
     }
   }
 
-  // Get current goal for the year
-  const getCurrentGoal = (): Goal | null => {
-    return goals.find(g => g.year === currentYear) || null
-  }
+  // Get current goal for the year (memoized — used 3x in JSX)
+  const currentGoal = useMemo<Goal | null>(() => 
+    goals.find(g => g.year === currentYear) || null,
+    [goals, currentYear]
+  )
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -596,8 +601,6 @@ export function WorkoutDashboard() {
         {/* Goals and Summary Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 items-stretch">
           {(() => {
-            const currentGoal = getCurrentGoal()
-            
             if (!currentGoal) {
               // No goal exists for current year - show create goal UI
               return (
@@ -652,24 +655,21 @@ export function WorkoutDashboard() {
           })()}
           <WorkoutSummary
             sessions={enhancedSessions}
-            goals={(() => {
-              const goal = getCurrentGoal()
-              return goal ? {
-                quarterly: {
-                  sessions: goal.quarterlySessionsTarget,
-                  minutes: goal.quarterlyMinutesTarget,
-                  weight: goal.quarterlyWeightTarget
-                },
-                annual: {
-                  sessions: goal.weeklySessionsTarget * 52,
-                  minutes: goal.annualMinutesTarget,
-                  weight: goal.annualWeightTarget
-                }
-              } : {
-                quarterly: { sessions: 0, minutes: 0, weight: 0 },
-                annual: { sessions: 0, minutes: 0, weight: 0 }
+            goals={currentGoal ? {
+              quarterly: {
+                sessions: currentGoal.quarterlySessionsTarget,
+                minutes: currentGoal.quarterlyMinutesTarget,
+                weight: currentGoal.quarterlyWeightTarget
+              },
+              annual: {
+                sessions: currentGoal.weeklySessionsTarget * 52,
+                minutes: currentGoal.annualMinutesTarget,
+                weight: currentGoal.annualWeightTarget
               }
-            })()}
+            } : {
+              quarterly: { sessions: 0, minutes: 0, weight: 0 },
+              annual: { sessions: 0, minutes: 0, weight: 0 }
+            }}
           />
         </div>
 
