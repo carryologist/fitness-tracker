@@ -41,7 +41,7 @@ async function ensureFreshToken(cred: TonalCredential): Promise<TonalCredential>
 
   console.log('🔄 Refreshing Tonal token...')
   const authResponse = await refreshTonalToken(cred.refreshToken)
-  const userId = getUserIdFromToken(authResponse.id_token)
+  const userId = await getUserIdFromToken(authResponse.id_token)
   const expiresAt = Math.floor(Date.now() / 1000) + authResponse.expires_in
 
   const updated = await prisma.tonalCredential.update({
@@ -60,12 +60,12 @@ async function ensureFreshToken(cred: TonalCredential): Promise<TonalCredential>
 }
 
 /**
- * Pick the best bearer token from the stored credential.
- * Try access_token first (may be a proper JWT after audience fix),
- * then fall back to id_token.
+ * Pick the bearer token from the stored credential.
+ * The Tonal API only accepts the id_token. The access_token from Auth0
+ * (without audience) is opaque and gets rejected with 401.
  */
 function pickBearerToken(cred: TonalCredential): string {
-  return cred.accessToken ?? cred.idToken
+  return cred.idToken
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +103,8 @@ export async function POST(req: Request) {
 
     const url = new URL(req.url)
     const limit = parseInt(url.searchParams.get('limit') || '200')
-    const maxPages = Math.ceil(limit / 50)
+    const batchSize = 50
+    const maxBatches = Math.ceil(limit / batchSize)
 
     console.log('🏋️ Starting Tonal workout sync...')
 
@@ -111,14 +112,15 @@ export async function POST(req: Request) {
     let skipped = 0
     let updated = 0
     let total = 0
-    let page = 1
+    let offset = 0
     let hasMore = true
     let consecutiveSkips = 0
     let caughtUp = false
+    let batchCount = 0
 
     while (hasMore && !caughtUp) {
       const token = pickBearerToken(cred)
-      const response = await fetchTonalActivitySummaries(token, cred.userId, page, 50)
+      const response = await fetchTonalActivitySummaries(token, cred.userId, batchSize, offset)
       const activities = response.data
 
       if (!activities || activities.length === 0) {
@@ -127,13 +129,16 @@ export async function POST(req: Request) {
       }
 
       total += activities.length
+      batchCount++
 
       let newOnThisPage = false
 
       for (const activity of activities) {
+        const tonalWorkoutId = activity.id
+
         // Check if already synced via tonalWorkoutId uniqueness
         const existing = await prisma.workoutSession.findFirst({
-          where: { tonalWorkoutId: activity.id },
+          where: { tonalWorkoutId },
           select: { id: true },
         })
 
@@ -204,13 +209,14 @@ export async function POST(req: Request) {
         break
       }
 
-      // Check pagination — stop if we got fewer than a full page or hit page cap
-      if (page >= maxPages) {
+      // Offset-based pagination: advance by batch size, stop if we got
+      // fewer items than requested or hit the batch cap
+      if (batchCount >= maxBatches) {
         hasMore = false
-      } else if (response.pagination && response.pagination.page * response.pagination.per_page < response.pagination.total) {
-        page++
+      } else if (activities.length < batchSize) {
+        hasMore = false
       } else {
-        hasMore = false
+        offset += batchSize
       }
     }
 

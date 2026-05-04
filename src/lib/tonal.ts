@@ -1,26 +1,39 @@
 // Tonal API client (reverse-engineered, no official docs)
-// Auth via Auth0 password grant.
-// The API may accept either the access_token or id_token as Bearer depending
-// on server-side changes.  We try access_token first, then fall back to
-// id_token.  Extra mobile-app headers are included to match the official client.
+// Auth via Auth0 password grant — no audience param needed.
+// Bearer token MUST be the `id_token`, NOT the `access_token`.
+// The Auth0 `sub` claim is NOT the Tonal user ID — we fetch it from /v6/users/userinfo.
+// Reference: danmarai/tonal-api, curlrequests/toneget, JeffOtano/roni
 
 const TONAL_AUTH_URL = 'https://tonal.auth0.com/oauth/token'
 const TONAL_API_BASE = 'https://api.tonal.com/v6'
 const TONAL_CLIENT_ID = 'ERCyexW-xoVG_Yy3RDe-eV4xsOnRHP6L'
 
-/** Headers that the Tonal iOS app sends alongside every API request. */
-const TONAL_APP_HEADERS: Record<string, string> = {
-  'User-Agent': 'Tonal/5.0 (iOS)',
-  Accept: 'application/json',
-  'x-tonal-app-version': '5.0.0',
-}
-
 export interface TonalAuthResponse {
   access_token: string
-  id_token: string    // THIS is what we use as Bearer
+  id_token: string    // THIS is what we use as Bearer for all API calls
   token_type: string
   expires_in: number  // seconds
   refresh_token?: string
+}
+
+/** Raw activity item from GET /v6/users/:id/activities */
+export interface TonalActivityItem {
+  id: string
+  name?: string
+  workout_name?: string
+  started_at?: string
+  completed_at?: string
+  duration?: number
+  duration_seconds?: number
+  total_volume?: number
+  total_volume_lbs?: number
+  total_reps?: number
+  total_sets?: number
+  workout_id?: string
+}
+
+export interface TonalActivitiesResponse {
+  data: TonalActivityItem[]
 }
 
 export interface TonalWorkoutActivity {
@@ -47,73 +60,30 @@ export interface TonalSet {
   set_number: number
 }
 
-export interface TonalActivitySummary {
-  id: string
-  workout_activity_id: string
-  date: string             // ISO date
-  total_volume_lbs: number
-  total_duration_seconds: number
-  total_reps: number
-  total_sets: number
-  workout_name: string
-}
-
-export interface TonalActivitySummariesResponse {
-  data: TonalActivitySummary[]
-  pagination?: {
-    total: number
-    page: number
-    per_page: number
-  }
-}
-
+/**
+ * Authenticate with Tonal via Auth0 password grant.
+ * No `audience` param — that causes 400 errors.
+ * Returns tokens; use `id_token` as Bearer for all API calls.
+ */
 export async function authenticateTonal(email: string, password: string): Promise<TonalAuthResponse> {
-  // Try multiple Auth0 configurations — the audience param is the usual culprit
-  // for "400: invalid audience specified for password grant exchange".
-  const attempts = [
-    {
+  const res = await fetch(TONAL_AUTH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       grant_type: 'password',
       client_id: TONAL_CLIENT_ID,
       username: email,
       password: password,
       scope: 'openid profile email offline_access',
-    },
-    {
-      grant_type: 'password',
-      client_id: TONAL_CLIENT_ID,
-      username: email,
-      password: password,
-      scope: 'openid profile email offline_access',
-      audience: 'https://api.tonal.com',
-    },
-    {
-      grant_type: 'password',
-      client_id: TONAL_CLIENT_ID,
-      username: email,
-      password: password,
-      scope: 'openid profile email offline_access',
-      audience: 'https://tonal.auth0.com/api/v2/',
-    },
-  ]
+    }),
+  })
 
-  let lastError = ''
-
-  for (const body of attempts) {
-    const res = await fetch(TONAL_AUTH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-
-    if (res.ok) {
-      return res.json()
-    }
-
-    lastError = await res.text()
-    console.log(`Tonal auth attempt failed (${res.status}): ${lastError}`)
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Tonal auth failed (${res.status}): ${body}`)
   }
 
-  throw new Error(`Tonal auth failed after all attempts: ${lastError}`)
+  return res.json()
 }
 
 export async function refreshTonalToken(refreshToken: string): Promise<TonalAuthResponse> {
@@ -136,31 +106,73 @@ export async function refreshTonalToken(refreshToken: string): Promise<TonalAuth
   return res.json()
 }
 
-// Get user ID from the id_token JWT (decode payload without verification)
-export function getUserIdFromToken(idToken: string): string {
-  const payload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString())
-  return payload.sub  // Auth0 user ID
+/**
+ * Fetch the Tonal user ID from the API.
+ * The Auth0 `sub` claim is NOT the same as the Tonal API user ID.
+ * Uses `id_token` as Bearer.
+ */
+export async function fetchTonalUserId(token: string): Promise<string> {
+  const res = await fetch(`${TONAL_API_BASE}/users/userinfo`, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Tonal userinfo fetch failed (${res.status}): ${body}`)
+  }
+
+  const data = await res.json()
+  const userId = data.id ?? data.user_id
+  if (!userId) {
+    throw new Error(`Tonal userinfo response missing id field: ${JSON.stringify(data)}`)
+  }
+  return String(userId)
 }
 
+// --- Fallback (deprecated): parse Auth0 sub from JWT ---
+// export function getUserIdFromToken(idToken: string): string {
+//   const payload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString())
+//   return payload.sub  // Auth0 user ID — NOT the Tonal API user ID
+// }
+
+/**
+ * Get user ID. Calls the userinfo endpoint (correct approach).
+ * Kept as `getUserIdFromToken` for backward compat with existing call sites,
+ * but now async and hits the API instead of parsing the JWT.
+ */
+export async function getUserIdFromToken(idToken: string): Promise<string> {
+  return fetchTonalUserId(idToken)
+}
+
+/**
+ * Fetch activities from Tonal.
+ * Endpoint: GET /v6/users/:userId/activities?limit=N
+ * Bearer token MUST be the id_token.
+ */
 export async function fetchTonalActivitySummaries(
   token: string,
   userId: string,
-  page: number = 1,
-  perPage: number = 50
-): Promise<TonalActivitySummariesResponse> {
+  limit: number = 50,
+  offset: number = 0
+): Promise<TonalActivitiesResponse> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (offset > 0) params.set('offset', String(offset))
   const res = await fetch(
-    `${TONAL_API_BASE}/users/${userId}/activity-summaries?page=${page}&per_page=${perPage}`,
+    `${TONAL_API_BASE}/users/${userId}/activities?${params}`,
     {
       headers: {
-        ...TONAL_APP_HEADERS,
+        Accept: 'application/json',
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
     }
   )
 
   if (!res.ok) {
-    throw new Error(`Tonal activity summaries fetch failed (${res.status})`)
+    const body = await res.text()
+    throw new Error(`Tonal activities fetch failed (${res.status}): ${body}`)
   }
 
   return res.json()
@@ -175,34 +187,49 @@ export async function fetchTonalWorkoutActivity(
     `${TONAL_API_BASE}/users/${userId}/workout-activities/${activityId}`,
     {
       headers: {
-        ...TONAL_APP_HEADERS,
+        Accept: 'application/json',
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
     }
   )
 
   if (!res.ok) {
-    throw new Error(`Tonal workout activity fetch failed (${res.status})`)
+    const body = await res.text()
+    throw new Error(`Tonal workout activity fetch failed (${res.status}): ${body}`)
   }
 
   return res.json()
 }
 
-// Map a Tonal activity summary to our WorkoutSession format
-export function mapTonalActivity(summary: TonalActivitySummary) {
-  const minutes = Math.round(summary.total_duration_seconds / 60)
+/**
+ * Map a Tonal activity item to our WorkoutSession format.
+ * Handles both snake_case naming variants from the API:
+ *   - name / workout_name
+ *   - duration / duration_seconds
+ *   - total_volume / total_volume_lbs
+ *   - started_at for date
+ */
+export function mapTonalActivity(activity: TonalActivityItem) {
+  const workoutName = activity.name ?? activity.workout_name ?? 'Tonal Workout'
+  const durationSec = activity.duration_seconds ?? activity.duration ?? 0
+  const minutes = Math.round(durationSec / 60)
+  const totalVolume = activity.total_volume_lbs ?? activity.total_volume ?? 0
+  const totalReps = activity.total_reps ?? 0
+  const totalSets = activity.total_sets ?? 0
+  const dateStr = activity.started_at ?? activity.completed_at
+
+  const noteParts: string[] = [workoutName]
+  if (totalSets || totalReps) {
+    noteParts.push(`${totalSets} sets, ${totalReps} reps`)
+  }
 
   return {
     source: 'Tonal',
     activity: 'Weight Lifting',
-    date: new Date(summary.date),
+    date: dateStr ? new Date(dateStr) : new Date(),
     minutes,
-    weightLifted: Math.round(summary.total_volume_lbs),
-    notes: [
-      summary.workout_name,
-      `${summary.total_sets} sets, ${summary.total_reps} reps`,
-    ].join(' — '),
-    tonalWorkoutId: summary.id,
+    weightLifted: Math.round(totalVolume),
+    notes: noteParts.join(' — '),
+    tonalWorkoutId: activity.id,
   }
 }

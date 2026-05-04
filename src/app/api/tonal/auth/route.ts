@@ -16,7 +16,7 @@ export async function POST() {
 
     console.log('🔐 Authenticating with Tonal...')
     const authResponse = await authenticateTonal(email, password)
-    const userId = getUserIdFromToken(authResponse.id_token)
+    const userId = await getUserIdFromToken(authResponse.id_token)
 
     const expiresAt = Math.floor(Date.now() / 1000) + authResponse.expires_in
 

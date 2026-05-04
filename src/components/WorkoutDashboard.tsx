@@ -831,8 +831,6 @@ export function WorkoutDashboard() {
                   <RefreshCw className={`w-3.5 h-3.5 ${syncing === 'peloton' ? 'animate-spin' : ''}`} />
                   <span>{syncing === 'peloton' ? 'Syncing…' : 'Peloton'}</span>
                 </button>
-                {/* Sync Tonal hidden — API returns 401, keeping code for future use */}
-                {false && (
                 <button
                   onClick={() => handleSync('tonal')}
                   disabled={syncing !== null}
@@ -841,12 +839,12 @@ export function WorkoutDashboard() {
                   <RefreshCw className={`w-3.5 h-3.5 ${syncing === 'tonal' ? 'animate-spin' : ''}`} />
                   <span>{syncing === 'tonal' ? 'Syncing…' : 'Tonal'}</span>
                 </button>
-                )}
+                {/* OCR screenshot import — fallback when API sync doesn't capture a workout */}
                 <button
                   onClick={() => tonalFileRef.current?.click()}
                   disabled={importing}
-                  className="bg-gray-900 dark:bg-gray-200 hover:bg-black dark:hover:bg-white disabled:opacity-50 text-white dark:text-gray-900 p-1.5 rounded-lg transition-colors shadow-sm"
-                  title="Import Tonal screenshot"
+                  className="bg-gray-700 dark:bg-gray-500 hover:bg-gray-800 dark:hover:bg-gray-400 disabled:opacity-50 text-white dark:text-gray-900 p-1.5 rounded-lg transition-colors shadow-sm"
+                  title="Import Tonal screenshot (fallback)"
                 >
                   <Upload className={`w-3.5 h-3.5 ${importing ? 'animate-pulse' : ''}`} />
                   {importing && importProgress && <span className="text-[10px]">{importProgress}</span>}
@@ -946,8 +944,6 @@ export function WorkoutDashboard() {
                 <RefreshCw className={`w-4 h-4 ${syncing === 'peloton' ? 'animate-spin' : ''}`} />
                 <span>{syncing === 'peloton' ? 'Syncing…' : 'Sync Peloton'}</span>
               </button>
-              {/* Sync Tonal hidden — API returns 401, keeping code for future use */}
-              {false && (
               <button
                 onClick={() => handleSync('tonal')}
                 disabled={syncing !== null}
@@ -956,12 +952,12 @@ export function WorkoutDashboard() {
                 <RefreshCw className={`w-4 h-4 ${syncing === 'tonal' ? 'animate-spin' : ''}`} />
                 <span>{syncing === 'tonal' ? 'Syncing…' : 'Sync Tonal'}</span>
               </button>
-              )}
+              {/* OCR screenshot import — fallback when API sync doesn't capture a workout */}
               <button
                 onClick={() => tonalFileRef.current?.click()}
                 disabled={importing}
-                className="bg-gray-900 dark:bg-gray-200 hover:bg-black dark:hover:bg-white disabled:opacity-50 text-white dark:text-gray-900 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
-                title="Import Tonal screenshot"
+                className="bg-gray-700 dark:bg-gray-500 hover:bg-gray-800 dark:hover:bg-gray-400 disabled:opacity-50 text-white dark:text-gray-900 px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm whitespace-nowrap"
+                title="Import Tonal screenshot (fallback)"
               >
                 <Upload className={`w-4 h-4 ${importing ? 'animate-pulse' : ''}`} />
                 <span>{importing ? `Importing ${importProgress || ''}…` : 'Import Tonal'}</span>
