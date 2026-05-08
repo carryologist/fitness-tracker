@@ -315,6 +315,10 @@ export function WorkoutDashboard() {
         if (data.updated > 0) parts.push(`${data.updated} updated`)
         if (data.skipped > 0) parts.push(`${data.skipped} already synced`)
         const summary = parts.length > 0 ? parts.join(', ') : 'up to date'
+        // Temporarily show raw debug data from Tonal API in error banner
+        if (data._debug && data._debug.length > 0) {
+          setSyncError('DEBUG RAW API: ' + JSON.stringify(data._debug[0]))
+        }
         setSyncSuccess(`${service.charAt(0).toUpperCase() + service.slice(1)} sync: ${summary}`)
         setTimeout(() => setSyncSuccess(null), 6000)
       } else {
