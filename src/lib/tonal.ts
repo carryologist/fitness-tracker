@@ -226,10 +226,10 @@ export async function fetchTonalWorkoutActivity(
  *   - total_volume / total_volume_lbs
  *   - started_at for date
  */
-export function mapTonalActivity(activity: TonalActivityItem) {
+export function mapTonalActivity(activity: TonalActivityItem, detailedDurationSec?: number) {
   const preview = activity.workoutPreview
   const workoutName = preview?.workoutTitle ?? activity.name ?? activity.workout_name ?? 'Tonal Workout'
-  const durationSec = preview?.durationSeconds ?? activity.duration_seconds ?? activity.duration ?? 0
+  const durationSec = detailedDurationSec ?? preview?.durationSeconds ?? activity.duration_seconds ?? activity.duration ?? 0
   const minutes = Math.round(durationSec / 60)
   const totalVolume = preview?.totalVolume ?? activity.total_volume_lbs ?? activity.total_volume ?? 0
   const totalReps = preview?.totalReps ?? activity.total_reps ?? 0
