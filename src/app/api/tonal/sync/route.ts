@@ -4,6 +4,7 @@ import { checkAuth } from '@/lib/auth'
 import {
   refreshTonalToken,
   fetchTonalActivitySummaries,
+  fetchTonalWorkoutActivity,
   mapTonalActivity,
   getUserIdFromToken,
 } from '@/lib/tonal'
@@ -142,7 +143,7 @@ export async function POST(req: Request) {
       const pageActivityIds = activities.map((a) => a.activityId ?? a.id).filter(Boolean) as string[]
       const alreadySynced = await prisma.workoutSession.findMany({
         where: { tonalWorkoutId: { in: pageActivityIds } },
-        select: { tonalWorkoutId: true },
+        select: { tonalWorkoutId: true, minutes: true },
       })
       const syncedIdSet = new Set(alreadySynced.map((r) => r.tonalWorkoutId))
 
@@ -155,6 +156,25 @@ export async function POST(req: Request) {
 
         // Check if already synced (batch lookup)
         if (syncedIdSet.has(tonalWorkoutId)) {
+          // Fix existing 0-minute entries by fetching detailed duration
+          const existingRow = alreadySynced.find((r) => r.tonalWorkoutId === tonalWorkoutId)
+          if (existingRow && existingRow.minutes === 0) {
+            try {
+              const token = pickBearerToken(cred)
+              const detailed = await fetchTonalWorkoutActivity(token, cred.userId, tonalWorkoutId)
+              if (detailed.duration_seconds > 0) {
+                const fixedMinutes = Math.round(detailed.duration_seconds / 60)
+                await prisma.workoutSession.updateMany({
+                  where: { tonalWorkoutId },
+                  data: { minutes: fixedMinutes },
+                })
+                console.log(`🔧 Fixed 0-minute Tonal workout ${tonalWorkoutId}: now ${fixedMinutes} min`)
+                updated++
+              }
+            } catch (e) {
+              console.warn(`⚠️ Could not fix 0-min workout ${tonalWorkoutId}:`, e instanceof Error ? e.message : e)
+            }
+          }
           skipped++
           continue
         }
@@ -162,7 +182,22 @@ export async function POST(req: Request) {
         // New workout
         newOnThisPage = true
 
-        const mapped = mapTonalActivity(activity)
+        // Check if summary has duration; if not, fetch detailed activity
+        const preview = activity.workoutPreview
+        const hasDuration = (preview?.durationSeconds ?? activity.duration_seconds ?? activity.duration) != null
+        let detailedDurationSec: number | undefined
+        if (!hasDuration) {
+          try {
+            const token = pickBearerToken(cred)
+            const detailed = await fetchTonalWorkoutActivity(token, cred.userId, tonalWorkoutId)
+            detailedDurationSec = detailed.duration_seconds
+            console.log(`📋 Fetched detailed duration for ${tonalWorkoutId}: ${detailedDurationSec}s`)
+          } catch (e) {
+            console.warn(`⚠️ Could not fetch detailed activity for ${tonalWorkoutId}:`, e instanceof Error ? e.message : e)
+          }
+        }
+
+        const mapped = mapTonalActivity(activity, detailedDurationSec)
 
         // Check for a manually-entered row matching date + source that
         // is missing tonalWorkoutId (backfill weight & link it)
@@ -183,6 +218,7 @@ export async function POST(req: Request) {
           await prisma.workoutSession.update({
             where: { id: manualMatch.id },
             data: {
+              minutes: mapped.minutes || manualMatch.minutes,
               weightLifted: mapped.weightLifted,
               notes: mapped.notes,
               tonalWorkoutId: mapped.tonalWorkoutId,
