@@ -122,6 +122,7 @@ export async function POST(req: Request) {
     let hasMore = true
     let caughtUp = false
     let batchCount = 0
+    const debugSamples: unknown[] = []
 
     while (hasMore && !caughtUp) {
       const token = pickBearerToken(cred)
@@ -148,6 +149,10 @@ export async function POST(req: Request) {
       const syncedIdSet = new Set(alreadySynced.map((r) => r.tonalWorkoutId))
 
       for (const activity of activities) {
+        // Capture first 3 raw activities for debugging
+        if (debugSamples.length < 3) {
+          debugSamples.push(activity)
+        }
         const tonalWorkoutId = activity.activityId ?? activity.id ?? ''
         if (!tonalWorkoutId) {
           skipped++
@@ -262,7 +267,7 @@ export async function POST(req: Request) {
 
     console.log(`✅ Tonal sync complete: ${synced} synced, ${updated} updated, ${skipped} skipped, ${total} total`)
 
-    return NextResponse.json({ synced, updated, skipped, total })
+    return NextResponse.json({ synced, updated, skipped, total, _debug: debugSamples })
   } catch (error) {
     console.error('💥 Tonal sync error:', error)
     if (error instanceof ResponseError) {
