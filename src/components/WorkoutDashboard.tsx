@@ -317,7 +317,14 @@ export function WorkoutDashboard() {
         const summary = parts.length > 0 ? parts.join(', ') : 'up to date'
         // Temporarily show raw debug data from Tonal API in error banner
         if (data._debug && data._debug.length > 0) {
-          setSyncError('DEBUG RAW API: ' + JSON.stringify(data._debug[0]))
+          try {
+            const debugStr = JSON.stringify(data._debug[0]).substring(0, 500)
+            setSyncError('DEBUG: ' + debugStr)
+          } catch {
+            setSyncError('DEBUG: could not stringify, keys=' + Object.keys(data._debug[0]).join(','))
+          }
+        } else {
+          setSyncError('DEBUG: _debug missing or empty, response keys=' + Object.keys(data).join(','))
         }
         setSyncSuccess(`${service.charAt(0).toUpperCase() + service.slice(1)} sync: ${summary}`)
         setTimeout(() => setSyncSuccess(null), 6000)
