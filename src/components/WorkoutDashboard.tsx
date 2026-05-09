@@ -317,14 +317,22 @@ export function WorkoutDashboard() {
         const summary = parts.length > 0 ? parts.join(', ') : 'up to date'
         // Temporarily show raw debug data from Tonal API in error banner
         if (data._debug && data._debug.length > 0) {
-          try {
-            const debugStr = JSON.stringify(data._debug[0]).substring(0, 500)
-            setSyncError('DEBUG: ' + debugStr)
-          } catch {
-            setSyncError('DEBUG: could not stringify, keys=' + Object.keys(data._debug[0]).join(','))
-          }
+          const item = data._debug[0]
+          const preview = item.workoutPreview || {}
+          const previewKeys = Object.keys(preview).join(', ')
+          const topKeys = Object.keys(item).join(', ')
+          // Show duration-related values specifically
+          const durationInfo = [
+            `preview.durationSeconds=${preview.durationSeconds}`,
+            `preview.duration=${preview.duration}`,
+            `preview.durationInSeconds=${preview.durationInSeconds}`,
+            `preview.workoutDuration=${preview.workoutDuration}`,
+            `item.duration=${item.duration}`,
+            `item.duration_seconds=${item.duration_seconds}`,
+          ].join(' | ')
+          setSyncError(`KEYS top=[${topKeys}] preview=[${previewKeys}] DURATION: ${durationInfo}`)
         } else {
-          setSyncError('DEBUG: _debug missing or empty, response keys=' + Object.keys(data).join(','))
+          setSyncError('DEBUG: _debug missing or empty')
         }
         setSyncSuccess(`${service.charAt(0).toUpperCase() + service.slice(1)} sync: ${summary}`)
         setTimeout(() => setSyncSuccess(null), 6000)
