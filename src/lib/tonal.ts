@@ -33,6 +33,7 @@ export interface TonalActivityItem {
     totalVolume?: number
     totalReps?: number
     totalSets?: number
+    totalDuration?: number
     durationSeconds?: number
     [key: string]: unknown
   }
@@ -229,7 +230,7 @@ export async function fetchTonalWorkoutActivity(
 export function mapTonalActivity(activity: TonalActivityItem, detailedDurationSec?: number) {
   const preview = activity.workoutPreview
   const workoutName = preview?.workoutTitle ?? activity.name ?? activity.workout_name ?? 'Tonal Workout'
-  const durationSec = detailedDurationSec ?? preview?.durationSeconds ?? activity.duration_seconds ?? activity.duration ?? 0
+  const durationSec = detailedDurationSec ?? preview?.totalDuration ?? preview?.durationSeconds ?? activity.duration_seconds ?? activity.duration ?? 0
   const minutes = Math.round(durationSec / 60)
   const totalVolume = preview?.totalVolume ?? activity.total_volume_lbs ?? activity.total_volume ?? 0
   const totalReps = preview?.totalReps ?? activity.total_reps ?? 0
