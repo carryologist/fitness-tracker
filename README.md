@@ -11,6 +11,7 @@ Personal fitness tracking application with workout logging, goal setting, progre
 - 🏋️ **Tonal Integration** - Automatically sync weight lifting sessions with volume data from Tonal
 - 🎨 **Dark Mode** - Beautiful dark/light theme support
 - 🔒 **Secure Authentication** - Google OAuth login
+- 🤖 **MCP Server** - Talk to your fitness data from Claude Desktop, Codex, OpenClaw, and any other MCP-aware AI agent
 
 ## Tech Stack
 
@@ -63,6 +64,10 @@ Personal fitness tracking application with workout logging, goal setting, progre
    
    # Optional: Restrict to single user
    ALLOWED_EMAIL="your-email@example.com"
+
+   # Personal access token for the MCP server and Bearer-token API access.
+   # Generate with: openssl rand -hex 32  (must be >= 16 chars)
+   MCP_API_TOKEN="<32+ random hex chars>"
    ```
 
 4. **Set up Google OAuth** (see detailed instructions below)
@@ -115,6 +120,54 @@ To restrict access to only your Google account, set:
 ALLOWED_EMAIL="your-email@example.com"
 ```
 
+## Agent Access (MCP Server)
+
+The app exposes a [Model Context Protocol](https://modelcontextprotocol.io) server at `/api/mcp/mcp` so AI agents (Claude Desktop, Codex, OpenClaw, Cursor, etc.) can read your workout data, log new workouts, and trigger Peloton / Tonal syncs.
+
+### Setup
+
+1. Generate a token and add it to your env:
+   ```bash
+   openssl rand -hex 32
+   ```
+   ```env
+   MCP_API_TOKEN="<paste the hex string here>"
+   ```
+   Set the same value in Vercel project settings for production. The token must be at least 16 characters.
+
+2. Point an MCP client at the endpoint. Example client config (Claude Desktop `claude_desktop_config.json`, Codex `~/.codex/config.toml`, OpenClaw, etc.):
+   ```json
+   {
+     "mcpServers": {
+       "fitness-tracker": {
+         "type": "http",
+         "url": "https://<your-app>.vercel.app/api/mcp/mcp",
+         "headers": { "Authorization": "Bearer <MCP_API_TOKEN>" }
+       }
+     }
+   }
+   ```
+
+### Tools exposed
+
+All tools return raw rows (no precomputed aggregates) so the agent can do its own analysis.
+
+- `list_workouts` — filter by year / source / activity / since / limit
+- `get_workout` — fetch one row by ID
+- `create_workout`, `update_workout`, `delete_workout` — full CRUD on manual entries
+- `list_goals` — annual targets + derived weekly / quarterly values
+- `peloton_status`, `sync_peloton` — check connection, pull new workouts
+- `tonal_status`, `sync_tonal` — same for Tonal
+
+### REST API with the same token
+
+`MCP_API_TOKEN` also works as a personal access token for the existing REST routes. Send `Authorization: Bearer $MCP_API_TOKEN` instead of a session cookie:
+
+```bash
+curl -H "Authorization: Bearer $MCP_API_TOKEN" \
+     https://<your-app>.vercel.app/api/workouts?year=2025
+```
+
 ## Peloton & Tonal Integration (Optional)
 
 Both integrations use email/password authentication (no OAuth redirect flow).
@@ -161,7 +214,8 @@ src/
 │   │   ├── workouts/     # Workout CRUD
 │   │   ├── goals/        # Goal CRUD
 │   │   ├── peloton/      # Peloton integration
-│   │   └── tonal/        # Tonal integration
+│   │   ├── tonal/        # Tonal integration
+│   │   └── mcp/          # MCP server for AI agents
 │   ├── login/            # Sign-in page
 │   ├── layout.tsx        # Root layout
 │   └── page.tsx          # Dashboard page
