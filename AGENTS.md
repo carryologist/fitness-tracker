@@ -19,7 +19,7 @@ Personal fitness tracking application with a Next.js web dashboard. Tracks worko
 ```
 src/
 ├── app/           # Next.js App Router pages and API routes
-│   └── api/       # REST endpoints: /goals, /workouts, /peloton/*, /tonal/*
+│   └── api/       # REST endpoints: /goals, /workouts, /peloton/*, /tonal/*, /mcp/*
 ├── components/    # React components (dialogs, charts, forms)
 ├── lib/           # Utilities and shared code (utils, peloton, tonal, types)
 ├── types/         # TypeScript type definitions
@@ -37,6 +37,8 @@ archive/           # Archived code (mobile app)
 - `src/components/WorkoutDashboard.tsx` - Main dashboard
 - `src/lib/peloton.ts` - Peloton API integration (session-cookie auth)
 - `src/lib/tonal.ts` - Tonal API integration (Auth0 password grant)
+- `src/app/api/mcp/[transport]/route.ts` - MCP server for AI agents (Claude, Codex, OpenClaw, ...)
+- `src/lib/api-auth.ts` - Bearer-token helpers for `MCP_API_TOKEN`
 
 ## Essential Commands
 
@@ -170,8 +172,32 @@ The app uses NextAuth.js v5 (Auth.js) with Google OAuth for authentication. All 
 
 ### Security Notes
 
-- All routes except `/api/auth/*` and `/login` require authentication
+- All routes except `/api/auth/*`, `/api/mcp/*`, and `/login` require authentication
+- API routes additionally accept `Authorization: Bearer $MCP_API_TOKEN` as a session-cookie alternative
 - Static files (images, fonts, etc.) are excluded from authentication checks
 - Sessions use JWT strategy for serverless deployment compatibility
 - Optional email restriction for single-user applications
 - NEXTAUTH_SECRET must be set in production
+
+## MCP Server (Agent Access)
+
+The app ships an MCP server at `/api/mcp/mcp` (streamable HTTP transport) so agents can read workouts, log new ones, and trigger Peloton / Tonal syncs.
+
+### Auth
+
+Set `MCP_API_TOKEN` in env (`openssl rand -hex 32`, must be >= 16 chars). Send it as `Authorization: Bearer $MCP_API_TOKEN`.
+
+The same token also unlocks the existing REST routes (`/api/workouts`, `/api/goals`, `/api/peloton/*`, `/api/tonal/*`) so scripts and agents can use them without a NextAuth session cookie. The middleware (`middleware.ts`) accepts either a session OR the bearer token for `/api/*` paths.
+
+### Files
+
+- `src/app/api/mcp/[transport]/route.ts` - tool definitions + `withMcpAuth` wrapper
+- `src/lib/api-auth.ts` - `extractBearerToken`, `isValidApiToken` (timing-safe compare)
+- `middleware.ts` - lets `/api/mcp` through (route polices itself) and accepts bearer tokens for `/api/*`
+
+### Design Choices
+
+- **Raw rows, no precomputed aggregates.** Tools return database rows so the agent can do its own analysis. Add aggregating tools only if a specific agent struggles with the raw-data path.
+- **Sync tools wrap existing REST endpoints** via `fetch` to `selfBaseUrl(req)/api/peloton/sync` rather than duplicating dedup orchestration. They forward the bearer token internally.
+- **Streamable HTTP only**, SSE transport disabled (`disableSse: true`) because we do not run Redis. The streamable HTTP transport is stateless and works on Vercel without external state.
+- **Token length floor of 16 chars** enforced in `isValidApiToken` so an empty / unset env never passes.
