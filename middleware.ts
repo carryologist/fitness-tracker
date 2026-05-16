@@ -19,6 +19,9 @@ function timingSafeEqual(a: string, b: string): boolean {
   return mismatch === 0
 }
 
+// F-12 (intentional): only the Authorization header is honoured.
+// Do NOT widen this to query-string / cookie / alternate header without
+// re-doing the threat model — token-in-URL leaks to logs and Referer.
 function hasValidApiToken(req: { headers: Headers }): boolean {
   const header =
     req.headers.get('authorization') ?? req.headers.get('Authorization')

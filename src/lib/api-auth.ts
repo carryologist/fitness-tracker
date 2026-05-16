@@ -31,6 +31,11 @@ function timingSafeEqual(a: string, b: string): boolean {
 /**
  * Extract a bearer token from an `Authorization: Bearer <token>` header.
  * Returns null when the header is absent or malformed.
+ *
+ * F-12 (intentional): we ONLY read the Authorization header. Do NOT
+ * add query-string, cookie, or alternate-header fallbacks "for
+ * convenience" — query-string tokens get logged in CDN/access logs and
+ * leak via Referer headers; cookies become a CSRF problem.
  */
 export function extractBearerToken(request: Request | NextRequest): string | null {
   const header = request.headers.get('authorization') ?? request.headers.get('Authorization')

@@ -15,7 +15,7 @@ Personal fitness tracking application with workout logging, goal setting, progre
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS
+- **Frontend**: Next.js 15 (App Router), React 18, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes, Prisma ORM
 - **Database**: PostgreSQL (Vercel Postgres)
 - **Authentication**: NextAuth.js v5 with Google OAuth
@@ -245,10 +245,70 @@ Make sure to:
 
 ## Security
 
-- All routes require authentication (except `/login` and `/api/auth/*`)
-- Sessions use JWT for serverless compatibility
-- Optional single-user restriction via `ALLOWED_EMAIL`
-- Peloton and Tonal credentials encrypted in database
+### Auth model
+
+- Two equivalent paths to authenticate any `/api/*` request:
+  - A NextAuth Google session cookie (set by `/login`), OR
+  - `Authorization: Bearer $MCP_API_TOKEN` (for MCP clients and scripts)
+- Middleware is the first gate; route handlers re-verify with
+  `requireAuth(request)` and return 401 when both paths fail
+  (defence-in-depth — F-01 in the security report).
+- `/login` and `/api/auth/*` are the only un-authed paths.
+
+### `MCP_API_TOKEN` is a global admin credential
+
+This app is single-tenant by design — `ALLOWED_EMAIL` gates the one
+human user, and the data model has no per-user partitioning. That means
+`MCP_API_TOKEN` unlocks **everything**: read, write, delete, sync,
+disconnect credentials. Treat it like the database password:
+
+- Generate with `openssl rand -hex 32` (≥16 chars enforced; 32+ recommended).
+- Store only in Vercel project env vars; never commit, never share in DMs.
+- Rotate by:
+  1. Generate a new value, set `MCP_API_TOKEN` on Vercel (preview + prod).
+  2. Update Claude Desktop / Codex / Cursor configs with the new value.
+  3. Redeploy. Old token stops working on the next cold start.
+- An audit row is written for every bearer-authed mutation; review
+  the `audit_log` table after suspected exposure.
+
+### At-rest protections
+
+- Sessions use JWT for serverless compatibility; session cookies are
+  `HttpOnly`, `SameSite=Lax`, `Secure` in production, with the
+  `__Secure-` prefix in production.
+- Optional single-user restriction via `ALLOWED_EMAIL`. When unset,
+  all sign-ins are denied (fail-closed).
+- Peloton and Tonal credentials (session IDs, OAuth tokens) are
+  encrypted column-side with AES-256-GCM via `CREDENTIAL_ENC_KEY`
+  (set to 64 hex chars — `openssl rand -hex 32`). Legacy plaintext
+  rows remain readable; they re-encrypt on the next token refresh.
+- Soft-delete on `workout_sessions`: API DELETE / MCP `delete_workout`
+  set `deletedAt` rather than removing the row. List/get filter out
+  soft-deleted rows.
+
+### Transport + browser hardening
+
+- HSTS (`max-age=63072000; includeSubDomains; preload`) in production.
+- Baseline Content-Security-Policy in `next.config.ts`.
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: strict-origin-when-cross-origin`,
+  `Permissions-Policy` disabling camera/mic/geo.
+- CORS on `/api/mcp` is allow-listed to `APP_BASE_URL`, `VERCEL_URL`,
+  and (in dev only) `localhost`. Any other origin gets no
+  `Access-Control-*` headers, so browser cross-origin calls fail.
+
+### Rate limiting + audit
+
+- In-memory token-bucket rate limit on `/api/mcp` (120/min general,
+  ~10/min for sync-shaped calls). Process-local — upgrade to Vercel
+  KV / Upstash for distributed limits if traffic grows.
+- `audit_log` table records every bearer-authed mutation, sync run,
+  and credential disconnect with actor, action, IP, and JSON details.
+
+### Reporting
+
+If you find a security issue, open a private advisory on GitHub
+rather than a public issue.
 
 ## License
 
