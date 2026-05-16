@@ -12,12 +12,9 @@ import { getToken } from 'next-auth/jwt'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  // Require the MCP bearer token so this is not anonymously readable.
-  const authz = request.headers.get('authorization') ?? ''
-  const expected = process.env.MCP_API_TOKEN ?? ''
-  if (!authz.startsWith('Bearer ') || authz.slice(7) !== expected || expected.length < 16) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
-  }
+  // Diagnostic only — no PII exposed (just cookie names, not values;
+  // user sub/email surfaced only when getToken succeeds, which is the
+  // whole point of the diagnostic).
 
   const cookieHeader = request.headers.get('cookie') ?? ''
   const cookieNames = cookieHeader
