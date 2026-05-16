@@ -45,7 +45,6 @@ export default auth((req) => {
   const isPublicPath =
     nextUrl.pathname.startsWith('/api/auth') ||
     nextUrl.pathname.startsWith('/api/mcp') ||
-    nextUrl.pathname.startsWith('/api/debug-auth') ||
     nextUrl.pathname === '/login'
 
   if (isPublicPath) {
