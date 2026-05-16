@@ -1,14 +1,22 @@
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 import type { Session } from "next-auth"
+import { getToken } from "next-auth/jwt"
 import { isValidApiToken, extractBearerToken } from "@/lib/api-auth"
 
 /**
  * Get the current session on the server side.
- * In NextAuth v5 beta, auth() may return null in Route Handlers
- * even for authenticated users due to cookie context limitations
- * (see F-08 in security report). We tolerate that by also accepting
- * a valid `Authorization: Bearer $MCP_API_TOKEN` header.
+ *
+ * KNOWN BUG (NextAuth v5 beta): `auth()` returns `null` inside Route
+ * Handlers on serverless runtimes (Vercel) even when the user has a
+ * valid session cookie. The middleware sees the cookie fine; the
+ * Route Handler does not. See:
+ *   https://github.com/nextauthjs/next-auth/issues/9329
+ *
+ * The workaround in `requireAuth()` below is to fall back to
+ * `getToken()` (from `next-auth/jwt`), which verifies the JWE
+ * signature with `NEXTAUTH_SECRET` directly from the request cookies.
+ * This is the v5 recommended escape hatch for Route Handlers.
  */
 export async function getSession(): Promise<Session | null> {
   try {
@@ -19,46 +27,95 @@ export async function getSession(): Promise<Session | null> {
 }
 
 /**
+ * Cookie names that NextAuth v5 may use for the session token. Order
+ * matters for `getToken()` — it tries each. Production uses the
+ * `__Secure-` prefix; dev does not. Must match `auth.ts` cookies
+ * config.
+ */
+const SESSION_COOKIE_NAMES = [
+  "__Secure-authjs.session-token",
+  "authjs.session-token",
+]
+
+/**
+ * Verify the session JWT directly from the request. Returns the
+ * decoded token (which carries sub/email/etc.) or null if missing,
+ * expired, tampered, or signed with a different secret. This is a
+ * cryptographic check — equivalent to what middleware does to gate
+ * the request.
+ */
+async function verifySessionFromRequest(request: Request): Promise<{
+  sub?: string
+  email?: string
+} | null> {
+  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET
+  if (!secret) return null
+
+  for (const cookieName of SESSION_COOKIE_NAMES) {
+    try {
+      const token = await getToken({
+        req: request,
+        secret,
+        cookieName,
+        secureCookie: cookieName.startsWith("__Secure-"),
+        salt: cookieName,
+      })
+      if (token) return token as { sub?: string; email?: string }
+    } catch {
+      // Try the next name.
+    }
+  }
+  return null
+}
+
+/**
  * Authoritative auth check for API route handlers (F-01 hardening).
  *
- * Accepts EITHER:
- *   - a valid NextAuth session, OR
- *   - a valid `Authorization: Bearer $MCP_API_TOKEN` header on the request
+ * Accepts ANY of:
+ *   1. A NextAuth session returned by `auth()` — the happy path.
+ *   2. A signature-verified NextAuth JWT decoded from the request
+ *      cookies via `getToken()` — fallback for the v5 beta Route
+ *      Handler bug. This is NOT "cookie present"; the cookie's JWE
+ *      signature is verified against NEXTAUTH_SECRET.
+ *   3. A valid `Authorization: Bearer $MCP_API_TOKEN` header — MCP /
+ *      scripts path.
  *
- * Returns a `NextResponse` (401) when both are absent — handlers MUST
- * early-return on a NextResponse result. On success returns the session
- * (which may be null when the caller authenticated via bearer token).
- *
- * Usage:
- *   const authResult = await requireAuth(request)
- *   if (authResult instanceof NextResponse) return authResult
- *   // ...handler logic...
+ * Returns a `NextResponse` (401) when none of those hold. Handlers
+ * MUST early-return on a NextResponse result.
  */
 export async function requireAuth(
   request?: Request,
 ): Promise<Session | NextResponse | null> {
+  // 1. Real session, when v5 cooperates.
   const session = await getSession()
   if (session) return session
 
-  // No session — accept the bearer token path so MCP / agent callers
-  // and the existing REST surface share the same auth model.
   if (request) {
-    const token = extractBearerToken(request)
-    if (isValidApiToken(token)) {
-      // Bearer-authenticated. Return null session to signal "authed but
-      // not a user-session"; handlers that need user identity should
-      // check for null explicitly.
-      return null
+    // 2. Cryptographically verify the session JWT directly.
+    const token = await verifySessionFromRequest(request)
+    if (token) {
+      // Synthesize a minimal Session shape from the decoded JWT so
+      // handlers that read `session.user.email` still work.
+      return {
+        user: {
+          id: token.sub,
+          email: token.email,
+        },
+        expires: "",
+      } as Session
     }
+
+    // 3. Bearer-token (MCP / scripts).
+    const bearer = extractBearerToken(request)
+    if (isValidApiToken(bearer)) return null
   }
 
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 }
 
 /**
- * Legacy non-blocking helper kept for back-compat with any caller that
- * has not yet been migrated to `requireAuth`. Logs a warning when the
- * session is missing but does NOT block. New code MUST use requireAuth.
+ * Legacy non-blocking helper kept for back-compat. New code MUST use
+ * `requireAuth(request)`.
  *
  * @deprecated Use `requireAuth(request)` and early-return on NextResponse.
  */
@@ -73,16 +130,6 @@ export async function checkAuth(): Promise<Session | null> {
 /**
  * Get the current user from the session.
  * Returns null if not authenticated.
- *
- * @example
- * ```ts
- * import { getCurrentUser } from "@/lib/auth"
- *
- * const user = await getCurrentUser()
- * if (!user) {
- *   redirect("/login")
- * }
- * ```
  */
 export async function getCurrentUser() {
   const session = await getSession()
