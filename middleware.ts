@@ -38,37 +38,52 @@ export default auth((req) => {
   const { nextUrl, auth: session } = req
   const isLoggedIn = !!session
 
-  // Public paths that don't require authentication.
-  // `/api/mcp` is the MCP server endpoint; it does its own bearer-token
-  // check against MCP_API_TOKEN so agents (Claude Desktop, Codex,
-  // OpenClaw, etc.) can connect without a NextAuth session cookie.
+  // DEBUG: surface what middleware saw via response headers so we can
+  // diagnose why /  is returning 200 to unauthenticated callers.
+  const dbgHeaders = (extra?: Record<string, string>) => {
+    const h = new Headers()
+    h.set('x-mw-ran', '1')
+    h.set('x-mw-path', nextUrl.pathname)
+    h.set('x-mw-logged-in', isLoggedIn ? '1' : '0')
+    h.set('x-mw-has-session-cookie',
+      (req.headers.get('cookie') ?? '').includes('authjs.session-token') ? '1' : '0')
+    if (extra) for (const [k, v] of Object.entries(extra)) h.set(k, v)
+    return h
+  }
+
   const isPublicPath =
     nextUrl.pathname.startsWith('/api/auth') ||
     nextUrl.pathname.startsWith('/api/mcp') ||
     nextUrl.pathname === '/login'
 
   if (isPublicPath) {
-    return NextResponse.next()
+    const res = NextResponse.next()
+    dbgHeaders({ 'x-mw-decision': 'public' }).forEach((v, k) => res.headers.set(k, v))
+    return res
   }
 
-  // API requests may authenticate with a personal access token
-  // (`Authorization: Bearer $MCP_API_TOKEN`) instead of a session cookie.
-  // This lets agents and scripts hit the same REST routes the browser uses.
   if (nextUrl.pathname.startsWith('/api/') && hasValidApiToken(req)) {
-    return NextResponse.next()
+    const res = NextResponse.next()
+    dbgHeaders({ 'x-mw-decision': 'bearer' }).forEach((v, k) => res.headers.set(k, v))
+    return res
   }
 
   if (!isLoggedIn) {
-    // Don't redirect API callers to an HTML login page; return 401.
     if (nextUrl.pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const res = NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      dbgHeaders({ 'x-mw-decision': 'api-401' }).forEach((v, k) => res.headers.set(k, v))
+      return res
     }
     const loginUrl = new URL('/login', nextUrl.origin)
     loginUrl.searchParams.set('callbackUrl', nextUrl.pathname)
-    return NextResponse.redirect(loginUrl)
+    const res = NextResponse.redirect(loginUrl)
+    dbgHeaders({ 'x-mw-decision': 'redirect-login' }).forEach((v, k) => res.headers.set(k, v))
+    return res
   }
 
-  return NextResponse.next()
+  const res = NextResponse.next()
+  dbgHeaders({ 'x-mw-decision': 'allow' }).forEach((v, k) => res.headers.set(k, v))
+  return res
 })
 
 export const config = {
