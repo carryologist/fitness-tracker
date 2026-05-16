@@ -84,6 +84,7 @@ export async function middleware(req: NextRequest) {
   const isPublicPath =
     nextUrl.pathname.startsWith('/api/auth') ||
     nextUrl.pathname.startsWith('/api/mcp') ||
+    nextUrl.pathname.startsWith('/api/debug-env') ||
     nextUrl.pathname === '/login'
 
   if (isPublicPath) {
