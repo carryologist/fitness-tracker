@@ -36,6 +36,23 @@ function hasValidApiToken(req: { headers: Headers }): boolean {
 
 export default auth((req) => {
   const { nextUrl, auth: session } = req
+
+  // DEBUG: if ?mw_probe=1 is on any URL, return a JSON dump of what
+  // middleware saw and skip everything else. Forces a response we
+  // control end-to-end, bypassing Vercel header munging.
+  if (nextUrl.searchParams.get('mw_probe') === '1') {
+    return new Response(
+      JSON.stringify({
+        ran: true,
+        path: nextUrl.pathname,
+        hasSession: !!session,
+        cookieNames: (req.headers.get('cookie') ?? '')
+          .split(';').map(c => c.trim().split('=')[0]).filter(Boolean),
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  }
+
   const isLoggedIn = !!session
 
   // DEBUG: surface what middleware saw via response headers so we can
