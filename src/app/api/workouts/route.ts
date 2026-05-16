@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { checkAuth } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  await checkAuth()
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const { searchParams } = new URL(request.url)
@@ -60,7 +61,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  await checkAuth()
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const body = await request.json()
@@ -141,7 +143,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  await checkAuth()
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const { searchParams } = new URL(request.url)
@@ -173,7 +176,8 @@ export async function DELETE(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  await checkAuth()
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const body = await request.json()

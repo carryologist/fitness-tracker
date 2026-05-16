@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { checkAuth } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth'
 import {
   refreshTonalToken,
   fetchTonalActivitySummaries,
@@ -74,8 +74,9 @@ function pickBearerToken(cred: TonalCredential): string {
 // GET  — connection status (auto-refreshes if needed)
 // ---------------------------------------------------------------------------
 
-export async function GET() {
-  await checkAuth()
+export async function GET(request: Request) {
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const cred = await prisma.tonalCredential.findFirst()
@@ -101,7 +102,8 @@ export async function GET() {
 // ---------------------------------------------------------------------------
 
 export async function POST(req: Request) {
-  await checkAuth()
+  const authResult = await requireAuth(req)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     let cred = await getCredentialOrFail()
@@ -278,8 +280,9 @@ export async function POST(req: Request) {
 // DELETE — disconnect Tonal
 // ---------------------------------------------------------------------------
 
-export async function DELETE() {
-  await checkAuth()
+export async function DELETE(request: Request) {
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const cred = await prisma.tonalCredential.findFirst()

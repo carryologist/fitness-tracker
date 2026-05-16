@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { checkAuth } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { refreshPelotonCredential } from '@/lib/peloton';
 
-export async function POST() {
-  await checkAuth()
+export async function POST(request: Request) {
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const { userId } = await refreshPelotonCredential();

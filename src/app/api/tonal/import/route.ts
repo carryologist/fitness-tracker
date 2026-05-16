@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { checkAuth } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth'
 
 interface TonalImportBody {
   weightLifted: number | null
@@ -10,7 +10,8 @@ interface TonalImportBody {
 }
 
 export async function POST(req: Request) {
-  await checkAuth()
+  const authResult = await requireAuth(req)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const body: TonalImportBody = await req.json()

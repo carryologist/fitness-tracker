@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { checkAuth } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth'
 
 // GET /api/goals - Fetch all goals
-export async function GET() {
-  await checkAuth()
+export async function GET(request: NextRequest) {
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const goals = await prisma.goal.findMany({
@@ -23,7 +24,8 @@ export async function GET() {
 
 // POST /api/goals - Create a new goal
 export async function POST(request: NextRequest) {
-  await checkAuth()
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const body = await request.json()
@@ -97,7 +99,8 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/goals - Update an existing goal
 export async function PUT(request: NextRequest) {
-  await checkAuth()
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
 
   try {
     const body = await request.json()
