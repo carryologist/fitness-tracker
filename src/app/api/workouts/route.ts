@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ workouts: transformedWorkouts })
   } catch (error) {
-    console.error('💥 Error fetching workouts:', error)
+    console.error('Error fetching workouts:', error instanceof Error ? error.message : 'unknown')
     return NextResponse.json(
       { error: 'Failed to fetch workouts' },
       { status: 500 }
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    console.log('💪 Creating new workout:', body)
+    console.log('💪 Creating new workout (source=%s, activity=%s)', body?.source, body?.activity)
     
     // Validate required fields
     const { date, source, activity, minutes, miles, weightLifted, notes } = body
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ workout: newWorkout }, { status: 201 })
   } catch (error) {
-    console.error('💥 Error creating workout:', error)
+    console.error('Error creating workout:', error instanceof Error ? error.message : 'unknown')
     
     // Handle duplicate entry errors
     if (error instanceof Error && error.message.includes('Unique constraint')) {
@@ -167,7 +167,7 @@ export async function DELETE(request: NextRequest) {
     
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('💥 Error deleting workout:', error)
+    console.error('Error deleting workout:', error instanceof Error ? error.message : 'unknown')
     return NextResponse.json(
       { error: 'Failed to delete workout' },
       { status: 500 }
@@ -242,7 +242,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ workout: updated })
   } catch (error) {
-    console.error('💥 Error updating workout:', error)
+    console.error('Error updating workout:', error instanceof Error ? error.message : 'unknown')
     return NextResponse.json(
       { error: 'Failed to update workout' },
       { status: 500 }

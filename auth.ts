@@ -2,6 +2,10 @@ import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // F-13: explicit trustHost so the v5 host-check is predictable behind
+  // Vercel/proxies; also documented secret source rather than implicit.
+  trustHost: true,
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -16,20 +20,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return false
       }
       if (user.email !== allowedEmail) {
-        console.warn(`Unauthorized login attempt: ${user.email?.substring(0, 3)}***`)
+        // F-07: do not log any portion of the rejected email — even a
+        // 3-char prefix can fingerprint repeat attackers across logs.
+        console.warn('Unauthorized login attempt rejected')
         return false
       }
       return true
     },
     async session({ session, token }) {
-      // Add user ID to session if needed
       if (token.sub && session.user) {
         session.user.id = token.sub
       }
       return session
     },
-    async jwt({ token, user, account }) {
-      // Persist user data to token
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id
       }
@@ -37,9 +41,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   pages: {
-    signIn: '/login', // Custom sign-in page
+    signIn: '/login',
   },
   session: {
-    strategy: "jwt", // Use JWT for sessions (serverless-friendly)
+    strategy: "jwt",
+  },
+  // F-13: pin cookie options explicitly so version drift cannot loosen
+  // them silently. NextAuth v5 already uses these defaults in prod, but
+  // pinning makes the intent reviewable.
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === 'production'
+          ? '__Secure-authjs.session-token'
+          : 'authjs.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
   },
 })

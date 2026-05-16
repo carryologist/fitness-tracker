@@ -2,6 +2,7 @@
 // Covers: Peloton indoor rides, outdoor rides tracked via Peloton app (Cannondale)
 
 import prisma from '@/lib/prisma'
+import { encryptSecret } from '@/lib/crypto'
 
 const PELOTON_API_BASE = 'https://api.onepeloton.com'
 
@@ -253,16 +254,16 @@ export async function refreshPelotonCredential(): Promise<{ sessionId: string; u
   await prisma.pelotonCredential.upsert({
     where: { userId: auth.user_id },
     update: {
-      sessionId: auth.session_id,
-      accessToken: auth.access_token ?? null,
-      refreshToken: auth.refresh_token ?? null,
+      sessionId: encryptSecret(auth.session_id),
+      accessToken: encryptSecret(auth.access_token ?? null),
+      refreshToken: encryptSecret(auth.refresh_token ?? null),
       expiresAt,
     },
     create: {
       userId: auth.user_id,
-      sessionId: auth.session_id,
-      accessToken: auth.access_token ?? null,
-      refreshToken: auth.refresh_token ?? null,
+      sessionId: encryptSecret(auth.session_id),
+      accessToken: encryptSecret(auth.access_token ?? null),
+      refreshToken: encryptSecret(auth.refresh_token ?? null),
       expiresAt,
     },
   })

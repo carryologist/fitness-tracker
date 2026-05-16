@@ -13,7 +13,7 @@ datasource db {
 
 // Simple workout session model matching your Google Sheets structure
 model WorkoutSession {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   date             DateTime
   source           String // "Peloton", "Cannondale", "Tonal", etc.
   activity         String // "Cycling", "Weight Lifting", etc.
@@ -21,22 +21,26 @@ model WorkoutSession {
   miles            Float? // Distance for cardio activities
   weightLifted     Float? // Total weight lifted for strength training
   notes            String?
-  pelotonWorkoutId String?  @unique // Peloton workout ID for dedup
-  tonalWorkoutId   String?  @unique // Tonal workout ID for dedup
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  pelotonWorkoutId String?   @unique // Peloton workout ID for dedup
+  tonalWorkoutId   String?   @unique // Tonal workout ID for dedup
+  // Soft-delete (F-06): writes that go through the API set deletedAt
+  // instead of removing the row, so an audit trail + recovery is possible.
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([date])
   @@index([source, date])
+  @@index([deletedAt])
   @@map("workout_sessions")
 }
 
 model PelotonCredential {
   id           String   @id @default(cuid())
   userId       String   @unique // Peloton user ID
-  sessionId    String // Session cookie
-  accessToken  String? // OAuth access token (if using OAuth flow)
-  refreshToken String? // OAuth refresh token
+  sessionId    String // Session cookie (encrypted at rest — see src/lib/crypto.ts)
+  accessToken  String? // OAuth access token (encrypted at rest)
+  refreshToken String? // OAuth refresh token (encrypted at rest)
   expiresAt    Int? // Unix timestamp
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -47,9 +51,9 @@ model PelotonCredential {
 model TonalCredential {
   id           String   @id @default(cuid())
   userId       String   @unique // Tonal user ID from Auth0
-  idToken      String   @db.Text // JWT id_token (used as Bearer)
-  accessToken  String?  @db.Text // Auth0 access_token (try first, fall back to idToken)
-  refreshToken String?  @db.Text
+  idToken      String   @db.Text // JWT id_token (encrypted at rest)
+  accessToken  String?  @db.Text // Auth0 access_token (encrypted at rest)
+  refreshToken String?  @db.Text // (encrypted at rest)
   expiresAt    Int? // Unix timestamp
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -95,4 +99,29 @@ model MonthlySummary {
 
   @@unique([year, month])
   @@map("monthly_summaries")
+}
+
+// Audit log (F-06) — every bearer-authed mutation, plus session mutations,
+// records a row here so a leaked MCP_API_TOKEN leaves a trail.
+model AuditLog {
+  id        String   @id @default(cuid())
+  // "session" for NextAuth users, "bearer" for MCP_API_TOKEN callers.
+  authMode  String
+  // Best-effort identity. For "session" this is the user email. For
+  // "bearer" it is the constant string "mcp-pat".
+  actor     String
+  // Short action key: e.g. "workout.create", "workout.delete",
+  // "peloton.sync", "tonal.disconnect".
+  action    String
+  // Route path, for cross-reference with logs.
+  path      String
+  // Caller IP from x-forwarded-for / x-real-ip, "unknown" otherwise.
+  ip        String?
+  // Free-form JSON details (input filters, result counts, target IDs).
+  details   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([authMode, createdAt])
+  @@map("audit_log")
 }

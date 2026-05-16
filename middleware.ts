@@ -67,12 +67,11 @@ export default auth((req) => {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder files
+     * F-03 hardening: anchored exclusions instead of a trailing-extension
+     * catch-all. We only skip _next internals and the favicon. Static
+     * assets under /public are served by Next.js's own asset handler
+     * before middleware runs, so they don't need their own exclusion.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico).*)',
   ],
 }

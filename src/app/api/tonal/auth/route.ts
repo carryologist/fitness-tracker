@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
 import { authenticateTonal, getUserIdFromToken } from '@/lib/tonal'
+import { encryptSecret } from '@/lib/crypto'
 
 export async function POST(request: Request) {
   const authResult = await requireAuth(request)
@@ -27,21 +28,19 @@ export async function POST(request: Request) {
     await prisma.tonalCredential.upsert({
       where: { userId },
       update: {
-        idToken: authResponse.id_token,
-        accessToken: authResponse.access_token ?? null,
-        refreshToken: authResponse.refresh_token ?? null,
+        idToken: encryptSecret(authResponse.id_token),
+        accessToken: encryptSecret(authResponse.access_token ?? null),
+        refreshToken: encryptSecret(authResponse.refresh_token ?? null),
         expiresAt,
       },
       create: {
         userId,
-        idToken: authResponse.id_token,
-        accessToken: authResponse.access_token ?? null,
-        refreshToken: authResponse.refresh_token ?? null,
+        idToken: encryptSecret(authResponse.id_token),
+        accessToken: encryptSecret(authResponse.access_token ?? null),
+        refreshToken: encryptSecret(authResponse.refresh_token ?? null),
         expiresAt,
       },
     })
-
-    console.log(`✅ Tonal connected for user ${userId}`)
 
     return NextResponse.json({ connected: true, userId })
   } catch (error) {
