@@ -1,5 +1,6 @@
-import { auth } from "../auth"
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { getToken } from "next-auth/jwt"
 
 /**
  * Constant-time string compare for the personal access token to avoid
@@ -22,7 +23,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 // F-12 (intentional): only the Authorization header is honoured.
 // Do NOT widen this to query-string / cookie / alternate header without
 // re-doing the threat model — token-in-URL leaks to logs and Referer.
-function hasValidApiToken(req: { headers: Headers }): boolean {
+function hasValidApiToken(req: NextRequest): boolean {
   const header =
     req.headers.get('authorization') ?? req.headers.get('Authorization')
   if (!header) return false
@@ -34,14 +35,52 @@ function hasValidApiToken(req: { headers: Headers }): boolean {
   return timingSafeEqual(token, expected)
 }
 
-export default auth((req) => {
-  const { nextUrl, auth: session } = req
-  const isLoggedIn = !!session
+/**
+ * Verify the NextAuth session JWT from the request cookies. Same
+ * cryptographic check NextAuth itself uses — decodes the JWE with
+ * NEXTAUTH_SECRET (or AUTH_SECRET) and validates expiry / signature.
+ *
+ * IMPORTANT: middleware does NOT import `auth` from `../auth` because
+ * that would pull the entire NextAuth config (including the Google
+ * provider) into the Edge bundle. The Google provider reads
+ * GOOGLE_CLIENT_ID at module load; if the Edge runtime instantiates
+ * it without env access, NextAuth permanently caches client_id=undefined
+ * and Google sign-in breaks with "Error 401: invalid_client". Keep
+ * middleware lean — it only needs the session check.
+ */
+async function hasValidSession(req: NextRequest): Promise<boolean> {
+  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET
+  if (!secret) return false
+
+  // Cookie names match the pinning in auth.ts.
+  const cookieNames = [
+    '__Secure-authjs.session-token',
+    'authjs.session-token',
+  ]
+  for (const cookieName of cookieNames) {
+    try {
+      const token = await getToken({
+        req,
+        secret,
+        cookieName,
+        secureCookie: cookieName.startsWith('__Secure-'),
+        salt: cookieName,
+      })
+      if (token) return true
+    } catch {
+      // Try the next name.
+    }
+  }
+  return false
+}
+
+export async function middleware(req: NextRequest) {
+  const { nextUrl } = req
 
   // Public paths that don't require authentication.
   // `/api/mcp` is the MCP server endpoint; it does its own bearer-token
-  // check against MCP_API_TOKEN so agents (Claude Desktop, Codex,
-  // OpenClaw, etc.) can connect without a NextAuth session cookie.
+  // check against MCP_API_TOKEN so agents (Claude Desktop, Codex, etc.)
+  // can connect without a NextAuth session cookie.
   const isPublicPath =
     nextUrl.pathname.startsWith('/api/auth') ||
     nextUrl.pathname.startsWith('/api/mcp') ||
@@ -53,12 +92,12 @@ export default auth((req) => {
 
   // API requests may authenticate with a personal access token
   // (`Authorization: Bearer $MCP_API_TOKEN`) instead of a session cookie.
-  // This lets agents and scripts hit the same REST routes the browser uses.
   if (nextUrl.pathname.startsWith('/api/') && hasValidApiToken(req)) {
     return NextResponse.next()
   }
 
-  if (!isLoggedIn) {
+  const loggedIn = await hasValidSession(req)
+  if (!loggedIn) {
     // Don't redirect API callers to an HTML login page; return 401.
     if (nextUrl.pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -69,7 +108,7 @@ export default auth((req) => {
   }
 
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: [
