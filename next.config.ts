@@ -1,4 +1,33 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
+
+const isProd = process.env.NODE_ENV === 'production'
+
+/**
+ * Content Security Policy (F-10).
+ *
+ * - default-src 'self': nothing loads cross-origin by default.
+ * - script-src: inline scripts are needed by Next.js (hydration). Next
+ *   App Router doesn't expose a nonce hook for this config layer
+ *   without per-request middleware rewriting, so we accept
+ *   'unsafe-inline' for now and rely on framework-level escaping.
+ * - style-src 'unsafe-inline': Tailwind injects inline <style>.
+ * - img-src includes data: for inline SVG/data URLs from Recharts and
+ *   tesseract.js previews; blob: for client-side OCR previews.
+ * - connect-src includes the Peloton + Tonal API origins we call from
+ *   the server (no impact on the browser, but documents the surface).
+ * - frame-ancestors 'none': defence-in-depth alongside X-Frame-Options.
+ */
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://accounts.google.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://api.onepeloton.com https://*.tonal.com https://*.auth0.com",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self' https://accounts.google.com",
+].join('; ')
 
 const nextConfig: NextConfig = {
   async headers() {
@@ -11,10 +40,19 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          // F-10: HSTS — 2 years, include subdomains, preload-eligible.
+          // Only emitted in production so localhost over http still works.
+          ...(isProd
+            ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }]
+            : []),
+          // F-10: baseline CSP. Report-only on first deploy if you want
+          // to verify nothing breaks; switch the key name back to
+          // 'Content-Security-Policy' once green.
+          { key: 'Content-Security-Policy', value: csp },
         ],
       },
     ]
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

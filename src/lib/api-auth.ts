@@ -14,6 +14,10 @@ import type { NextRequest } from 'next/server'
 /**
  * Constant-time string comparison to avoid timing side-channels on the
  * personal access token.
+ *
+ * F-11: Intentional duplicate of `middleware.ts#timingSafeEqual` (edge
+ * runtime cannot import Node's crypto.timingSafeEqual). If you change
+ * either copy, change BOTH.
  */
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false

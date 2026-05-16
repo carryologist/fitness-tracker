@@ -3,8 +3,12 @@ import { NextResponse } from "next/server"
 
 /**
  * Constant-time string compare for the personal access token to avoid
- * timing side-channels. Duplicated from `src/lib/api-auth.ts` because
- * middleware runs on the edge runtime and cannot import server-only modules.
+ * timing side-channels.
+ *
+ * F-11: Intentional duplicate of `src/lib/api-auth.ts#timingSafeEqual`.
+ * Middleware runs on the Edge runtime and cannot import the Node-only
+ * `crypto.timingSafeEqual`, and edge bundles complain about pulling in
+ * server modules. If you change either copy, change BOTH.
  */
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
