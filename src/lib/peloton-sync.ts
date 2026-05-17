@@ -121,11 +121,35 @@ export async function runPelotonSync(limit = 200): Promise<SyncResult> {
       const endOfDay = new Date(mapped.date)
       endOfDay.setHours(23, 59, 59, 999)
 
+      // Tonal-dup guard (dedupe pattern P1): if the Peloton activity
+      // is "Weight Lifting" and there's already a real Tonal row on
+      // the same day with matching minutes, this Peloton record is
+      // the Watch/app mirror of that Tonal workout. Skip the create
+      // to avoid double-counting. The Tonal row is canonical because
+      // it carries the actual lifted-weight number.
+      if (mapped.activity === 'Weight Lifting') {
+        const tonalDup = await prisma.workoutSession.findFirst({
+          where: {
+            source: 'Tonal',
+            activity: 'Weight Lifting',
+            minutes: mapped.minutes,
+            weightLifted: { gt: 0 },
+            date: { gte: startOfDay, lte: endOfDay },
+            deletedAt: null,
+          },
+        })
+        if (tonalDup) {
+          skipped++
+          continue
+        }
+      }
+
       const manualMatch = await prisma.workoutSession.findFirst({
         where: {
           source: mapped.source,
           pelotonWorkoutId: null,
           date: { gte: startOfDay, lte: endOfDay },
+          deletedAt: null,
         },
       })
 

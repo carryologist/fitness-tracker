@@ -167,6 +167,17 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
 
       const mapped = mapTonalActivity(activity, detailedDurationSec)
 
+      // Ghost-activity guard: the Tonal API occasionally returns rows
+      // that have a non-zero duration but zero total weight lifted.
+      // Those mirror whatever other workout was happening that day
+      // (often an outdoor ride) and are not real strength workouts.
+      // Recording them as Tonal sessions inflates total minutes — see
+      // dedupe pattern P2 in src/lib/workout-dedupe.ts. Skip.
+      if (!mapped.weightLifted || mapped.weightLifted === 0) {
+        skipped++
+        continue
+      }
+
       const startOfDay = new Date(mapped.date)
       startOfDay.setHours(0, 0, 0, 0)
       const endOfDay = new Date(mapped.date)

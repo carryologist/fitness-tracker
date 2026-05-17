@@ -12,8 +12,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const yearParam = searchParams.get('year')
 
-    // Build optional year filter
-    const where: { date?: { gte: Date; lt: Date } } = {}
+    // Build optional year filter + always exclude soft-deleted rows
+    // (set by /api/admin/dedupe-workouts and MCP delete_workout).
+    const where: { date?: { gte: Date; lt: Date }; deletedAt: null } = { deletedAt: null }
     if (yearParam) {
       const year = parseInt(yearParam, 10)
       if (!isNaN(year) && year >= 2020 && year <= 2100) {
