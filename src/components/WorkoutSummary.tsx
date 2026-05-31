@@ -114,9 +114,8 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     const currentYear = currentDate.getFullYear()
     const quarterMonths = getQuarterMonths(currentQuarter)
     
-    // Exact quarterly goals
-    const quarterlyGoalMinutes = 2925  // 45 min/day × 5 days/week × 13 weeks
-    const quarterlyGoalSessions = 65   // 5 sessions/week × 13 weeks
+    // Quarterly goal from goals prop
+    const quarterlyGoalMinutes = goals.quarterly.minutes
     
     // Get current quarter's progress
     const quarterSessions = sessions.filter(s => {
@@ -126,23 +125,21 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     })
     
     const minutesCompleted = quarterSessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
-    const sessionsCompleted = quarterSessions.length
     
     const minutesRemaining = Math.max(0, quarterlyGoalMinutes - minutesCompleted)
-    const sessionsNeeded = Math.ceil(minutesRemaining / 45)
     
     // Calculate days remaining in quarter
     const quarterEnd = new Date(currentYear, quarterMonths[2] + 1, 0)
     const daysRemaining = Math.max(0, Math.floor((quarterEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)
     
-    // Calculate required pace
-    const dailyPace = daysRemaining > 0 ? sessionsNeeded / daysRemaining : 0
+    // Calculate minutes per day needed
+    const minutesPerDay = daysRemaining > 0 ? minutesRemaining / daysRemaining : 0
     
     return {
       currentQuarter,
-      sessionsNeeded,
+      minutesRemaining,
       daysRemaining,
-      dailyPace
+      minutesPerDay
     }
   }, [sessions, goals, currentDate])
 
@@ -286,11 +283,11 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <Target className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Sessions needed</span>
+                <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Minutes remaining</span>
               </div>
               <span className="font-bold text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-nowrap">
-                {pacingMetrics.sessionsNeeded} sessions
+                {formatNumber(pacingMetrics.minutesRemaining)} min
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -304,14 +301,11 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
             </div>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Required pace</span>
+                <Target className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Minutes per day</span>
               </div>
               <span className="font-bold text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-nowrap">
-                {pacingMetrics.dailyPace === 0 ? 'On track!' :
-                 pacingMetrics.dailyPace < 0.5 ? 'Every other day' :
-                 pacingMetrics.dailyPace < 1 ? `Every ${Math.round(1/pacingMetrics.dailyPace)} days` :
-                 `${pacingMetrics.dailyPace.toFixed(1)} sessions/day`}
+                {pacingMetrics.minutesPerDay === 0 ? 'Done!' : `${pacingMetrics.minutesPerDay.toFixed(1)} min/day`}
               </span>
             </div>
           </div>
