@@ -38,11 +38,11 @@ export function DashboardHeader({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/fitness-logo.svg"
-                alt="Fitness Tracker"
+                alt="Fit Track"
                 className="w-8 h-8 rounded-lg shadow-sm"
               />
               <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                Fitness Tracker
+                Fit Track
               </h1>
             </div>
             <div className="flex items-center gap-1.5">
@@ -126,12 +126,12 @@ export function DashboardHeader({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/fitness-logo.svg"
-              alt="Fitness Tracker"
+              alt="Fit Track"
               className="w-10 h-10 rounded-lg shadow-sm"
             />
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                Fitness Tracker
+                Fit Track
               </h1>
               <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">Track your progress</p>
             </div>

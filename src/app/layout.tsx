@@ -9,7 +9,7 @@ import { SessionProvider } from 'next-auth/react'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Fitness Tracker',
+  title: 'Fit Track',
   description: 'Track your fitness journey',
   icons: {
     icon: '/fitness-logo.svg',
