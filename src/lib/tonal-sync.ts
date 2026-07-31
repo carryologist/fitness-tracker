@@ -12,6 +12,7 @@ import {
   fetchTonalWorkoutActivity,
   mapTonalActivity,
   getUserIdFromToken,
+  computeExpiresAt,
 } from '@/lib/tonal'
 import type { TonalCredential } from '@prisma/client'
 import { encryptSecret, decryptSecret } from '@/lib/crypto'
@@ -56,7 +57,9 @@ export async function ensureFreshToken(cred: TonalCredential): Promise<TonalCred
 
   const authResponse = await refreshTonalToken(decryptSecret(cred.refreshToken)!)
   const userId = await getUserIdFromToken(authResponse.id_token)
-  const expiresAt = Math.floor(Date.now() / 1000) + authResponse.expires_in
+  // Store the id_token's real expiry, not the (longer-lived) access_token
+  // expires_in. See computeExpiresAt() in src/lib/tonal.ts.
+  const expiresAt = computeExpiresAt(authResponse)
 
   return prisma.tonalCredential.update({
     where: { id: cred.id },
@@ -96,10 +99,40 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
   let hasMore = true
   let caughtUp = false
   let batchCount = 0
+  let reauthAttempted = false
+
+  /**
+   * Force a token refresh and retry once on a 401 from Tonal. Guards
+   * against expiresAt bookkeeping drifting from the token's real
+   * server-side validity (see computeExpiresAt() in src/lib/tonal.ts for
+   * the id_token vs. access_token lifetime mismatch this was written for).
+   * Surfaces a clear, actionable TonalSyncError instead of letting a raw
+   * fetch error bubble up as an opaque 500.
+   */
+  async function withReauthRetry<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      if (!message.includes('(401)') || reauthAttempted) {
+        throw new TonalSyncError(`Tonal sync failed: ${message}`, 401)
+      }
+      reauthAttempted = true
+      cred = await ensureFreshToken({ ...cred, expiresAt: 0 })
+      try {
+        return await fn()
+      } catch (retryErr) {
+        const retryMessage = retryErr instanceof Error ? retryErr.message : String(retryErr)
+        throw new TonalSyncError(`Tonal sync failed after re-auth: ${retryMessage}`, 401)
+      }
+    }
+  }
 
   while (hasMore && !caughtUp) {
     const token = pickBearerToken(cred)
-    const activities = await fetchTonalActivitySummaries(token, cred.userId, batchSize, offset)
+    const activities = await withReauthRetry(() =>
+      fetchTonalActivitySummaries(token, cred.userId, batchSize, offset),
+    )
 
     if (!activities || activities.length === 0) {
       hasMore = false

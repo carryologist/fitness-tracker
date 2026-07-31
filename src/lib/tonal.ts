@@ -102,6 +102,39 @@ export async function authenticateTonal(email: string, password: string): Promis
   return res.json()
 }
 
+/**
+ * Decode the `exp` claim (seconds since epoch) from a JWT without
+ * verifying its signature. Returns null if the token isn't a parseable JWT.
+ */
+export function getJwtExpiry(token: string): number | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf8'))
+    return typeof payload.exp === 'number' ? payload.exp : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Compute the real expiry to store for a Tonal credential.
+ *
+ * Auth0's token response `expires_in` describes the access_token's
+ * lifetime. We use `id_token` as the Bearer for every Tonal API call, and
+ * Tonal's Auth0 tenant issues `id_token` with its own, independent (and
+ * shorter) lifetime: 10h vs. 24h observed in production. Trusting
+ * `expires_in` alone left the app believing the credential was fresh for
+ * ~14h after Tonal had already started rejecting it with 401s. Use the
+ * earlier of the two, with a small safety buffer.
+ */
+export function computeExpiresAt(authResponse: TonalAuthResponse): number {
+  const now = Math.floor(Date.now() / 1000)
+  const accessExpiresAt = now + authResponse.expires_in
+  const idTokenExp = getJwtExpiry(authResponse.id_token)
+  const bufferSec = 60
+  const expiresAt = idTokenExp ? Math.min(accessExpiresAt, idTokenExp) : accessExpiresAt
+  return expiresAt - bufferSec
+}
+
 export async function refreshTonalToken(refreshToken: string): Promise<TonalAuthResponse> {
   // No audience param — matches the auth fix above
   const res = await fetch(TONAL_AUTH_URL, {

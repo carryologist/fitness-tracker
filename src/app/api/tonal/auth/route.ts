@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
-import { authenticateTonal, getUserIdFromToken } from '@/lib/tonal'
+import { authenticateTonal, getUserIdFromToken, computeExpiresAt } from '@/lib/tonal'
 import { encryptSecret } from '@/lib/crypto'
 
 export async function POST(request: Request) {
@@ -23,7 +23,9 @@ export async function POST(request: Request) {
     const authResponse = await authenticateTonal(email, password)
     const userId = await getUserIdFromToken(authResponse.id_token)
 
-    const expiresAt = Math.floor(Date.now() / 1000) + authResponse.expires_in
+    // Store the id_token's real expiry, not the (longer-lived) access_token
+    // expires_in. See computeExpiresAt() in src/lib/tonal.ts.
+    const expiresAt = computeExpiresAt(authResponse)
 
     await prisma.tonalCredential.upsert({
       where: { userId },
