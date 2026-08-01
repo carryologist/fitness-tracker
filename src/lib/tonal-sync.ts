@@ -216,6 +216,40 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
       const endOfDay = new Date(mapped.date)
       endOfDay.setHours(23, 59, 59, 999)
 
+      // Peloton-echo guard (dedupe pattern P4, reverses the old P1): the
+      // Peloton app/Watch integration auto-logs a generic "Weight Lifting"
+      // row for the same real-world Tonal session, with no weight number
+      // and an under-counted duration. Apple Watch strength-training
+      // auto-detection is known to miss rest-period gaps; Tonal's own
+      // start/stop timer is the accurate one. Rather than create a second
+      // row, adopt the Peloton row's workout id onto this Tonal session
+      // and drop the Peloton echo. Guard on tonalWorkoutId being unset so
+      // an already-merged row isn't re-matched every sync.
+      const pelotonEcho = await prisma.workoutSession.findFirst({
+        where: {
+          source: 'Peloton',
+          activity: 'Weight Lifting',
+          tonalWorkoutId: null,
+          deletedAt: null,
+          date: { gte: startOfDay, lte: endOfDay },
+        },
+      })
+
+      if (pelotonEcho) {
+        await prisma.workoutSession.update({
+          where: { id: pelotonEcho.id },
+          data: {
+            source: 'Tonal',
+            minutes: mapped.minutes,
+            weightLifted: mapped.weightLifted,
+            notes: mapped.notes,
+            tonalWorkoutId: mapped.tonalWorkoutId,
+          },
+        })
+        updated++
+        continue
+      }
+
       const manualMatch = await prisma.workoutSession.findFirst({
         where: {
           source: 'Tonal',

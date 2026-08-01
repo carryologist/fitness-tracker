@@ -6,7 +6,9 @@
  * P1 — Peloton+Tonal same-day weight-lifting double-count: the Peloton
  *      Watch/app records a "Weight Lifting" session that mirrors a real
  *      Tonal session. Tonal is the canonical record (has the actual
- *      weight number); the Peloton row is the duplicate.
+ *      weight number and the more accurate duration; see P4 below for
+ *      the current live-sync guard, which matches on calendar day only
+ *      rather than requiring exact minutes to match).
  *
  * P2 — Tonal ghost activity: the Tonal API sometimes returns activity
  *      rows with duration_seconds > 0 but total_weight_lifted == 0.
@@ -196,3 +198,90 @@ export async function softDeleteWorkouts(ids: string[]): Promise<number> {
   })
   return result.count
 }
+
+export interface WeightLiftingMergeCandidate {
+  tonalId: string
+  pelotonId: string
+  date: string
+  tonalMinutes: number
+  pelotonMinutes: number
+  weightLifted: number | null
+  pelotonWorkoutId: string | null
+  alreadyLinked: boolean
+}
+
+/**
+ * P4 (historical cleanup counterpart to the live-sync guards in
+ * tonal-sync.ts / peloton-sync.ts): find same-day pairs of a real Tonal
+ * "Weight Lifting" row and a Peloton "Weight Lifting" row, where the
+ * Peloton row is the Watch/app auto-tracked echo of the Tonal session.
+ * Skips any day with more than one row per source, since that ambiguity
+ * can't be resolved without a person looking at it. Pure read; never
+ * mutates.
+ */
+export async function findWeightLiftingMergeCandidates(): Promise<WeightLiftingMergeCandidate[]> {
+  const rows = await prisma.workoutSession.findMany({
+    where: {
+      activity: 'Weight Lifting',
+      deletedAt: null,
+      source: { in: ['Tonal', 'Peloton'] },
+    },
+    orderBy: [{ date: 'asc' }],
+  })
+
+  const byDate = new Map<string, typeof rows>()
+  for (const r of rows) {
+    const key = r.date.toISOString().slice(0, 10)
+    const arr = byDate.get(key) ?? []
+    arr.push(r)
+    byDate.set(key, arr)
+  }
+
+  const candidates: WeightLiftingMergeCandidate[] = []
+  for (const [date, dayRows] of byDate) {
+    const tonalRows = dayRows.filter((r) => r.source === 'Tonal' && (r.weightLifted ?? 0) > 0)
+    const pelotonRows = dayRows.filter((r) => r.source === 'Peloton')
+    if (tonalRows.length !== 1 || pelotonRows.length !== 1) continue
+
+    const tonal = tonalRows[0]!
+    const peloton = pelotonRows[0]!
+    candidates.push({
+      tonalId: tonal.id,
+      pelotonId: peloton.id,
+      date,
+      tonalMinutes: tonal.minutes,
+      pelotonMinutes: peloton.minutes,
+      weightLifted: tonal.weightLifted,
+      pelotonWorkoutId: peloton.pelotonWorkoutId,
+      alreadyLinked: tonal.pelotonWorkoutId != null,
+    })
+  }
+
+  return candidates
+}
+
+/**
+ * Apply the merges found by findWeightLiftingMergeCandidates(): link
+ * each Tonal row to its Peloton workout id (if not already linked), then
+ * soft-delete the Peloton row. Returns the number of pairs merged.
+ */
+export async function mergeWeightLiftingCandidates(
+  candidates: WeightLiftingMergeCandidate[],
+): Promise<number> {
+  let merged = 0
+  for (const c of candidates) {
+    if (!c.alreadyLinked) {
+      await prisma.workoutSession.update({
+        where: { id: c.tonalId },
+        data: { pelotonWorkoutId: c.pelotonWorkoutId },
+      })
+    }
+    await prisma.workoutSession.update({
+      where: { id: c.pelotonId },
+      data: { deletedAt: new Date() },
+    })
+    merged++
+  }
+  return merged
+}
+

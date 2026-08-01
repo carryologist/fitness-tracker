@@ -121,25 +121,39 @@ export async function runPelotonSync(limit = 200): Promise<SyncResult> {
       const endOfDay = new Date(mapped.date)
       endOfDay.setHours(23, 59, 59, 999)
 
-      // Tonal-dup guard (dedupe pattern P1): if the Peloton activity
-      // is "Weight Lifting" and there's already a real Tonal row on
-      // the same day with matching minutes, this Peloton record is
-      // the Watch/app mirror of that Tonal workout. Skip the create
-      // to avoid double-counting. The Tonal row is canonical because
-      // it carries the actual lifted-weight number.
+      // Tonal-dup guard (dedupe pattern P4): if the Peloton activity is
+      // "Weight Lifting" and there's already a real Tonal row on the
+      // same day, this Peloton record is the Watch/app auto-tracked
+      // mirror of that Tonal workout (generic "Traditional Strength
+      // Training" title, no weight number). Tonal is canonical: it has
+      // the real weight-lifted number, and its own start/stop timer is
+      // more accurate than Apple Watch's auto-detected duration for
+      // strength training (see tonal-sync.ts's matching guard). Do not
+      // create a duplicate row here. Match on same day only, not exact
+      // minutes, since the two trackers' durations routinely differ by
+      // several minutes for the same session. If the Tonal row hasn't
+      // been linked to a Peloton workout id yet, adopt this one onto it
+      // so future syncs recognize it as already handled.
       if (mapped.activity === 'Weight Lifting') {
         const tonalDup = await prisma.workoutSession.findFirst({
           where: {
             source: 'Tonal',
             activity: 'Weight Lifting',
-            minutes: mapped.minutes,
             weightLifted: { gt: 0 },
             date: { gte: startOfDay, lte: endOfDay },
             deletedAt: null,
           },
         })
         if (tonalDup) {
-          skipped++
+          if (!tonalDup.pelotonWorkoutId) {
+            await prisma.workoutSession.update({
+              where: { id: tonalDup.id },
+              data: { pelotonWorkoutId: mapped.pelotonWorkoutId },
+            })
+            updated++
+          } else {
+            skipped++
+          }
           continue
         }
       }
