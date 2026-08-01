@@ -261,9 +261,16 @@ export async function findWeightLiftingMergeCandidates(): Promise<WeightLiftingM
 }
 
 /**
- * Apply the merges found by findWeightLiftingMergeCandidates(): link
- * each Tonal row to its Peloton workout id (if not already linked), then
- * soft-delete the Peloton row. Returns the number of pairs merged.
+ * Apply the merges found by findWeightLiftingMergeCandidates(): clear
+ * pelotonWorkoutId off the retiring Peloton row and soft-delete it, then
+ * adopt that id onto the surviving Tonal row (if not already linked).
+ * Returns the number of pairs merged.
+ *
+ * Order matters: pelotonWorkoutId is unique across workout_sessions, so
+ * the value has to be cleared off the old row before it's written to
+ * the new one, in the same transaction. Doing it the other way around
+ * throws a unique-constraint violation (caught running this by hand
+ * against production before this ordering fix landed).
  */
 export async function mergeWeightLiftingCandidates(
   candidates: WeightLiftingMergeCandidate[],
@@ -272,17 +279,19 @@ export async function mergeWeightLiftingCandidates(
   for (const c of candidates) {
     if (!c.alreadyLinked) {
       await prisma.workoutSession.update({
+        where: { id: c.pelotonId },
+        data: { deletedAt: new Date(), pelotonWorkoutId: null },
+      })
+      await prisma.workoutSession.update({
         where: { id: c.tonalId },
         data: { pelotonWorkoutId: c.pelotonWorkoutId },
       })
+    } else {
+      await prisma.workoutSession.update({
+        where: { id: c.pelotonId },
+        data: { deletedAt: new Date(), pelotonWorkoutId: null },
+      })
     }
-    // pelotonWorkoutId is unique across the table, so it must be cleared
-    // off the retiring row in the same step it's set on the Tonal row.
-    // Otherwise this collides with the value just written above.
-    await prisma.workoutSession.update({
-      where: { id: c.pelotonId },
-      data: { deletedAt: new Date(), pelotonWorkoutId: null },
-    })
     merged++
   }
   return merged
