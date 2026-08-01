@@ -6,7 +6,7 @@ Personal fitness tracking application with a Next.js web dashboard. Tracks worko
 
 ## Technology Stack
 
-- **Web**: Next.js 14 (App Router), React 18, TypeScript
+- **Web**: Next.js 15 (App Router), React 18, TypeScript
 - **Database**: PostgreSQL via Prisma ORM (Vercel Postgres)
 - **Authentication**: NextAuth.js v5 (Auth.js) with Google OAuth
 - **Styling**: Tailwind CSS

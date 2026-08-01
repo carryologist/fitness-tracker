@@ -255,6 +255,7 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
           source: 'Tonal',
           tonalWorkoutId: null,
           date: { gte: startOfDay, lte: endOfDay },
+          deletedAt: null,
         },
       })
 
