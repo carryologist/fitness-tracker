@@ -276,9 +276,12 @@ export async function mergeWeightLiftingCandidates(
         data: { pelotonWorkoutId: c.pelotonWorkoutId },
       })
     }
+    // pelotonWorkoutId is unique across the table, so it must be cleared
+    // off the retiring row in the same step it's set on the Tonal row.
+    // Otherwise this collides with the value just written above.
     await prisma.workoutSession.update({
       where: { id: c.pelotonId },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), pelotonWorkoutId: null },
     })
     merged++
   }
