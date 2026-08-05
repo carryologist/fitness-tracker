@@ -6,6 +6,7 @@ import { runPelotonSync } from '@/lib/peloton-sync'
 import { runTonalSync } from '@/lib/tonal-sync'
 import { limitMcp, limitSync } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit-log'
+import { FREE_WEIGHT_ROUTINES, WEIGHT_TIERS, mergeProgress } from '@/lib/freeWeights'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -191,6 +192,69 @@ const handler = createMcpHandler(
         const req = (extra as { request?: Request }).request
         if (req) await logAudit(req, null, 'mcp.delete_workout', { id })
         return { content: [{ type: 'text', text: JSON.stringify({ deleted: true, id, soft: true }) }] }
+      },
+    )
+
+    server.tool(
+      'list_freeweight_progress',
+      'List the current Free Weights travel-mode programming: every exercise across the ' +
+        'Push/Pull/Legs routines with its current dumbbell weight and reps/set, merging any ' +
+        'saved progression over the built-in defaults. Read-only; useful for reviewing how ' +
+        'programming has progressed over time.',
+      {},
+      async () => {
+        const rows = await prisma.freeWeightProgress.findMany()
+        const merged = mergeProgress(FREE_WEIGHT_ROUTINES, rows)
+        const exercises = merged.flatMap(routine =>
+          routine.exercises.map(ex => ({
+            routineId: routine.id,
+            routineName: routine.name,
+            exerciseId: ex.id,
+            name: ex.name,
+            load: ex.load,
+            sets: ex.sets,
+            reps: ex.reps,
+            weightPerDumbbell: ex.weightPerDumbbell,
+            isOverridden: rows.some(r => r.exerciseId === ex.id),
+          }))
+        )
+        return { content: [{ type: 'text', text: JSON.stringify({ exercises }, null, 2) }] }
+      },
+    )
+
+    server.tool(
+      'set_freeweight_progress',
+      'Update the current reps/set (and optionally dumbbell weight) baseline for one Free ' +
+        'Weights exercise. Weight must be one of the dumbbell pairs actually owned: 5, 10, 15, ' +
+        'or 20 lb. Use list_freeweight_progress first to find the exerciseId slug.',
+      {
+        exerciseId: z.string().min(1).describe('Exercise slug, e.g. "push-overhead-press".'),
+        reps: z.number().int().min(1).max(100),
+        weightPerDumbbell: z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(20)])
+          .describe('One of the dumbbell pairs available: 5, 10, 15, or 20 lb.'),
+      },
+      async ({ exerciseId, reps, weightPerDumbbell }, extra) => {
+        const known = FREE_WEIGHT_ROUTINES.some(r => r.exercises.some(ex => ex.id === exerciseId))
+        if (!known) {
+          return {
+            content: [{ type: 'text', text: JSON.stringify({ error: 'unknown_exercise_id', exerciseId }) }],
+            isError: true,
+          }
+        }
+        if (!WEIGHT_TIERS.includes(weightPerDumbbell)) {
+          return {
+            content: [{ type: 'text', text: JSON.stringify({ error: 'invalid_weight', weightPerDumbbell }) }],
+            isError: true,
+          }
+        }
+        const updated = await prisma.freeWeightProgress.upsert({
+          where: { exerciseId },
+          update: { reps, weightPerDumbbell },
+          create: { exerciseId, reps, weightPerDumbbell },
+        })
+        const req = (extra as { request?: Request }).request
+        if (req) await logAudit(req, null, 'mcp.set_freeweight_progress', { exerciseId, reps, weightPerDumbbell })
+        return { content: [{ type: 'text', text: JSON.stringify({ progress: updated }, null, 2) }] }
       },
     )
 

@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RoutinePicker } from './RoutinePicker'
-import { ActiveSession } from './ActiveSession'
+import { ActiveSession, type SetState } from './ActiveSession'
 import { SessionSummary } from './SessionSummary'
 import {
-  getRoutine,
-  setVolume,
+  FREE_WEIGHT_ROUTINES,
+  customSetVolume,
+  mergeProgress,
+  type FreeWeightProgressRow,
   type FreeWeightRoutine,
 } from '@/lib/freeWeights'
 
@@ -17,11 +19,20 @@ const STORAGE_KEY = 'fitness-tracker-freeweights-session'
 interface PersistedSession {
   routineId: string
   startedAt: number
-  checked: Record<string, boolean[]>
+  checked: Record<string, SetState[]>
 }
 
-function emptyChecked(routine: FreeWeightRoutine): Record<string, boolean[]> {
-  return Object.fromEntries(routine.exercises.map(ex => [ex.id, Array(ex.sets).fill(false)]))
+function initialSets(routine: FreeWeightRoutine): Record<string, SetState[]> {
+  return Object.fromEntries(
+    routine.exercises.map(ex => [
+      ex.id,
+      Array.from({ length: ex.sets }, () => ({
+        completed: false,
+        actualReps: ex.reps,
+        actualWeight: ex.weightPerDumbbell,
+      })),
+    ])
+  )
 }
 
 function loadPersistedSession(): PersistedSession | null {
@@ -29,7 +40,7 @@ function loadPersistedSession(): PersistedSession | null {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as PersistedSession
-    if (!parsed.routineId || !getRoutine(parsed.routineId)) return null
+    if (!parsed.routineId) return null
     return parsed
   } catch {
     return null
@@ -53,9 +64,14 @@ function clearPersistedSession() {
 }
 
 export function FreeWeightsMode() {
+  // Code defaults, overlaid with DB progression once it loads (see effect
+  // below). Kept as state — rather than a plain constant — so an
+  // in-progress or just-finished session always reflects the current
+  // baseline, not a stale snapshot from before the fetch resolved.
+  const [routines, setRoutines] = useState<FreeWeightRoutine[]>(FREE_WEIGHT_ROUTINES)
   const [screen, setScreen] = useState<Screen>('picker')
-  const [routine, setRoutine] = useState<FreeWeightRoutine | null>(null)
-  const [checked, setChecked] = useState<Record<string, boolean[]>>({})
+  const [routineId, setRoutineId] = useState<string | null>(null)
+  const [checked, setChecked] = useState<Record<string, SetState[]>>({})
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [finishedElapsedSeconds, setFinishedElapsedSeconds] = useState(0)
@@ -63,13 +79,35 @@ export function FreeWeightsMode() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const routine = useMemo(
+    () => (routineId ? routines.find(r => r.id === routineId) ?? null : null),
+    [routines, routineId]
+  )
+
+  // Fetch current progression (Phase 2) and overlay it onto the code
+  // defaults. Falls back silently to defaults if the fetch fails so this
+  // never blocks starting a workout.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/freeweights/progress')
+      .then(res => (res.ok ? res.json() : { progress: [] }))
+      .then((data: { progress: FreeWeightProgressRow[] }) => {
+        if (cancelled) return
+        setRoutines(mergeProgress(FREE_WEIGHT_ROUTINES, data.progress ?? []))
+      })
+      .catch(() => {
+        // Keep code defaults.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // Restore an in-progress session (e.g. after an accidental tab close) on mount.
   useEffect(() => {
     const persisted = loadPersistedSession()
     if (!persisted) return
-    const restoredRoutine = getRoutine(persisted.routineId)
-    if (!restoredRoutine) return
-    setRoutine(restoredRoutine)
+    setRoutineId(persisted.routineId)
     setChecked(persisted.checked)
     setStartedAt(persisted.startedAt)
     setScreen('active')
@@ -88,21 +126,17 @@ export function FreeWeightsMode() {
     if (!routine) return 0
     return routine.exercises.reduce((sum, ex) => {
       const sets = checked[ex.id] ?? []
-      const completedReps = sets.filter(Boolean).length * ex.reps
-      return sum + setVolume(ex, completedReps)
+      const completedVolume = sets
+        .filter(s => s.completed)
+        .reduce((setSum, s) => setSum + customSetVolume(ex, s.actualReps, s.actualWeight), 0)
+      return sum + completedVolume
     }, 0)
   }, [routine, checked])
 
-  const setsCompleted = useMemo(
-    () => Object.values(checked).reduce((sum, sets) => sum + sets.filter(Boolean).length, 0),
-    [checked]
-  )
-  const totalSets = routine?.exercises.reduce((sum, ex) => sum + ex.sets, 0) ?? 0
-
   const handleSelectRoutine = useCallback((selected: FreeWeightRoutine) => {
-    const initialChecked = emptyChecked(selected)
+    const initialChecked = initialSets(selected)
     const now = Date.now()
-    setRoutine(selected)
+    setRoutineId(selected.id)
     setChecked(initialChecked)
     setStartedAt(now)
     setElapsedSeconds(0)
@@ -117,15 +151,31 @@ export function FreeWeightsMode() {
       setChecked(prev => {
         const next = {
           ...prev,
-          [exerciseId]: prev[exerciseId].map((v, i) => (i === setIndex ? !v : v)),
+          [exerciseId]: prev[exerciseId].map((s, i) => (i === setIndex ? { ...s, completed: !s.completed } : s)),
         }
-        if (routine && startedAt !== null) {
-          savePersistedSession({ routineId: routine.id, startedAt, checked: next })
+        if (routineId && startedAt !== null) {
+          savePersistedSession({ routineId, startedAt, checked: next })
         }
         return next
       })
     },
-    [routine, startedAt]
+    [routineId, startedAt]
+  )
+
+  const handleEditSet = useCallback(
+    (exerciseId: string, setIndex: number, actualReps: number, actualWeight: number) => {
+      setChecked(prev => {
+        const next = {
+          ...prev,
+          [exerciseId]: prev[exerciseId].map((s, i) => (i === setIndex ? { ...s, actualReps, actualWeight } : s)),
+        }
+        if (routineId && startedAt !== null) {
+          savePersistedSession({ routineId, startedAt, checked: next })
+        }
+        return next
+      })
+    },
+    [routineId, startedAt]
   )
 
   const handleFinish = useCallback(() => {
@@ -134,14 +184,19 @@ export function FreeWeightsMode() {
     setScreen('summary')
   }, [elapsedSeconds])
 
-  const handleCancel = useCallback(() => {
-    clearPersistedSession()
-    setRoutine(null)
+  const resetToPicker = useCallback(() => {
+    setRoutineId(null)
     setChecked({})
     setStartedAt(null)
     setElapsedSeconds(0)
+    setFinishedElapsedSeconds(0)
     setScreen('picker')
   }, [])
+
+  const handleCancel = useCallback(() => {
+    clearPersistedSession()
+    resetToPicker()
+  }, [resetToPicker])
 
   const elapsedMinutes = Math.max(1, Math.round(finishedElapsedSeconds / 60))
 
@@ -150,7 +205,7 @@ export function FreeWeightsMode() {
     setSaving(true)
     setError(null)
     try {
-      const touchedExercises = routine.exercises.filter(ex => (checked[ex.id] ?? []).some(Boolean))
+      const touchedExercises = routine.exercises.filter(ex => (checked[ex.id] ?? []).some(s => s.completed))
       const notes = `${routine.name} Day (Free Weights) — ${touchedExercises.map(ex => ex.name).join(', ')}`
 
       const res = await fetch('/api/workouts', {
@@ -180,23 +235,13 @@ export function FreeWeightsMode() {
   }, [routine, checked, elapsedMinutes, totalVolume])
 
   const handleDiscard = useCallback(() => {
-    setRoutine(null)
-    setChecked({})
-    setStartedAt(null)
-    setElapsedSeconds(0)
-    setFinishedElapsedSeconds(0)
-    setScreen('picker')
-  }, [])
+    resetToPicker()
+  }, [resetToPicker])
 
   const handleDone = useCallback(() => {
-    setRoutine(null)
-    setChecked({})
-    setStartedAt(null)
-    setElapsedSeconds(0)
-    setFinishedElapsedSeconds(0)
     setSaved(false)
-    setScreen('picker')
-  }, [])
+    resetToPicker()
+  }, [resetToPicker])
 
   if (screen === 'active' && routine) {
     return (
@@ -206,6 +251,7 @@ export function FreeWeightsMode() {
         elapsedSeconds={elapsedSeconds}
         totalVolume={totalVolume}
         onToggleSet={handleToggleSet}
+        onEditSet={handleEditSet}
         onFinish={handleFinish}
         onCancel={handleCancel}
       />
@@ -216,10 +262,9 @@ export function FreeWeightsMode() {
     return (
       <SessionSummary
         routine={routine}
+        checked={checked}
         elapsedMinutes={elapsedMinutes}
         totalVolume={totalVolume}
-        setsCompleted={setsCompleted}
-        totalSets={totalSets}
         saving={saving}
         error={error}
         saved={saved}
@@ -230,5 +275,5 @@ export function FreeWeightsMode() {
     )
   }
 
-  return <RoutinePicker onSelect={handleSelectRoutine} />
+  return <RoutinePicker routines={routines} onSelect={handleSelectRoutine} />
 }

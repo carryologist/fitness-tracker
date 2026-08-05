@@ -101,6 +101,21 @@ model MonthlySummary {
   @@map("monthly_summaries")
 }
 
+// Free Weights progression (Phase 2): per-exercise override of the code
+// defaults in src/lib/freeWeights.ts. A missing row means "use the code
+// default" — this table only ever stores exercises that have been bumped
+// at least once via Settings or the set_freeweight_progress MCP tool.
+model FreeWeightProgress {
+  id                String   @id @default(cuid())
+  exerciseId        String   @unique // slug from src/lib/freeWeights.ts, e.g. "push-overhead-press"
+  weightPerDumbbell Int // 5 | 10 | 15 | 20
+  reps              Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("free_weight_progress")
+}
+
 // Audit log (F-06) — every bearer-authed mutation, plus session mutations,
 // records a row here so a leaked MCP_API_TOKEN leaves a trail.
 model AuditLog {
