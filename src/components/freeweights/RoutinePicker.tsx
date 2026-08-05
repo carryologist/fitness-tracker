@@ -1,6 +1,7 @@
 'use client'
 
-import { Dumbbell, Clock, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { Dumbbell, Clock, ChevronRight, BookOpen } from 'lucide-react'
 import { estimateRoutineMinutes, plannedRoutineVolume, type FreeWeightRoutine } from '@/lib/freeWeights'
 
 interface RoutinePickerProps {
@@ -16,14 +17,29 @@ export function RoutinePicker({ routines, onSelect }: RoutinePickerProps) {
         <p className="text-gray-600 dark:text-gray-400 mt-1">
           Dumbbell-only routines for when you&apos;re away from Tonal. Pick a day to start.
         </p>
+        <Link
+          href="/freeweights/glossary"
+          className="inline-flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline mt-2"
+        >
+          <BookOpen className="w-4 h-4" />
+          Not sure what an exercise is? Read the glossary
+        </Link>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         {routines.map(routine => (
-          <button
+          <div
             key={routine.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(routine)}
-            className="text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-primary-400 dark:hover:border-primary-500 transition-all group"
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelect(routine)
+              }
+            }}
+            className="text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-primary-400 dark:hover:border-primary-500 transition-all group cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="w-10 h-10 rounded-lg bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center">
@@ -36,7 +52,15 @@ export function RoutinePicker({ routines, onSelect }: RoutinePickerProps) {
             <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-0.5 mb-3">
               {routine.exercises.map(ex => (
                 <li key={ex.id}>
-                  {ex.name} — {ex.sets}×{ex.reps}
+                  <Link
+                    href={`/freeweights/glossary#${ex.id}`}
+                    target="_blank"
+                    onClick={e => e.stopPropagation()}
+                    className="hover:text-primary-600 dark:hover:text-primary-400 hover:underline"
+                  >
+                    {ex.name}
+                  </Link>
+                  {' '}— {ex.sets}×{ex.reps}
                 </li>
               ))}
             </ul>
@@ -47,7 +71,7 @@ export function RoutinePicker({ routines, onSelect }: RoutinePickerProps) {
               </span>
               <span>~{plannedRoutineVolume(routine).toLocaleString()} lbs</span>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </div>

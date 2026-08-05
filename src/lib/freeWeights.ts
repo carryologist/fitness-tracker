@@ -17,6 +17,10 @@ export interface FreeWeightExercise {
    * the future DB foreign key — do not change once shipped. */
   id: string
   name: string
+  /** Two-sentence, no-jargon how-to. Shown in the exercise glossary and
+   * linked from the routine picker / active session for anyone (including
+   * future-you) who forgets what a "Floor Chest Fly" is. */
+  description: string
   /**
    * How weight is loaded per rep:
    * - bilateral: both dumbbells move together every rep. Volume/rep = 2 * weightPerDumbbell.
@@ -75,11 +79,36 @@ export const FREE_WEIGHT_ROUTINES: FreeWeightRoutine[] = [
     name: 'Push',
     description: 'Chest, shoulders, triceps',
     exercises: [
-      { id: 'push-overhead-press', name: 'Standing Overhead Press', load: 'bilateral', weightPerDumbbell: 15, sets: 5, reps: 15 },
-      { id: 'push-floor-chest-press', name: 'Floor Chest Press', load: 'bilateral', weightPerDumbbell: 20, sets: 5, reps: 15 },
-      { id: 'push-floor-chest-fly', name: 'Floor Chest Fly', load: 'bilateral', weightPerDumbbell: 10, sets: 5, reps: 15 },
-      { id: 'push-lateral-raise', name: 'Lateral Raise', load: 'bilateral', weightPerDumbbell: 5, sets: 5, reps: 15 },
-      { id: 'push-triceps-kickback', name: 'Triceps Kickback', load: 'unilateral', weightPerDumbbell: 10, sets: 5, reps: 15 },
+      {
+        id: 'push-overhead-press',
+        name: 'Standing Overhead Press',
+        description: 'Stand with feet shoulder-width apart, holding a dumbbell in each hand at shoulder height with palms facing forward. Press both dumbbells straight overhead until your arms are fully extended, then lower back to shoulder height with control.',
+        load: 'bilateral', weightPerDumbbell: 15, sets: 5, reps: 15,
+      },
+      {
+        id: 'push-floor-chest-press',
+        name: 'Floor Chest Press',
+        description: 'Lie on your back on the floor with knees bent, holding a dumbbell in each hand at chest level with elbows bent. Press both dumbbells straight up until your arms are extended, then lower until your upper arms touch the floor.',
+        load: 'bilateral', weightPerDumbbell: 20, sets: 5, reps: 15,
+      },
+      {
+        id: 'push-floor-chest-fly',
+        name: 'Floor Chest Fly',
+        description: "Lie on your back on the floor with a slight bend in your elbows, arms extended out to the sides at chest level holding a dumbbell in each hand. Bring the dumbbells together in an arc over your chest, then lower back out to the sides with control.",
+        load: 'bilateral', weightPerDumbbell: 10, sets: 5, reps: 15,
+      },
+      {
+        id: 'push-lateral-raise',
+        name: 'Lateral Raise',
+        description: "Stand with a dumbbell in each hand at your sides, palms facing your body. Raise both arms out to the sides until they're roughly shoulder height, then lower with control.",
+        load: 'bilateral', weightPerDumbbell: 5, sets: 5, reps: 15,
+      },
+      {
+        id: 'push-triceps-kickback',
+        name: 'Triceps Kickback',
+        description: 'Hinge forward at the hips with a flat back, holding a dumbbell in one hand with your upper arm pinned close to your torso and elbow bent. Extend your forearm straight back until your arm is fully straight, then bend it back to the start.',
+        load: 'unilateral', weightPerDumbbell: 10, sets: 5, reps: 15,
+      },
     ],
   },
   {
@@ -87,11 +116,36 @@ export const FREE_WEIGHT_ROUTINES: FreeWeightRoutine[] = [
     name: 'Pull',
     description: 'Back, biceps, rear delts',
     exercises: [
-      { id: 'pull-bent-over-row', name: 'Bent-Over Row', load: 'bilateral', weightPerDumbbell: 20, sets: 5, reps: 15 },
-      { id: 'pull-single-arm-row', name: 'Single-Arm Row', load: 'unilateral', weightPerDumbbell: 20, sets: 5, reps: 15 },
-      { id: 'pull-bicep-curl', name: 'Bicep Curl', load: 'bilateral', weightPerDumbbell: 10, sets: 5, reps: 15 },
-      { id: 'pull-hammer-curl', name: 'Hammer Curl', load: 'bilateral', weightPerDumbbell: 10, sets: 5, reps: 15 },
-      { id: 'pull-rear-delt-fly', name: 'Rear Delt Fly', load: 'bilateral', weightPerDumbbell: 5, sets: 5, reps: 15 },
+      {
+        id: 'pull-bent-over-row',
+        name: 'Bent-Over Row',
+        description: 'Hinge forward at the hips with a flat back and knees slightly bent, holding a dumbbell in each hand hanging below your shoulders. Pull both dumbbells up toward your ribcage, squeezing your shoulder blades together, then lower with control.',
+        load: 'bilateral', weightPerDumbbell: 20, sets: 5, reps: 15,
+      },
+      {
+        id: 'pull-single-arm-row',
+        name: 'Single-Arm Row',
+        description: 'Hinge forward at the hips with a flat back, holding a dumbbell in one hand hanging straight down while the other hand rests on your thigh for support. Pull the dumbbell up toward your ribcage, then lower it back down with control.',
+        load: 'unilateral', weightPerDumbbell: 20, sets: 5, reps: 15,
+      },
+      {
+        id: 'pull-bicep-curl',
+        name: 'Bicep Curl',
+        description: 'Stand with a dumbbell in each hand, arms hanging at your sides with palms facing forward. Curl both dumbbells up toward your shoulders by bending your elbows, then lower with control.',
+        load: 'bilateral', weightPerDumbbell: 10, sets: 5, reps: 15,
+      },
+      {
+        id: 'pull-hammer-curl',
+        name: 'Hammer Curl',
+        description: 'Stand with a dumbbell in each hand, arms hanging at your sides with palms facing your body. Curl both dumbbells up toward your shoulders while keeping your palms facing inward, then lower with control.',
+        load: 'bilateral', weightPerDumbbell: 10, sets: 5, reps: 15,
+      },
+      {
+        id: 'pull-rear-delt-fly',
+        name: 'Rear Delt Fly',
+        description: "Hinge forward at the hips with a flat back, holding a dumbbell in each hand hanging below your shoulders with a slight bend in your elbows. Raise both arms out to the sides until they're roughly in line with your shoulders, then lower with control.",
+        load: 'bilateral', weightPerDumbbell: 5, sets: 5, reps: 15,
+      },
     ],
   },
   {
@@ -99,11 +153,36 @@ export const FREE_WEIGHT_ROUTINES: FreeWeightRoutine[] = [
     name: 'Legs',
     description: 'Quads, hamstrings, glutes, calves',
     exercises: [
-      { id: 'legs-suitcase-squat', name: 'Suitcase Squat', load: 'bilateral', weightPerDumbbell: 20, sets: 6, reps: 15 },
-      { id: 'legs-romanian-deadlift', name: 'Romanian Deadlift', load: 'bilateral', weightPerDumbbell: 15, sets: 6, reps: 15 },
-      { id: 'legs-reverse-lunge', name: 'Reverse Lunge', load: 'bilateral', weightPerDumbbell: 10, sets: 6, reps: 15 },
-      { id: 'legs-calf-raise', name: 'Calf Raise', load: 'bilateral', weightPerDumbbell: 5, sets: 6, reps: 15 },
-      { id: 'legs-glute-bridge', name: 'Glute Bridge', load: 'single', weightPerDumbbell: 15, sets: 6, reps: 15 },
+      {
+        id: 'legs-suitcase-squat',
+        name: 'Suitcase Squat',
+        description: 'Stand holding a dumbbell in each hand at your sides, like carrying suitcases, feet about shoulder-width apart. Bend your knees and hips to lower into a squat until your thighs are roughly parallel to the floor, then stand back up.',
+        load: 'bilateral', weightPerDumbbell: 20, sets: 6, reps: 15,
+      },
+      {
+        id: 'legs-romanian-deadlift',
+        name: 'Romanian Deadlift',
+        description: 'Stand holding a dumbbell in each hand in front of your thighs with knees slightly bent. Hinge at the hips and push them back, lowering the dumbbells along your legs until you feel a stretch in your hamstrings, then drive your hips forward to stand back up.',
+        load: 'bilateral', weightPerDumbbell: 15, sets: 6, reps: 15,
+      },
+      {
+        id: 'legs-reverse-lunge',
+        name: 'Reverse Lunge',
+        description: 'Stand holding a dumbbell in each hand at your sides, then step one leg backward and lower until both knees are bent around 90 degrees. Push through your front foot to return to standing, then repeat on the other side.',
+        load: 'bilateral', weightPerDumbbell: 10, sets: 6, reps: 15,
+      },
+      {
+        id: 'legs-calf-raise',
+        name: 'Calf Raise',
+        description: 'Stand holding a dumbbell in each hand at your sides with feet flat on the floor. Rise up onto the balls of your feet as high as you can, then lower your heels back down with control.',
+        load: 'bilateral', weightPerDumbbell: 5, sets: 6, reps: 15,
+      },
+      {
+        id: 'legs-glute-bridge',
+        name: 'Glute Bridge',
+        description: 'Lie on your back with knees bent and feet flat on the floor, holding one dumbbell across your hips with both hands. Drive through your heels to lift your hips toward the ceiling, squeezing your glutes, then lower back down with control.',
+        load: 'single', weightPerDumbbell: 15, sets: 6, reps: 15,
+      },
     ],
   },
 ]

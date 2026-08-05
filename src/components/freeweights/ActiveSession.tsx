@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Clock, Weight, X, Pencil } from 'lucide-react'
+import Link from 'next/link'
+import { Check, Clock, Weight, X, Pencil, BookOpen } from 'lucide-react'
 import { WEIGHT_TIERS, customSetVolume, type FreeWeightExercise, type FreeWeightRoutine } from '@/lib/freeWeights'
 
 export interface SetState {
@@ -162,7 +163,18 @@ export function ActiveSession({
               className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm"
             >
               <div className="flex items-baseline justify-between mb-3">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">{exercise.name}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                  {exercise.name}
+                  <Link
+                    href={`/freeweights/glossary#${exercise.id}`}
+                    target="_blank"
+                    className="text-gray-400 hover:text-primary-500"
+                    aria-label={`What is ${exercise.name}?`}
+                    title="What is this exercise?"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                  </Link>
+                </h3>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {exercise.weightPerDumbbell} lb {exercise.load === 'bilateral' ? '(each)' : ''} · {exercise.reps} reps
                 </span>
