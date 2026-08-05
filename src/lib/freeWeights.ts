@@ -59,6 +59,16 @@ export function setVolume(exercise: FreeWeightExercise, repsCompleted: number): 
   return perRepVolume(exercise) * repsCompleted
 }
 
+/**
+ * Volume (lbs) for one completed set when both the reps AND the dumbbell
+ * weight actually used differ from the exercise's planned values (Phase 2
+ * per-set editing — e.g. you swapped to a lighter pair mid-set).
+ */
+export function customSetVolume(exercise: FreeWeightExercise, actualReps: number, actualWeight: number): number {
+  const multiplier = exercise.load === 'bilateral' ? 2 : 1
+  return actualWeight * multiplier * actualReps
+}
+
 export const FREE_WEIGHT_ROUTINES: FreeWeightRoutine[] = [
   {
     id: 'push',
@@ -100,6 +110,53 @@ export const FREE_WEIGHT_ROUTINES: FreeWeightRoutine[] = [
 
 export function getRoutine(id: string): FreeWeightRoutine | undefined {
   return FREE_WEIGHT_ROUTINES.find(r => r.id === id)
+}
+
+/** All dumbbell pairs available while traveling, lightest to heaviest. */
+export const WEIGHT_TIERS = [5, 10, 15, 20] as const
+
+/** Reps/set that triggers the "level up to the next dumbbell tier" prompt. */
+export const REP_CEILING = 20
+
+/** Reps/set to restart at after leveling up to a heavier dumbbell tier. */
+export const LEVEL_UP_RESET_REPS = 8
+
+/** The next heavier dumbbell tier, or null if already at the heaviest (20 lb). */
+export function nextWeightTier(current: number): 5 | 10 | 15 | 20 | null {
+  const index = WEIGHT_TIERS.indexOf(current as (typeof WEIGHT_TIERS)[number])
+  if (index === -1 || index === WEIGHT_TIERS.length - 1) return null
+  return WEIGHT_TIERS[index + 1]
+}
+
+/** A persisted override of one exercise's weight/reps (Phase 2 progression). */
+export interface FreeWeightProgressRow {
+  exerciseId: string
+  weightPerDumbbell: number
+  reps: number
+}
+
+/**
+ * Overlay DB progression rows onto the code-defined routines. Exercises
+ * with no matching row keep their code default (weight + reps); `sets`
+ * and `load` are never overridden — only weight and reps progress.
+ */
+export function mergeProgress(
+  routines: FreeWeightRoutine[],
+  progress: FreeWeightProgressRow[],
+): FreeWeightRoutine[] {
+  const byId = new Map(progress.map(p => [p.exerciseId, p]))
+  return routines.map(routine => ({
+    ...routine,
+    exercises: routine.exercises.map(exercise => {
+      const override = byId.get(exercise.id)
+      if (!override) return exercise
+      return {
+        ...exercise,
+        weightPerDumbbell: override.weightPerDumbbell as FreeWeightExercise['weightPerDumbbell'],
+        reps: override.reps,
+      }
+    }),
+  }))
 }
 
 /**

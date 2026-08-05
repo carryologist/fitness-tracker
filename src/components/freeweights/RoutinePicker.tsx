@@ -1,13 +1,14 @@
 'use client'
 
 import { Dumbbell, Clock, ChevronRight } from 'lucide-react'
-import { FREE_WEIGHT_ROUTINES, estimateRoutineMinutes, plannedRoutineVolume, type FreeWeightRoutine } from '@/lib/freeWeights'
+import { estimateRoutineMinutes, plannedRoutineVolume, type FreeWeightRoutine } from '@/lib/freeWeights'
 
 interface RoutinePickerProps {
+  routines: FreeWeightRoutine[]
   onSelect: (routine: FreeWeightRoutine) => void
 }
 
-export function RoutinePicker({ onSelect }: RoutinePickerProps) {
+export function RoutinePicker({ routines, onSelect }: RoutinePickerProps) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="mb-6 text-center">
@@ -18,7 +19,7 @@ export function RoutinePicker({ onSelect }: RoutinePickerProps) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {FREE_WEIGHT_ROUTINES.map(routine => (
+        {routines.map(routine => (
           <button
             key={routine.id}
             onClick={() => onSelect(routine)}

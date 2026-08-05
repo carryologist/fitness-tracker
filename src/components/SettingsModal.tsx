@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { useSettings } from '../context/SettingsContext'
+import { FreeWeightProgressSettings } from './freeweights/FreeWeightProgressSettings'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -166,6 +167,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               🌍 Metric (km, kg)
             </button>
           </div>
+        </div>
+
+        {/* Free Weights Progression */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Free Weights Progression</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Bump reps/set as an exercise gets easier. Weight is capped by your dumbbells (5/10/15/20 lb).
+          </p>
+          <FreeWeightProgressSettings />
         </div>
 
         {/* Workout Defaults */}
