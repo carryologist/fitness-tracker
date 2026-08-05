@@ -4,6 +4,7 @@ import React from 'react'
 import { Plus, Calendar, Settings, RefreshCw, Upload } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { AuthHeader } from './AuthHeader'
+import { NavTabs } from './NavTabs'
 
 interface DashboardHeaderProps {
   currentYear: number
@@ -31,51 +32,64 @@ export function DashboardHeader({
   return (
     <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section tabs - own row so it never competes with the action buttons for width */}
+        <div className="py-2 border-b border-gray-100 dark:border-gray-800">
+          <NavTabs />
+        </div>
+
         {/* Mobile Layout - Stack vertically */}
         <div className="sm:hidden py-2">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <div className="flex items-center gap-2 shrink-0 min-w-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/fitness-logo.svg"
                 alt="Fit Track"
-                className="w-8 h-8 rounded-lg shadow-sm"
+                className="w-8 h-8 rounded-lg shadow-sm shrink-0"
               />
-              <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">
+              <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 truncate">
                 Fit Track
               </h1>
             </div>
-            <div className="flex items-center gap-1.5">
+            {/*
+             * Icon-only on mobile with fixed-width buttons: the previous
+             * text labels ("Peloton" -> "Syncing…") changed width when a
+             * sync started, which shrank this flex row and wrapped the
+             * "Fit Track" title onto two lines. Icons have a constant
+             * footprint regardless of sync state.
+             */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => onSync('peloton')}
                 disabled={syncing !== null}
-                className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
+                className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white p-2 rounded-lg transition-colors shadow-sm"
+                title={syncing === 'peloton' ? 'Syncing Peloton…' : 'Sync Peloton'}
+                aria-label={syncing === 'peloton' ? 'Syncing Peloton…' : 'Sync Peloton'}
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncing === 'peloton' ? 'animate-spin' : ''}`} />
-                <span>{syncing === 'peloton' ? 'Syncing…' : 'Peloton'}</span>
               </button>
               <button
                 onClick={() => onSync('tonal')}
                 disabled={syncing !== null}
-                className="bg-gray-900 dark:bg-gray-200 hover:bg-black dark:hover:bg-white disabled:opacity-50 text-white dark:text-gray-900 px-2 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm text-xs"
+                className="bg-gray-900 dark:bg-gray-200 hover:bg-black dark:hover:bg-white disabled:opacity-50 text-white dark:text-gray-900 p-2 rounded-lg transition-colors shadow-sm"
+                title={syncing === 'tonal' ? 'Syncing Tonal…' : 'Sync Tonal'}
+                aria-label={syncing === 'tonal' ? 'Syncing Tonal…' : 'Sync Tonal'}
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncing === 'tonal' ? 'animate-spin' : ''}`} />
-                <span>{syncing === 'tonal' ? 'Syncing…' : 'Tonal'}</span>
               </button>
               {/* OCR screenshot import — fallback when API sync doesn't capture a workout */}
               <button
                 onClick={onImportClick}
                 disabled={importing}
-                className="bg-gray-700 dark:bg-gray-500 hover:bg-gray-800 dark:hover:bg-gray-400 disabled:opacity-50 text-white dark:text-gray-900 p-1.5 rounded-lg transition-colors shadow-sm"
-                title="Import Tonal screenshot (fallback)"
+                className="bg-gray-700 dark:bg-gray-500 hover:bg-gray-800 dark:hover:bg-gray-400 disabled:opacity-50 text-white dark:text-gray-900 p-2 rounded-lg transition-colors shadow-sm"
+                title={importing ? `Importing ${importProgress || ''}…` : 'Import Tonal screenshot (fallback)'}
                 aria-label="Import Tonal screenshot"
               >
                 <Upload className={`w-3.5 h-3.5 ${importing ? 'animate-pulse' : ''}`} />
-                {importing && importProgress && <span className="text-[10px]">{importProgress}</span>}
               </button>
               <button
                 onClick={onSettingsClick}
-                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 title="Settings"
                 aria-label="Settings"
               >
