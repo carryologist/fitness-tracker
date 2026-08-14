@@ -6,9 +6,9 @@
 // "increase reps" progression, surfaced in Settings) can key off the same
 // identifiers without renumbering anything.
 //
-// Phase 2 (not yet built): persist routines/progression in the database and
-// let reps-per-set grow over time from Settings. Weight is fixed by the
-// dumbbells available (5/10/15/20 lb pairs), so only reps increase.
+// Phase 2: routines/progression persist in the database. Both reps/set and
+// weight (one of the 5/10/15/20 lb dumbbell tiers) are freely editable from
+// Settings. There is no automatic rep-ceiling or level-up behavior.
 
 export type LoadType = 'bilateral' | 'unilateral' | 'single'
 
@@ -123,16 +123,16 @@ export const FREE_WEIGHT_ROUTINES: FreeWeightRoutine[] = [
         load: 'bilateral', weightPerDumbbell: 20, sets: 5, reps: 15,
       },
       {
-        id: 'pull-single-arm-row',
-        name: 'Single-Arm Row',
-        description: 'Hinge forward at the hips with a flat back, holding a dumbbell in one hand hanging straight down while the other hand rests on your thigh for support. Pull the dumbbell up toward your ribcage, then lower it back down with control.',
-        load: 'unilateral', weightPerDumbbell: 20, sets: 5, reps: 15,
-      },
-      {
         id: 'pull-bicep-curl',
         name: 'Bicep Curl',
         description: 'Stand with a dumbbell in each hand, arms hanging at your sides with palms facing forward. Curl both dumbbells up toward your shoulders by bending your elbows, then lower with control.',
         load: 'bilateral', weightPerDumbbell: 10, sets: 5, reps: 15,
+      },
+      {
+        id: 'pull-single-arm-row',
+        name: 'Single-Arm Row',
+        description: 'Hinge forward at the hips with a flat back, holding a dumbbell in one hand hanging straight down while the other hand rests on your thigh for support. Pull the dumbbell up toward your ribcage, then lower it back down with control.',
+        load: 'unilateral', weightPerDumbbell: 20, sets: 5, reps: 15,
       },
       {
         id: 'pull-hammer-curl',
@@ -193,19 +193,6 @@ export function getRoutine(id: string): FreeWeightRoutine | undefined {
 
 /** All dumbbell pairs available while traveling, lightest to heaviest. */
 export const WEIGHT_TIERS = [5, 10, 15, 20] as const
-
-/** Reps/set that triggers the "level up to the next dumbbell tier" prompt. */
-export const REP_CEILING = 20
-
-/** Reps/set to restart at after leveling up to a heavier dumbbell tier. */
-export const LEVEL_UP_RESET_REPS = 8
-
-/** The next heavier dumbbell tier, or null if already at the heaviest (20 lb). */
-export function nextWeightTier(current: number): 5 | 10 | 15 | 20 | null {
-  const index = WEIGHT_TIERS.indexOf(current as (typeof WEIGHT_TIERS)[number])
-  if (index === -1 || index === WEIGHT_TIERS.length - 1) return null
-  return WEIGHT_TIERS[index + 1]
-}
 
 /** A persisted override of one exercise's weight/reps (Phase 2 progression). */
 export interface FreeWeightProgressRow {

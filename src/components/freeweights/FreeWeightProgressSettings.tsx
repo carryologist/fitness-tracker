@@ -1,24 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TrendingUp } from 'lucide-react'
 import {
   FREE_WEIGHT_ROUTINES,
-  REP_CEILING,
-  LEVEL_UP_RESET_REPS,
+  WEIGHT_TIERS,
   mergeProgress,
-  nextWeightTier,
   type FreeWeightProgressRow,
   type FreeWeightRoutine,
 } from '@/lib/freeWeights'
 
 /**
- * Phase 2 progression control. Weight is capped by the dumbbells you
- * actually own (5/10/15/20 lb pairs), so only reps/set is adjustable here.
- * Once an exercise hits REP_CEILING at a weight below the heaviest tier,
- * a "Level Up" prompt offers to move to the next dumbbell size and reset
- * reps to a restart baseline, rather than let reps climb forever on light
- * weight.
+ * Phase 2 progression control. Both reps/set and dumbbell weight (one of
+ * the 5/10/15/20 lb tiers you own) are directly editable per exercise and
+ * persist to the database, overriding the code defaults on every load.
  */
 export function FreeWeightProgressSettings() {
   const [routines, setRoutines] = useState<FreeWeightRoutine[]>(FREE_WEIGHT_ROUTINES)
@@ -81,8 +75,6 @@ export function FreeWeightProgressSettings() {
           </p>
           <div className="space-y-2">
             {routine.exercises.map(exercise => {
-              const canLevelUp = exercise.reps >= REP_CEILING && nextWeightTier(exercise.weightPerDumbbell) !== null
-              const maxed = exercise.weightPerDumbbell === 20
               const disabled = pendingId === exercise.id
 
               return (
@@ -91,20 +83,26 @@ export function FreeWeightProgressSettings() {
                     <p className="text-sm text-gray-800 dark:text-gray-200 truncate">{exercise.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {exercise.weightPerDumbbell} lb · {exercise.reps} reps/set
-                      {maxed && exercise.reps >= REP_CEILING && ' · maxed at 20 lb'}
                     </p>
                   </div>
-                  {canLevelUp ? (
-                    <button
-                      disabled={disabled}
-                      onClick={() => patch(exercise.id, LEVEL_UP_RESET_REPS, nextWeightTier(exercise.weightPerDumbbell)!)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50 disabled:opacity-50 shrink-0"
-                    >
-                      <TrendingUp className="w-3.5 h-3.5" />
-                      Level up to {nextWeightTier(exercise.weightPerDumbbell)} lb
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex gap-1">
+                      {WEIGHT_TIERS.map(tier => (
+                        <button
+                          key={tier}
+                          disabled={disabled}
+                          onClick={() => patch(exercise.id, exercise.reps, tier)}
+                          className={`px-2 py-1 rounded-md text-xs font-semibold border disabled:opacity-40 ${
+                            exercise.weightPerDumbbell === tier
+                              ? 'bg-primary-600 border-primary-600 text-white'
+                              : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'
+                          }`}
+                        >
+                          {tier}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1">
                       <button
                         disabled={disabled || exercise.reps <= 1}
                         onClick={() => patch(exercise.id, exercise.reps - 1, exercise.weightPerDumbbell)}
@@ -120,7 +118,7 @@ export function FreeWeightProgressSettings() {
                         +
                       </button>
                     </div>
-                  )}
+                  </div>
                 </div>
               )
             })}
