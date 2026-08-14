@@ -9,10 +9,15 @@ on:
     # Weekly scan so new advisories show up even without a push.
     - cron: '17 13 * * 1'
 
+permissions: {}
+
 jobs:
   audit:
     name: npm audit (production deps)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -78,6 +83,8 @@ jobs:
   typecheck:
     name: tsc
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
