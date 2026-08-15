@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
-import { WEIGHT_TIERS } from '@/lib/freeWeights'
+import { isValidCombinedWeight, combinedWeightOptions } from '@/lib/freeWeights'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,9 +34,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'reps must be between 1 and 100' }, { status: 400 })
     }
     const parsedWeight = parseInt(weightPerDumbbell)
-    if (!WEIGHT_TIERS.includes(parsedWeight as (typeof WEIGHT_TIERS)[number])) {
+    if (isNaN(parsedWeight) || !isValidCombinedWeight(parsedWeight)) {
       return NextResponse.json(
-        { error: `weightPerDumbbell must be one of ${WEIGHT_TIERS.join(', ')}` },
+        { error: `weightPerDumbbell must be one of ${combinedWeightOptions().join(', ')} (single or stacked dumbbell tiers)` },
         { status: 400 }
       )
     }

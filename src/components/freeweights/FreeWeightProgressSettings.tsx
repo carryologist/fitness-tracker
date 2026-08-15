@@ -4,20 +4,28 @@ import { useEffect, useState } from 'react'
 import {
   FREE_WEIGHT_ROUTINES,
   WEIGHT_TIERS,
+  decomposeWeight,
   mergeProgress,
   type FreeWeightProgressRow,
   type FreeWeightRoutine,
 } from '@/lib/freeWeights'
 
 /**
- * Phase 2 progression control. Both reps/set and dumbbell weight (one of
- * the 5/10/15/20 lb tiers you own) are directly editable per exercise and
- * persist to the database, overriding the code defaults on every load.
+ * Phase 2 progression control. Reps/set are directly editable per exercise,
+ * and dumbbell weight is chosen by toggling one or more of the 5/10/15/20 lb
+ * tiers you own — stacking multiple selects a combined weight (e.g. 20 + 10 =
+ * 30 lb). Both persist to the database, overriding the code defaults on
+ * every load.
  */
 export function FreeWeightProgressSettings() {
   const [routines, setRoutines] = useState<FreeWeightRoutine[]>(FREE_WEIGHT_ROUTINES)
   const [loading, setLoading] = useState(true)
   const [pendingId, setPendingId] = useState<string | null>(null)
+  // Per-exercise dumbbell tier selection, kept separate from the persisted
+  // weightPerDumbbell sum since a combined weight can't always be uniquely
+  // decomposed back into tiers. Falls back to decomposeWeight() until the
+  // user has interacted with an exercise's tiers this session.
+  const [tierSelections, setTierSelections] = useState<Record<string, number[]>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -51,13 +59,22 @@ export function FreeWeightProgressSettings() {
         prev.map(r => ({
           ...r,
           exercises: r.exercises.map(ex =>
-            ex.id === exerciseId ? { ...ex, reps, weightPerDumbbell: weightPerDumbbell as typeof ex.weightPerDumbbell } : ex
+            ex.id === exerciseId ? { ...ex, reps, weightPerDumbbell } : ex
           ),
         }))
       )
     } finally {
       setPendingId(null)
     }
+  }
+
+  const toggleTier = (exercise: FreeWeightRoutine['exercises'][number], tier: number) => {
+    const current = tierSelections[exercise.id] ?? decomposeWeight(exercise.weightPerDumbbell)
+    const next = current.includes(tier) ? current.filter(t => t !== tier) : [...current, tier].sort((a, b) => a - b)
+    if (next.length === 0) return // keep at least one dumbbell selected
+    setTierSelections(prev => ({ ...prev, [exercise.id]: next }))
+    const combinedWeight = next.reduce((sum, t) => sum + t, 0)
+    patch(exercise.id, exercise.reps, combinedWeight)
   }
 
   if (loading) {
@@ -76,13 +93,14 @@ export function FreeWeightProgressSettings() {
           <div className="space-y-2">
             {routine.exercises.map(exercise => {
               const disabled = pendingId === exercise.id
+              const selectedTiers = tierSelections[exercise.id] ?? decomposeWeight(exercise.weightPerDumbbell)
 
               return (
                 <div key={exercise.id} className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm text-gray-800 dark:text-gray-200 truncate">{exercise.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {exercise.weightPerDumbbell} lb · {exercise.reps} reps/set
+                      {exercise.weightPerDumbbell} lb{selectedTiers.length > 1 ? ` (${selectedTiers.join(' + ')})` : ''} · {exercise.reps} reps/set
                     </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
@@ -91,9 +109,10 @@ export function FreeWeightProgressSettings() {
                         <button
                           key={tier}
                           disabled={disabled}
-                          onClick={() => patch(exercise.id, exercise.reps, tier)}
+                          onClick={() => toggleTier(exercise, tier)}
+                          aria-pressed={selectedTiers.includes(tier)}
                           className={`px-2 py-1 rounded-md text-xs font-semibold border disabled:opacity-40 ${
-                            exercise.weightPerDumbbell === tier
+                            selectedTiers.includes(tier)
                               ? 'bg-primary-600 border-primary-600 text-white'
                               : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'
                           }`}

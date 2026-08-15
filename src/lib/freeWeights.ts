@@ -29,8 +29,10 @@ export interface FreeWeightExercise {
    * - single: one dumbbell held with both hands (e.g. goblet squat). Volume/rep = weightPerDumbbell.
    */
   load: LoadType
-  /** One of the dumbbell pairs you're traveling with: 5, 10, 15, or 20 lb. */
-  weightPerDumbbell: 5 | 10 | 15 | 20
+  /** Weight actually loaded per side: one dumbbell pair (5/10/15/20 lb) or
+   * several stacked together (e.g. 20 + 10 = 30). Always a sum of one or
+   * more entries from WEIGHT_TIERS — see isValidCombinedWeight. */
+  weightPerDumbbell: number
   sets: number
   reps: number
 }
@@ -194,6 +196,52 @@ export function getRoutine(id: string): FreeWeightRoutine | undefined {
 /** All dumbbell pairs available while traveling, lightest to heaviest. */
 export const WEIGHT_TIERS = [5, 10, 15, 20] as const
 
+/** Every achievable combined weight from stacking one or more dumbbell
+ * pairs together (each pair used at most once), lightest to heaviest. */
+export function combinedWeightOptions(tiers: readonly number[] = WEIGHT_TIERS): number[] {
+  const sums = new Set<number>()
+  const n = tiers.length
+  for (let mask = 1; mask < 1 << n; mask++) {
+    let sum = 0
+    for (let i = 0; i < n; i++) {
+      if (mask & (1 << i)) sum += tiers[i]
+    }
+    sums.add(sum)
+  }
+  return Array.from(sums).sort((a, b) => a - b)
+}
+
+/** Whether `weight` can be made by stacking one or more dumbbell pairs. */
+export function isValidCombinedWeight(weight: number, tiers: readonly number[] = WEIGHT_TIERS): boolean {
+  return combinedWeightOptions(tiers).includes(weight)
+}
+
+/**
+ * Best-effort breakdown of a combined weight into the dumbbell tiers that
+ * make it up, e.g. 30 -> [10, 20]. Prefers the fewest tiers (so an exact
+ * tier match, e.g. 20 -> [20], always wins over a multi-tier combo that
+ * happens to sum to the same value). Falls back to [weight] if no
+ * combination matches (shouldn't happen for validated values).
+ */
+export function decomposeWeight(weight: number, tiers: readonly number[] = WEIGHT_TIERS): number[] {
+  const n = tiers.length
+  let best: number[] | null = null
+  for (let mask = 1; mask < 1 << n; mask++) {
+    let sum = 0
+    const combo: number[] = []
+    for (let i = 0; i < n; i++) {
+      if (mask & (1 << i)) {
+        sum += tiers[i]
+        combo.push(tiers[i])
+      }
+    }
+    if (sum === weight && (!best || combo.length < best.length)) {
+      best = combo
+    }
+  }
+  return (best ?? [weight]).sort((a, b) => a - b)
+}
+
 /** A persisted override of one exercise's weight/reps (Phase 2 progression). */
 export interface FreeWeightProgressRow {
   exerciseId: string
@@ -218,7 +266,7 @@ export function mergeProgress(
       if (!override) return exercise
       return {
         ...exercise,
-        weightPerDumbbell: override.weightPerDumbbell as FreeWeightExercise['weightPerDumbbell'],
+        weightPerDumbbell: override.weightPerDumbbell,
         reps: override.reps,
       }
     }),
