@@ -30,6 +30,7 @@ function initialSets(routine: FreeWeightRoutine): Record<string, SetState[]> {
         completed: false,
         actualReps: ex.reps,
         actualWeight: ex.weightPerDumbbell,
+        actualWeightTiers: [ex.weightPerDumbbell],
       })),
     ])
   )
@@ -41,7 +42,19 @@ function loadPersistedSession(): PersistedSession | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as PersistedSession
     if (!parsed.routineId) return null
-    return parsed
+    // Back-compat: sessions persisted before multi-select weights shipped
+    // won't have actualWeightTiers on each set. Backfill from actualWeight
+    // so old in-progress sessions don't crash on resume.
+    const checked = Object.fromEntries(
+      Object.entries(parsed.checked ?? {}).map(([exerciseId, sets]) => [
+        exerciseId,
+        sets.map(s => ({
+          ...s,
+          actualWeightTiers: s.actualWeightTiers?.length ? s.actualWeightTiers : [s.actualWeight],
+        })),
+      ])
+    )
+    return { ...parsed, checked }
   } catch {
     return null
   }
@@ -163,11 +176,13 @@ export function FreeWeightsMode() {
   )
 
   const handleEditSet = useCallback(
-    (exerciseId: string, setIndex: number, actualReps: number, actualWeight: number) => {
+    (exerciseId: string, setIndex: number, actualReps: number, actualWeight: number, actualWeightTiers: number[]) => {
       setChecked(prev => {
         const next = {
           ...prev,
-          [exerciseId]: prev[exerciseId].map((s, i) => (i === setIndex ? { ...s, actualReps, actualWeight } : s)),
+          [exerciseId]: prev[exerciseId].map((s, i) =>
+            i === setIndex ? { ...s, actualReps, actualWeight, actualWeightTiers } : s
+          ),
         }
         if (routineId && startedAt !== null) {
           savePersistedSession({ routineId, startedAt, checked: next })
