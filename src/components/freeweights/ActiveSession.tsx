@@ -9,6 +9,10 @@ export interface SetState {
   completed: boolean
   actualReps: number
   actualWeight: number
+  /** Dumbbell tiers combined to make up actualWeight, e.g. [10, 20] for a
+   * stacked 20lb + 10lb set. Defaults to a single-element array matching
+   * actualWeight for sets that haven't been edited. */
+  actualWeightTiers: number[]
 }
 
 interface ActiveSessionProps {
@@ -17,7 +21,13 @@ interface ActiveSessionProps {
   elapsedSeconds: number
   totalVolume: number
   onToggleSet: (exerciseId: string, setIndex: number) => void
-  onEditSet: (exerciseId: string, setIndex: number, actualReps: number, actualWeight: number) => void
+  onEditSet: (
+    exerciseId: string,
+    setIndex: number,
+    actualReps: number,
+    actualWeight: number,
+    actualWeightTiers: number[]
+  ) => void
   onFinish: () => void
   onCancel: () => void
 }
@@ -36,11 +46,20 @@ function SetEditor({
 }: {
   exercise: FreeWeightExercise
   set: SetState
-  onSave: (actualReps: number, actualWeight: number) => void
+  onSave: (actualReps: number, actualWeight: number, actualWeightTiers: number[]) => void
   onClose: () => void
 }) {
   const [reps, setReps] = useState(set.actualReps)
-  const [weight, setWeight] = useState(set.actualWeight)
+  const [tiers, setTiers] = useState<number[]>(
+    set.actualWeightTiers?.length ? set.actualWeightTiers : [set.actualWeight]
+  )
+  const combinedWeight = tiers.reduce((sum, t) => sum + t, 0)
+
+  const toggleTier = (tier: number) => {
+    setTiers(prev =>
+      prev.includes(tier) ? prev.filter(t => t !== tier) : [...prev, tier].sort((a, b) => a - b)
+    )
+  }
 
   return (
     <div className="mt-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
@@ -62,15 +81,16 @@ function SetEditor({
           </button>
         </div>
       </div>
-      <div className="flex items-center justify-between mb-3">
-        <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Dumbbell used</label>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-xs font-medium text-gray-600 dark:text-gray-300">Dumbbell(s) used</label>
         <div className="flex gap-1">
           {WEIGHT_TIERS.map(tier => (
             <button
               key={tier}
-              onClick={() => setWeight(tier)}
+              onClick={() => toggleTier(tier)}
+              aria-pressed={tiers.includes(tier)}
               className={`px-2 py-1 rounded-md text-xs font-semibold border ${
-                weight === tier
+                tiers.includes(tier)
                   ? 'bg-primary-600 border-primary-600 text-white'
                   : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'
               }`}
@@ -80,13 +100,17 @@ function SetEditor({
           ))}
         </div>
       </div>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+        Combined: {combinedWeight} lb{tiers.length > 1 ? ` (${tiers.join(' + ')})` : ''}
+      </p>
       <div className="flex gap-2">
         <button
           onClick={() => {
-            onSave(reps, weight)
+            onSave(reps, combinedWeight, tiers)
             onClose()
           }}
-          className="flex-1 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-1.5 rounded-md"
+          disabled={tiers.length === 0}
+          className="flex-1 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium py-1.5 rounded-md"
         >
           Save
         </button>
@@ -214,11 +238,18 @@ export function ActiveSession({
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                       </div>
+                      {set.actualWeightTiers.length > 1 && (
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 ml-1">
+                          {set.actualWeightTiers.join(' + ')} lb combined
+                        </p>
+                      )}
                       {isEditingThis && (
                         <SetEditor
                           exercise={exercise}
                           set={set}
-                          onSave={(actualReps, actualWeight) => onEditSet(exercise.id, setIndex, actualReps, actualWeight)}
+                          onSave={(actualReps, actualWeight, actualWeightTiers) =>
+                            onEditSet(exercise.id, setIndex, actualReps, actualWeight, actualWeightTiers)
+                          }
                           onClose={() => setEditing(null)}
                         />
                       )}
