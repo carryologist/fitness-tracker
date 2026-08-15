@@ -6,7 +6,7 @@ import { runPelotonSync } from '@/lib/peloton-sync'
 import { runTonalSync } from '@/lib/tonal-sync'
 import { limitMcp, limitSync } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit-log'
-import { FREE_WEIGHT_ROUTINES, WEIGHT_TIERS, mergeProgress } from '@/lib/freeWeights'
+import { FREE_WEIGHT_ROUTINES, combinedWeightOptions, isValidCombinedWeight, mergeProgress } from '@/lib/freeWeights'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -225,13 +225,14 @@ const handler = createMcpHandler(
     server.tool(
       'set_freeweight_progress',
       'Update the current reps/set (and optionally dumbbell weight) baseline for one Free ' +
-        'Weights exercise. Weight must be one of the dumbbell pairs actually owned: 5, 10, 15, ' +
-        'or 20 lb. Use list_freeweight_progress first to find the exerciseId slug.',
+        'Weights exercise. Weight must be a single dumbbell pair (5, 10, 15, or 20 lb) or a sum ' +
+        'of stacked pairs (e.g. 30 for a 20 + 10 stack). Use list_freeweight_progress first to ' +
+        'find the exerciseId slug.',
       {
         exerciseId: z.string().min(1).describe('Exercise slug, e.g. "push-overhead-press".'),
         reps: z.number().int().min(1).max(100),
-        weightPerDumbbell: z.union([z.literal(5), z.literal(10), z.literal(15), z.literal(20)])
-          .describe('One of the dumbbell pairs available: 5, 10, 15, or 20 lb.'),
+        weightPerDumbbell: z.number().int().min(5).max(50)
+          .describe(`Single tier or stacked-tier sum. Valid values: ${combinedWeightOptions().join(', ')}.`),
       },
       async ({ exerciseId, reps, weightPerDumbbell }, extra) => {
         const known = FREE_WEIGHT_ROUTINES.some(r => r.exercises.some(ex => ex.id === exerciseId))
@@ -241,7 +242,7 @@ const handler = createMcpHandler(
             isError: true,
           }
         }
-        if (!WEIGHT_TIERS.includes(weightPerDumbbell)) {
+        if (!isValidCombinedWeight(weightPerDumbbell)) {
           return {
             content: [{ type: 'text', text: JSON.stringify({ error: 'invalid_weight', weightPerDumbbell }) }],
             isError: true,

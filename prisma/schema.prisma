@@ -108,7 +108,7 @@ model MonthlySummary {
 model FreeWeightProgress {
   id                String   @id @default(cuid())
   exerciseId        String   @unique // slug from src/lib/freeWeights.ts, e.g. "push-overhead-press"
-  weightPerDumbbell Int // 5 | 10 | 15 | 20
+  weightPerDumbbell Int // single tier (5/10/15/20) or a sum of stacked tiers, e.g. 30
   reps              Int
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
