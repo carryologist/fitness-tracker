@@ -47,6 +47,11 @@ function encryptRequest(obj: unknown): { encryptData: string } {
   return { encryptData: aesEncrypt(JSON.stringify(obj)) }
 }
 
+/** Encrypt an empty byte string (not `{}`) — some endpoints (device info) expect this on the first attempt. */
+function encryptEmptyBytes(): { encryptData: string } {
+  return { encryptData: aesEncrypt('') }
+}
+
 function decryptResponse<T = unknown>(encryptedData: string): T {
   return JSON.parse(aesDecrypt(encryptedData))
 }
@@ -113,6 +118,26 @@ function authHeaders(token: string, userId: string): Record<string, string> {
   }
 }
 
+async function renphoPostRaw<T = unknown>(
+  endpoint: string,
+  encryptedBody: { encryptData: string },
+  token: string,
+  userId: string,
+  context: string,
+): Promise<{ ok: true; data: T | null } | { ok: false; status: number; text: string }> {
+  const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token, userId) },
+    body: JSON.stringify(encryptedBody),
+  })
+  if (!res.ok) return { ok: false, status: res.status, text: await res.text() }
+
+  const result = await res.json()
+  checkResponse(result, context)
+  if (!result.data) return { ok: true, data: null }
+  return { ok: true, data: decryptResponse<T>(result.data) }
+}
+
 async function renphoPost<T = unknown>(
   endpoint: string,
   body: unknown,
@@ -120,17 +145,9 @@ async function renphoPost<T = unknown>(
   userId: string,
   context: string,
 ): Promise<T | null> {
-  const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token, userId) },
-    body: JSON.stringify(encryptRequest(body)),
-  })
-  if (!res.ok) throw new Error(`Renpho ${context} HTTP ${res.status}: ${await res.text()}`)
-
-  const result = await res.json()
-  checkResponse(result, context)
-  if (!result.data) return null
-  return decryptResponse<T>(result.data)
+  const result = await renphoPostRaw<T>(endpoint, encryptRequest(body), token, userId, context)
+  if (!result.ok) throw new Error(`Renpho ${context} HTTP ${result.status}: ${result.text}`)
+  return result.data
 }
 
 interface RenphoScaleInfo {
@@ -139,16 +156,41 @@ interface RenphoScaleInfo {
   userIds?: (string | number)[]
 }
 
-/** Get device info, including per-scale measurement table names and record counts. */
+/**
+ * Get device info, including per-scale measurement table names and record
+ * counts. Mirrors the reference client: the real Renpho app's first attempt
+ * encrypts an *empty byte string* (not `{}`) for this specific endpoint;
+ * only on an HTTP-level failure does it fall back to encrypted `{}`. Sending
+ * `{}` as the primary (and only) attempt — the original bug here — got a
+ * 200 back but with no usable scale data, which silently produced zero
+ * measurements on every sync with no error surfaced.
+ */
 export async function getRenphoDeviceInfo(token: string, userId: string): Promise<{ scale: RenphoScaleInfo[] }> {
-  const data = await renphoPost<{ scale?: RenphoScaleInfo[] }>(
+  type DeviceInfoData = { scale?: RenphoScaleInfo[] }
+
+  let result = await renphoPostRaw<DeviceInfoData>(
     ENDPOINTS.deviceInfo,
-    {},
+    encryptEmptyBytes(),
     token,
     userId,
-    'GetDeviceInfo',
+    'GetDeviceInfo (empty-bytes)',
   )
-  return { scale: data?.scale ?? [] }
+  if (!result.ok) {
+    result = await renphoPostRaw<DeviceInfoData>(
+      ENDPOINTS.deviceInfo,
+      encryptRequest({}),
+      token,
+      userId,
+      'GetDeviceInfo (empty-object fallback)',
+    )
+  }
+  if (!result.ok) {
+    throw new Error(`Renpho GetDeviceInfo HTTP ${result.status}: ${result.text}`)
+  }
+
+  const scale = result.data?.scale ?? []
+  console.log(`[renpho] device info: ${scale.length} scale(s) found`)
+  return { scale }
 }
 
 /** Raw measurement record shape as returned by Renpho (fields vary by scale model). */
@@ -218,8 +260,11 @@ async function fetchMeasurementPages(
  * High-level helper: log in (if needed), discover scale tables, and fetch
  * every measurement across them. Mirrors RenphoClient.get_all_measurements().
  */
-export async function fetchAllRenphoMeasurements(token: string, userId: string): Promise<RenphoMeasurement[]> {
+export async function fetchAllRenphoMeasurements(token: string, userId: string): Promise<{ measurements: RenphoMeasurement[]; scalesFound: number }> {
   const { scale } = await getRenphoDeviceInfo(token, userId)
+  if (scale.length === 0) {
+    console.warn('[renpho] device info returned zero scales - nothing to sync. Check credentials/API changes.')
+  }
 
   const seen = new Set<string>()
   const all: RenphoMeasurement[] = []
@@ -243,6 +288,7 @@ export async function fetchAllRenphoMeasurements(token: string, userId: string):
     if (records.length === 0 && s.count > 0) {
       records = await fetchMeasurementPages(ENDPOINTS.measurements, s.tableName, uid, token, s.count)
     }
+    console.log(`[renpho] table=${s.tableName} reportedCount=${s.count} fetched=${records.length}`)
 
     for (const m of records) {
       const key = `${s.tableName}:${m.id ?? ''}`
@@ -253,7 +299,7 @@ export async function fetchAllRenphoMeasurements(token: string, userId: string):
   }
 
   all.sort((a, b) => (b.timeStamp ?? 0) - (a.timeStamp ?? 0))
-  return all
+  return { measurements: all, scalesFound: scale.length }
 }
 
 const KG_TO_LBS = 2.20462
