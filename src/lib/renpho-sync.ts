@@ -19,6 +19,7 @@ export interface RenphoSyncResult {
   updated: number
   skipped: number
   total: number
+  scalesFound: number
 }
 
 export class RenphoSyncError extends Error {
@@ -92,7 +93,7 @@ export async function runRenphoSync(): Promise<RenphoSyncResult> {
     }
   }
 
-  const rawMeasurements = await withReauthRetry(() =>
+  const { measurements: rawMeasurements, scalesFound } = await withReauthRetry(() =>
     fetchAllRenphoMeasurements(decryptSecret(cred.token), cred.userId),
   )
   const total = rawMeasurements.length
@@ -135,5 +136,5 @@ export async function runRenphoSync(): Promise<RenphoSyncResult> {
     }
   }
 
-  return { synced, updated, skipped, total }
+  return { synced, updated, skipped, total, scalesFound }
 }

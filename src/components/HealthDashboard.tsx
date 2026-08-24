@@ -86,8 +86,12 @@ export function HealthDashboard() {
         if (data.synced > 0) parts.push(`${data.synced} new`)
         if (data.updated > 0) parts.push(`${data.updated} updated`)
         if (data.skipped > 0) parts.push(`${data.skipped} already synced`)
-        setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'up to date'}`)
-        setTimeout(() => setSyncSuccess(null), 6000)
+        if (parts.length === 0 && data.scalesFound === 0) {
+          setSyncError('Renpho sync found 0 connected scales for this account — check RENPHO_EMAIL/RENPHO_PASSWORD, or that this account has a scale linked in the Renpho app.')
+        } else {
+          setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'up to date'}`)
+          setTimeout(() => setSyncSuccess(null), 6000)
+        }
       } else {
         setSyncError(`Renpho sync failed: ${data.error || res.status}`)
       }
