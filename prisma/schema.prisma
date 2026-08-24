@@ -61,6 +61,47 @@ model TonalCredential {
   @@map("tonal_credentials")
 }
 
+model RenphoCredential {
+  id         String   @id @default(cuid())
+  userId     String   @unique // Renpho account user id
+  token      String   @db.Text // Renpho session token (encrypted at rest)
+  obtainedAt DateTime @default(now()) // when `token` was issued; used to decide when to re-login
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("renpho_credentials")
+}
+
+// Body weight / composition history, synced from Renpho smart scale readings.
+// One row per calendar day: when a day has multiple scale readings (e.g.
+// weighing in more than once), the lowest-weight reading for that day wins —
+// see pickDailyReading() in src/lib/renpho-sync.ts.
+model BodyMeasurement {
+  id                 String   @id @default(cuid())
+  date               DateTime @unique // calendar date (local midnight), one row per day
+  weightLbs          Float
+  bmi                Float?
+  bodyFatPct         Float?
+  waterPct           Float?
+  musclePct          Float?
+  boneMassPct        Float?
+  bmr                Float? // kcal/day
+  visceralFatLevel   Float?
+  subcutaneousFatPct Float?
+  proteinPct         Float?
+  bodyAgeYears       Float?
+  leanBodyMassLbs    Float? // Renpho "sinew"
+  fatFreeWeightLbs   Float?
+  heartRateBpm       Float?
+  source             String   @default("Renpho")
+  renphoRecordId     String? // raw record id of the winning reading, for traceability
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([date])
+  @@map("body_measurements")
+}
+
 // Goal tracking for quarterly and annual targets
 model Goal {
   id   String @id @default(cuid())
