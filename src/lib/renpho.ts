@@ -109,6 +109,62 @@ export async function loginToRenpho(email: string, password: string): Promise<Re
   return { token, userId: String(userId) }
 }
 
+/**
+ * Diagnostic-only: same request as loginToRenpho, but returns the RAW
+ * decrypted JSON text (pre-JSON.parse) alongside the parsed id's JS type.
+ * Renpho user/record IDs are 19 digits, well past
+ * Number.MAX_SAFE_INTEGER (~9e15) — if the wire format sends `id` as a
+ * bare JSON number rather than a quoted string, JSON.parse silently
+ * rounds it to a different value, corrupting every downstream request
+ * that filters by that id (e.g. the measurement query's `userIds` field)
+ * while anything keyed by the session token alone keeps working. This
+ * is how we tell whether that's actually happening.
+ */
+export async function debugLoginRaw(email: string, password: string) {
+  const payload = {
+    questionnaire: {},
+    login: {
+      password,
+      areaCode: 'US',
+      appRevision: APP_VERSION,
+      cellphoneType: 'fitness-tracker',
+      systemType: SYSTEM_VERSION,
+      email,
+      platform: PLATFORM,
+    },
+    bindingList: { deviceTypes: BODY_WEIGHT_SCALES },
+  }
+
+  const res = await fetch(`${API_BASE_URL}/${ENDPOINTS.login}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(encryptRequest(payload)),
+  })
+  const rawText = await res.text()
+  if (!res.ok) return { httpStatus: res.status, httpOk: false, rawText: rawText.slice(0, 500) }
+
+  const result = JSON.parse(rawText)
+  if (!result.data) return { httpStatus: res.status, code: result.code, msg: result.msg, hasDataField: false }
+
+  const rawDecrypted = aesDecrypt(result.data)
+  const idMatch = rawDecrypted.match(/"id"\s*:\s*("?)([^,}"]+)\1/)
+  const parsed = JSON.parse(rawDecrypted)
+  return {
+    httpStatus: res.status,
+    code: result.code,
+    msg: result.msg,
+    // The literal substring around the id field as Renpho actually sent
+    // it — quoted ("123...") means it's safe; bare digits mean JSON.parse
+    // is rounding it.
+    idFieldRawText: idMatch ? idMatch[0] : 'not found via regex — see rawDecryptedPreview',
+    idIsQuotedInWireFormat: idMatch ? idMatch[1] === '"' : null,
+    idAfterJsonParse: parsed.login?.id,
+    idAfterJsonParseType: typeof parsed.login?.id,
+    idAfterStringConversion: String(parsed.login?.id),
+    rawDecryptedPreview: rawDecrypted.slice(0, 300),
+  }
+}
+
 function authHeaders(token: string, userId: string): Record<string, string> {
   return {
     token,
@@ -163,8 +219,6 @@ export interface RenphoScaleInfo {
  * broken sync can be diagnosed without digging through server logs.
  */
 export async function debugDeviceInfoAttempts(token: string, userId: string) {
-  type DeviceInfoData = { scale?: RenphoScaleInfo[] }
-
   async function describe(label: string, body: { encryptData: string }) {
     try {
       const res = await fetch(`${API_BASE_URL}/${ENDPOINTS.deviceInfo}`, {
@@ -182,15 +236,16 @@ export async function debugDeviceInfoAttempts(token: string, userId: string) {
       } catch {
         return { attempt: label, httpStatus: res.status, httpOk: true, rawText: rawText.slice(0, 500), parseError: 'response was not JSON' }
       }
-      let decrypted: DeviceInfoData | null = null
+      let decrypted: Record<string, unknown> | null = null
       let decryptError: string | null = null
       if (parsed.data) {
         try {
-          decrypted = decryptResponse<DeviceInfoData>(parsed.data)
+          decrypted = decryptResponse<Record<string, unknown>>(parsed.data)
         } catch (e) {
           decryptError = e instanceof Error ? e.message : String(e)
         }
       }
+      const rawScale = Array.isArray(decrypted?.scale) ? decrypted.scale : null
       return {
         attempt: label,
         httpStatus: res.status,
@@ -199,8 +254,12 @@ export async function debugDeviceInfoAttempts(token: string, userId: string) {
         msg: parsed.msg,
         hasDataField: parsed.data != null,
         decryptError,
-        scaleCount: decrypted?.scale?.length ?? null,
-        scaleTableNames: decrypted?.scale?.map(s => s.tableName) ?? null,
+        // Full raw scale entries as Renpho returned them — includes any
+        // fields (userIds, familyId, deviceType, etc.) our typed
+        // RenphoScaleInfo interface doesn't declare, which matters when
+        // the measurement query needs a field we aren't sending.
+        rawScale,
+        decryptedTopLevelKeys: decrypted ? Object.keys(decrypted) : null,
       }
     } catch (e) {
       return { attempt: label, error: e instanceof Error ? e.message : String(e) }

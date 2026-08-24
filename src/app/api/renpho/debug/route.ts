@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import {
   loginToRenpho,
+  debugLoginRaw,
   debugDeviceInfoAttempts,
   debugMeasurementFetch,
   getRenphoDeviceInfo,
@@ -34,6 +35,19 @@ export async function GET(request: Request) {
   if (!email || !password) {
     report.result = 'FAILED: RENPHO_EMAIL and/or RENPHO_PASSWORD are not set in this environment.'
     return NextResponse.json(report, { status: 200 })
+  }
+
+  // Runs first and independently of the normal login path: checks whether
+  // Renpho's wire format sends the account id as a bare JSON number, which
+  // JSON.parse would silently round for ids this large (19 digits, well
+  // past Number.MAX_SAFE_INTEGER) — a leading suspect given device-info
+  // correctly finds the account/table (likely keyed by session token) while
+  // the measurement query (filtered by an explicit userIds value) finds
+  // nothing despite a non-zero reported count.
+  try {
+    report.idPrecisionCheck = await debugLoginRaw(email, password)
+  } catch (error) {
+    report.idPrecisionCheck = { error: error instanceof Error ? error.message : String(error) }
   }
 
   let token: string
@@ -80,7 +94,7 @@ export async function GET(request: Request) {
     }
     report.result = measurements.length > 0
       ? `OK: fetched ${measurements.length} raw measurements across ${scalesFound} scale(s).`
-      : `FAILED: login and device-info succeeded (scalesFound=${scalesFound}) but 0 measurements were fetched. See perTableProbe above for the raw per-endpoint response.`
+      : `FAILED: login and device-info succeeded (scalesFound=${scalesFound}) but 0 measurements were fetched. Check idPrecisionCheck.idIsQuotedInWireFormat first, then perTableProbe.`
   } catch (error) {
     report.fetchAllMeasurements = { ok: false, error: error instanceof Error ? error.message : String(error) }
     report.result = 'FAILED while fetching measurements. See report.fetchAllMeasurements.error above.'
