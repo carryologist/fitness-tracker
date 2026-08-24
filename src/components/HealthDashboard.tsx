@@ -58,6 +58,8 @@ export function HealthDashboard() {
   const [showTable, setShowTable] = useState(false)
   const [diagLoading, setDiagLoading] = useState(false)
   const [diagResult, setDiagResult] = useState<string | null>(null)
+  const [diagSummary, setDiagSummary] = useState<string | null>(null)
+  const [diagCopied, setDiagCopied] = useState(false)
   const [showDiag, setShowDiag] = useState(false)
 
   const loadData = useCallback(async () => {
@@ -126,14 +128,32 @@ export function HealthDashboard() {
   const handleDiagnostics = async () => {
     setDiagLoading(true)
     setDiagResult(null)
+    setDiagSummary(null)
+    setDiagCopied(false)
     setShowDiag(true)
     try {
       const res = await safeJson(await fetch('/api/renpho/debug'))
-      setDiagResult(res.json ? JSON.stringify(res.json, null, 2) : `HTTP ${res.status} (non-JSON):\n${res.rawText}`)
+      if (res.json) {
+        setDiagSummary(typeof res.json.result === 'string' ? res.json.result : null)
+        setDiagResult(JSON.stringify(res.json, null, 2))
+      } else {
+        setDiagResult(`HTTP ${res.status} (non-JSON):\n${res.rawText}`)
+      }
     } catch (error) {
       setDiagResult(`Diagnostics request itself failed: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setDiagLoading(false)
+    }
+  }
+
+  const handleCopyDiag = async () => {
+    if (!diagResult) return
+    try {
+      await navigator.clipboard.writeText(diagResult)
+      setDiagCopied(true)
+      setTimeout(() => setDiagCopied(false), 2000)
+    } catch {
+      // Clipboard API unavailable (e.g. non-HTTPS context) — the text is still selectable/visible.
     }
   }
 
@@ -185,17 +205,32 @@ export function HealthDashboard() {
 
       {showDiag && (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
               Renpho Diagnostics {diagLoading && '(running…)'}
             </span>
-            <button
-              onClick={() => setShowDiag(false)}
-              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-            >
-              Close
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              {diagResult && (
+                <button
+                  onClick={handleCopyDiag}
+                  className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  {diagCopied ? 'Copied!' : 'Copy JSON'}
+                </button>
+              )}
+              <button
+                onClick={() => setShowDiag(false)}
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              >
+                Close
+              </button>
+            </div>
           </div>
+          {diagSummary && (
+            <p className={`text-sm font-medium mb-2 ${diagSummary.startsWith('OK') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {diagSummary}
+            </p>
+          )}
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
             Live trace of login → device info → measurement fetch, using the account configured in RENPHO_EMAIL/RENPHO_PASSWORD. No password or session token is included below — safe to copy/paste for troubleshooting.
           </p>
