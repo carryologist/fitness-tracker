@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Dumbbell } from 'lucide-react'
+import { LayoutDashboard, Dumbbell, HeartPulse } from 'lucide-react'
 
 const TABS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/freeweights', label: 'Free Weights', icon: Dumbbell },
+  { href: '/health', label: 'Health', icon: HeartPulse },
 ]
 
 export function NavTabs() {
