@@ -157,6 +157,62 @@ interface RenphoScaleInfo {
 }
 
 /**
+ * Diagnostic-only helper: run both device-info request variants
+ * unconditionally (regardless of whether the first succeeds) and report
+ * raw details for each, without throwing. Used by /api/renpho/debug so a
+ * broken sync can be diagnosed without digging through server logs.
+ */
+export async function debugDeviceInfoAttempts(token: string, userId: string) {
+  type DeviceInfoData = { scale?: RenphoScaleInfo[] }
+
+  async function describe(label: string, body: { encryptData: string }) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/${ENDPOINTS.deviceInfo}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, userId) },
+        body: JSON.stringify(body),
+      })
+      const rawText = await res.text()
+      if (!res.ok) {
+        return { attempt: label, httpStatus: res.status, httpOk: false, rawText: rawText.slice(0, 500) }
+      }
+      let parsed: { code?: unknown; msg?: string; data?: string }
+      try {
+        parsed = JSON.parse(rawText)
+      } catch {
+        return { attempt: label, httpStatus: res.status, httpOk: true, rawText: rawText.slice(0, 500), parseError: 'response was not JSON' }
+      }
+      let decrypted: DeviceInfoData | null = null
+      let decryptError: string | null = null
+      if (parsed.data) {
+        try {
+          decrypted = decryptResponse<DeviceInfoData>(parsed.data)
+        } catch (e) {
+          decryptError = e instanceof Error ? e.message : String(e)
+        }
+      }
+      return {
+        attempt: label,
+        httpStatus: res.status,
+        httpOk: true,
+        code: parsed.code,
+        msg: parsed.msg,
+        hasDataField: parsed.data != null,
+        decryptError,
+        scaleCount: decrypted?.scale?.length ?? null,
+        scaleTableNames: decrypted?.scale?.map(s => s.tableName) ?? null,
+      }
+    } catch (e) {
+      return { attempt: label, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+
+  const emptyBytesResult = await describe('empty-bytes', encryptEmptyBytes())
+  const emptyObjectResult = await describe('empty-object', encryptRequest({}))
+  return { emptyBytesResult, emptyObjectResult }
+}
+
+/**
  * Get device info, including per-scale measurement table names and record
  * counts. Mirrors the reference client: the real Renpho app's first attempt
  * encrypts an *empty byte string* (not `{}`) for this specific endpoint;
