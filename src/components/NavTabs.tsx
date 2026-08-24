@@ -15,7 +15,7 @@ export function NavTabs() {
 
   return (
     <nav
-      className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit max-w-full overflow-x-auto"
+      className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 pr-2 w-fit max-w-full overflow-x-auto"
       aria-label="Sections"
     >
       {TABS.map(({ href, label, icon: Icon }) => {
