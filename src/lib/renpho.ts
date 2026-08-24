@@ -52,8 +52,32 @@ function encryptEmptyBytes(): { encryptData: string } {
   return { encryptData: aesEncrypt('') }
 }
 
+/**
+ * JSON.parse that preserves large integer literals as exact strings.
+ * Renpho account/record ids are 19 digits (e.g. 2132938788905981073),
+ * well past Number.MAX_SAFE_INTEGER (~9e15, 16 digits), and Renpho sends
+ * them as bare (unquoted) JSON numbers rather than strings. Native
+ * JSON.parse silently rounds ids that large to the nearest representable
+ * double — confirmed live: the wire value `2132938788905981073` parses
+ * to `2132938788905981200`, a different number. Every request that then
+ * filters by that id (e.g. the measurement query's `userIds` field) is
+ * comparing against a corrupted value and matches nothing, even though
+ * unrelated calls keyed off the session token (login, device info) keep
+ * working — exactly the symptom this app hit.
+ *
+ * Fix: quote any bare integer literal with 16+ digits before handing the
+ * text to JSON.parse, so it comes out as a string with no precision loss.
+ * Lookbehind/lookahead (not capturing the delimiters) so back-to-back
+ * numbers in an array match correctly and quoted string content is never
+ * touched.
+ */
+function parseJsonPreservingBigInts<T = unknown>(jsonText: string): T {
+  const patched = jsonText.replace(/(?<=[:,[]\s*)(-?\d{16,})(?=\s*[,\]}])/g, '"$1"')
+  return JSON.parse(patched) as T
+}
+
 function decryptResponse<T = unknown>(encryptedData: string): T {
-  return JSON.parse(aesDecrypt(encryptedData))
+  return parseJsonPreservingBigInts<T>(aesDecrypt(encryptedData))
 }
 
 export class RenphoAPIError extends Error {
@@ -149,6 +173,7 @@ export async function debugLoginRaw(email: string, password: string) {
   const rawDecrypted = aesDecrypt(result.data)
   const idMatch = rawDecrypted.match(/"id"\s*:\s*("?)([^,}"]+)\1/)
   const parsed = JSON.parse(rawDecrypted)
+  const parsedSafe = parseJsonPreservingBigInts<{ login?: { id?: string | number } }>(rawDecrypted)
   return {
     httpStatus: res.status,
     code: result.code,
@@ -158,9 +183,10 @@ export async function debugLoginRaw(email: string, password: string) {
     // is rounding it.
     idFieldRawText: idMatch ? idMatch[0] : 'not found via regex — see rawDecryptedPreview',
     idIsQuotedInWireFormat: idMatch ? idMatch[1] === '"' : null,
-    idAfterJsonParse: parsed.login?.id,
-    idAfterJsonParseType: typeof parsed.login?.id,
-    idAfterStringConversion: String(parsed.login?.id),
+    idAfterNaiveJsonParse: parsed.login?.id,
+    idAfterNaiveJsonParseType: typeof parsed.login?.id,
+    idAfterBigIntSafeParse: parsedSafe.login?.id,
+    idAfterBigIntSafeParseType: typeof parsedSafe.login?.id,
     rawDecryptedPreview: rawDecrypted.slice(0, 300),
   }
 }
