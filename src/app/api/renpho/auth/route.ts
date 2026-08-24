@@ -12,9 +12,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ connected: true, userId: cred.userId })
   } catch (error) {
     if (error instanceof RenphoSyncError) {
+      console.error('Renpho auth error (RenphoSyncError):', error.message)
       return NextResponse.json({ error: error.message }, { status: error.status })
     }
-    console.error('💥 Renpho auth error:', error instanceof Error ? error.message : error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Renpho auth error:', message, error instanceof Error ? error.stack : undefined)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

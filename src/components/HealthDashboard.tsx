@@ -10,6 +10,16 @@ function parseMeasurement(raw: BodyMeasurementApiRecord): BodyMeasurement {
   return { ...raw, date: new Date(raw.date) }
 }
 
+/** Reads a fetch Response defensively: never throws on non-JSON bodies (Vercel timeout/error pages, etc). */
+async function safeJson(res: Response): Promise<{ status: number; ok: boolean; json: Record<string, unknown> | null; rawText: string }> {
+  const rawText = await res.text()
+  try {
+    return { status: res.status, ok: res.ok, json: JSON.parse(rawText), rawText }
+  } catch {
+    return { status: res.status, ok: res.ok, json: null, rawText }
+  }
+}
+
 interface ChangeStatProps {
   label: string
   current: number | null
@@ -46,6 +56,9 @@ export function HealthDashboard() {
   const [syncError, setSyncError] = useState<string | null>(null)
   const [syncSuccess, setSyncSuccess] = useState<string | null>(null)
   const [showTable, setShowTable] = useState(false)
+  const [diagLoading, setDiagLoading] = useState(false)
+  const [diagResult, setDiagResult] = useState<string | null>(null)
+  const [showDiag, setShowDiag] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -68,37 +81,59 @@ export function HealthDashboard() {
     setSyncing(true)
     setSyncError(null)
     try {
-      const statusRes = await fetch('/api/renpho/sync')
-      const statusData = await statusRes.json()
-      if (!statusData.connected) {
-        const authRes = await fetch('/api/renpho/auth', { method: 'POST' })
+      const statusRes = await safeJson(await fetch('/api/renpho/sync'))
+      const connected = statusRes.json?.connected === true
+
+      if (!connected) {
+        const authRes = await safeJson(await fetch('/api/renpho/auth', { method: 'POST' }))
         if (!authRes.ok) {
-          const err = await authRes.json().catch(() => ({ error: 'Auth failed' }))
-          setSyncError(`Renpho auth failed: ${err.error || authRes.status}`)
+          const detail = authRes.json?.error ?? authRes.rawText.slice(0, 300) ?? 'no response body'
+          setSyncError(`Renpho auth failed (HTTP ${authRes.status}): ${detail}`)
           return
         }
       }
-      const res = await fetch('/api/renpho/sync', { method: 'POST' })
-      const data = await res.json()
-      if (res.ok) {
-        if (data.synced > 0 || data.updated > 0) await loadData()
-        const parts: string[] = []
-        if (data.synced > 0) parts.push(`${data.synced} new`)
-        if (data.updated > 0) parts.push(`${data.updated} updated`)
-        if (data.skipped > 0) parts.push(`${data.skipped} already synced`)
-        if (parts.length === 0 && data.scalesFound === 0) {
-          setSyncError('Renpho sync found 0 connected scales for this account — check RENPHO_EMAIL/RENPHO_PASSWORD, or that this account has a scale linked in the Renpho app.')
-        } else {
-          setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'up to date'}`)
-          setTimeout(() => setSyncSuccess(null), 6000)
-        }
+
+      const syncRes = await safeJson(await fetch('/api/renpho/sync', { method: 'POST' }))
+      if (!syncRes.ok) {
+        const detail = syncRes.json?.error ?? syncRes.rawText.slice(0, 300) ?? 'no response body'
+        setSyncError(`Renpho sync failed (HTTP ${syncRes.status}): ${detail}`)
+        return
+      }
+      if (!syncRes.json) {
+        setSyncError(`Renpho sync returned a non-JSON response (HTTP ${syncRes.status}): ${syncRes.rawText.slice(0, 300)}`)
+        return
+      }
+
+      const data = syncRes.json as { synced?: number; updated?: number; skipped?: number; scalesFound?: number }
+      if ((data.synced ?? 0) > 0 || (data.updated ?? 0) > 0) await loadData()
+      const parts: string[] = []
+      if ((data.synced ?? 0) > 0) parts.push(`${data.synced} new`)
+      if ((data.updated ?? 0) > 0) parts.push(`${data.updated} updated`)
+      if ((data.skipped ?? 0) > 0) parts.push(`${data.skipped} already synced`)
+      if (parts.length === 0 && data.scalesFound === 0) {
+        setSyncError('Renpho sync found 0 connected scales for this account. Click "Run Diagnostics" below for a detailed trace of why.')
       } else {
-        setSyncError(`Renpho sync failed: ${data.error || res.status}`)
+        setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'up to date'}`)
+        setTimeout(() => setSyncSuccess(null), 6000)
       }
     } catch (error) {
-      setSyncError(`Renpho sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setSyncError(`Renpho sync threw an unexpected error: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const handleDiagnostics = async () => {
+    setDiagLoading(true)
+    setDiagResult(null)
+    setShowDiag(true)
+    try {
+      const res = await safeJson(await fetch('/api/renpho/debug'))
+      setDiagResult(res.json ? JSON.stringify(res.json, null, 2) : `HTTP ${res.status} (non-JSON):\n${res.rawText}`)
+    } catch (error) {
+      setDiagResult(`Diagnostics request itself failed: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setDiagLoading(false)
     }
   }
 
@@ -126,18 +161,49 @@ export function HealthDashboard() {
           <p className="text-sm text-gray-600 dark:text-gray-400">Weight and body composition trends, synced from Renpho</p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            <span>{syncing ? 'Syncing…' : 'Sync Renpho'}</span>
-          </button>
-          {syncError && <p className="text-xs text-red-600 dark:text-red-400 max-w-xs text-right">{syncError}</p>}
-          {syncSuccess && <p className="text-xs text-green-600 dark:text-green-400 max-w-xs text-right">{syncSuccess}</p>}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              <span>{syncing ? 'Syncing…' : 'Sync Renpho'}</span>
+            </button>
+            <button
+              onClick={handleDiagnostics}
+              disabled={diagLoading}
+              className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-lg font-medium transition-colors text-sm"
+            >
+              {diagLoading ? 'Running…' : 'Run Diagnostics'}
+            </button>
+          </div>
+          {syncError && <p className="text-xs text-red-600 dark:text-red-400 max-w-sm text-right">{syncError}</p>}
+          {syncSuccess && <p className="text-xs text-green-600 dark:text-green-400 max-w-sm text-right">{syncSuccess}</p>}
         </div>
       </div>
+
+      {showDiag && (
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              Renpho Diagnostics {diagLoading && '(running…)'}
+            </span>
+            <button
+              onClick={() => setShowDiag(false)}
+              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            >
+              Close
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Live trace of login → device info → measurement fetch, using the account configured in RENPHO_EMAIL/RENPHO_PASSWORD. No password or session token is included below — safe to copy/paste for troubleshooting.
+          </p>
+          <pre className="text-xs bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words max-h-96 overflow-y-auto">
+            {diagResult ?? 'Running…'}
+          </pre>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

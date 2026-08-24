@@ -36,11 +36,15 @@ export async function POST(req: Request) {
     return NextResponse.json(result)
   } catch (error) {
     if (error instanceof RenphoSyncError) {
+      console.error('Renpho sync error (RenphoSyncError):', error.message)
       return NextResponse.json({ error: error.message }, { status: error.status })
     }
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    console.error('Renpho sync error:', message)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    const stack = error instanceof Error ? error.stack : undefined
+    console.error('Renpho sync error:', message, stack)
+    // Personal single-user app — safe to surface the real error to the
+    // one authenticated user instead of masking it as a generic 500.
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
