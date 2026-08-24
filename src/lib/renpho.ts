@@ -150,7 +150,7 @@ async function renphoPost<T = unknown>(
   return result.data
 }
 
-interface RenphoScaleInfo {
+export interface RenphoScaleInfo {
   tableName: string
   count: number
   userIds?: (string | number)[]
@@ -210,6 +210,68 @@ export async function debugDeviceInfoAttempts(token: string, userId: string) {
   const emptyBytesResult = await describe('empty-bytes', encryptEmptyBytes())
   const emptyObjectResult = await describe('empty-object', encryptRequest({}))
   return { emptyBytesResult, emptyObjectResult }
+}
+
+/**
+ * Diagnostic-only helper: probe a single scale table with a small page
+ * request against BOTH the body-composition and legacy measurement
+ * endpoints, unconditionally, and report raw details for each — without
+ * throwing. Used by /api/renpho/debug to show exactly why a table did or
+ * didn't yield records during a real sync.
+ */
+export async function debugMeasurementFetch(
+  token: string,
+  userId: string,
+  tableName: string,
+  scaleUserId: string,
+  reportedCount: number,
+) {
+  async function describe(label: string, endpoint: string) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders(token, scaleUserId) },
+        body: JSON.stringify(encryptRequest({ pageNum: 1, pageSize: 5, userIds: [String(scaleUserId)], tableName })),
+      })
+      const rawText = await res.text()
+      if (!res.ok) {
+        return { attempt: label, httpStatus: res.status, httpOk: false, rawText: rawText.slice(0, 500) }
+      }
+      let parsed: { code?: unknown; msg?: string; data?: string }
+      try {
+        parsed = JSON.parse(rawText)
+      } catch {
+        return { attempt: label, httpStatus: res.status, httpOk: true, rawText: rawText.slice(0, 500), parseError: 'response was not JSON' }
+      }
+      let decryptError: string | null = null
+      let recordsPreview: unknown = null
+      if (parsed.data) {
+        try {
+          const decrypted = decryptResponse(parsed.data)
+          const records = extractRecords(decrypted)
+          recordsPreview = records ? records.slice(0, 2) : decrypted
+        } catch (e) {
+          decryptError = e instanceof Error ? e.message : String(e)
+        }
+      }
+      return {
+        attempt: label,
+        httpStatus: res.status,
+        httpOk: true,
+        code: parsed.code,
+        msg: parsed.msg,
+        hasDataField: parsed.data != null,
+        decryptError,
+        recordsPreview,
+      }
+    } catch (e) {
+      return { attempt: label, error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+
+  const bodyCompositionResult = await describe('body-composition', ENDPOINTS.bodyCompositionMeasurements)
+  const legacyResult = await describe('legacy', ENDPOINTS.measurements)
+  return { tableName, scaleUserId, reportedCount, bodyCompositionResult, legacyResult }
 }
 
 /**
