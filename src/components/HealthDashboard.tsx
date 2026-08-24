@@ -56,11 +56,6 @@ export function HealthDashboard() {
   const [syncError, setSyncError] = useState<string | null>(null)
   const [syncSuccess, setSyncSuccess] = useState<string | null>(null)
   const [showTable, setShowTable] = useState(false)
-  const [diagLoading, setDiagLoading] = useState(false)
-  const [diagResult, setDiagResult] = useState<string | null>(null)
-  const [diagSummary, setDiagSummary] = useState<string | null>(null)
-  const [diagCopied, setDiagCopied] = useState(false)
-  const [showDiag, setShowDiag] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -113,7 +108,7 @@ export function HealthDashboard() {
       if ((data.updated ?? 0) > 0) parts.push(`${data.updated} updated`)
       if ((data.skipped ?? 0) > 0) parts.push(`${data.skipped} already synced`)
       if (parts.length === 0 && data.scalesFound === 0) {
-        setSyncError('Renpho sync found 0 connected scales for this account. Click "Run Diagnostics" below for a detailed trace of why.')
+        setSyncError('Renpho sync found 0 connected scales for this account. Check RENPHO_EMAIL/RENPHO_PASSWORD.')
       } else {
         setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'up to date'}`)
         setTimeout(() => setSyncSuccess(null), 6000)
@@ -122,38 +117,6 @@ export function HealthDashboard() {
       setSyncError(`Renpho sync threw an unexpected error: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setSyncing(false)
-    }
-  }
-
-  const handleDiagnostics = async () => {
-    setDiagLoading(true)
-    setDiagResult(null)
-    setDiagSummary(null)
-    setDiagCopied(false)
-    setShowDiag(true)
-    try {
-      const res = await safeJson(await fetch('/api/renpho/debug'))
-      if (res.json) {
-        setDiagSummary(typeof res.json.result === 'string' ? res.json.result : null)
-        setDiagResult(JSON.stringify(res.json, null, 2))
-      } else {
-        setDiagResult(`HTTP ${res.status} (non-JSON):\n${res.rawText}`)
-      }
-    } catch (error) {
-      setDiagResult(`Diagnostics request itself failed: ${error instanceof Error ? error.message : String(error)}`)
-    } finally {
-      setDiagLoading(false)
-    }
-  }
-
-  const handleCopyDiag = async () => {
-    if (!diagResult) return
-    try {
-      await navigator.clipboard.writeText(diagResult)
-      setDiagCopied(true)
-      setTimeout(() => setDiagCopied(false), 2000)
-    } catch {
-      // Clipboard API unavailable (e.g. non-HTTPS context) — the text is still selectable/visible.
     }
   }
 
@@ -181,64 +144,18 @@ export function HealthDashboard() {
           <p className="text-sm text-gray-600 dark:text-gray-400">Weight and body composition trends, synced from Renpho</p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm"
-            >
-              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              <span>{syncing ? 'Syncing…' : 'Sync Renpho'}</span>
-            </button>
-            <button
-              onClick={handleDiagnostics}
-              disabled={diagLoading}
-              className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-lg font-medium transition-colors text-sm"
-            >
-              {diagLoading ? 'Running…' : 'Run Diagnostics'}
-            </button>
-          </div>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="bg-primary-500 hover:bg-primary-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            <span>{syncing ? 'Syncing…' : 'Sync Renpho'}</span>
+          </button>
           {syncError && <p className="text-xs text-red-600 dark:text-red-400 max-w-sm text-right">{syncError}</p>}
           {syncSuccess && <p className="text-xs text-green-600 dark:text-green-400 max-w-sm text-right">{syncSuccess}</p>}
         </div>
       </div>
-
-      {showDiag && (
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              Renpho Diagnostics {diagLoading && '(running…)'}
-            </span>
-            <div className="flex items-center gap-3 shrink-0">
-              {diagResult && (
-                <button
-                  onClick={handleCopyDiag}
-                  className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
-                >
-                  {diagCopied ? 'Copied!' : 'Copy JSON'}
-                </button>
-              )}
-              <button
-                onClick={() => setShowDiag(false)}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-          {diagSummary && (
-            <p className={`text-sm font-medium mb-2 ${diagSummary.startsWith('OK') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {diagSummary}
-            </p>
-          )}
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-            Live trace of login → device info → measurement fetch, using the account configured in RENPHO_EMAIL/RENPHO_PASSWORD. No password or session token is included below — safe to copy/paste for troubleshooting.
-          </p>
-          <pre className="text-xs bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words max-h-96 overflow-y-auto">
-            {diagResult ?? 'Running…'}
-          </pre>
-        </div>
-      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -1,6 +1,5 @@
 import { FreeWeightsMode } from '@/components/freeweights/FreeWeightsMode'
 import { NavTabs } from '@/components/NavTabs'
-import { ThemeToggle } from '@/components/ThemeToggle'
 import { AuthHeader } from '@/components/AuthHeader'
 
 // See src/app/page.tsx for why this is force-dynamic: middleware-based auth
@@ -14,7 +13,6 @@ export default function FreeWeightsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
           <NavTabs />
           <div className="flex items-center gap-2 shrink-0">
-            <ThemeToggle />
             <div className="hidden sm:block">
               <AuthHeader />
             </div>
