@@ -20,6 +20,7 @@ export interface RenphoSyncResult {
   skipped: number
   total: number
   scalesFound: number
+  latestMeasurementDate: string | null
 }
 
 export class RenphoSyncError extends Error {
@@ -127,8 +128,11 @@ export async function runRenphoSync(): Promise<RenphoSyncResult> {
     if (!existing) {
       await prisma.bodyMeasurement.create({ data: { date: reading.date, source: 'Renpho', ...data } })
       synced++
-    } else if (existing.renphoRecordId !== reading.renphoRecordId) {
-      // Same day, different (or newly-discovered lower) reading than what's stored.
+    } else if ((Object.keys(data) as Array<keyof typeof data>).some(
+      key => data[key] !== undefined && data[key] !== existing[key],
+    )) {
+      // Renpho can revise values without changing the record ID. Compare
+      // supplied values too; missing optional fields leave stored data intact.
       await prisma.bodyMeasurement.update({ where: { id: existing.id }, data })
       updated++
     } else {
@@ -136,5 +140,8 @@ export async function runRenphoSync(): Promise<RenphoSyncResult> {
     }
   }
 
-  return { synced, updated, skipped, total, scalesFound }
+  const latestMeasurementDate = dailyReadings.length > 0
+    ? new Date(Math.max(...dailyReadings.map(reading => reading.date.getTime()))).toISOString()
+    : null
+  return { synced, updated, skipped, total, scalesFound, latestMeasurementDate }
 }

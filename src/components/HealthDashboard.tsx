@@ -59,24 +59,26 @@ export function HealthDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const res = await fetch('/api/body-measurements')
+      const res = await fetch('/api/body-measurements', { cache: 'no-store' })
       if (!res.ok) throw new Error(`Failed to load: ${res.status}`)
       const data: BodyMeasurementApiRecord[] = await res.json()
       setMeasurements(data.map(parseMeasurement))
     } catch (error) {
       console.error('Failed to load body measurements:', error)
+      throw error
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    loadData()
+    loadData().catch(error => setSyncError(`Failed to load body measurements: ${error instanceof Error ? error.message : String(error)}`))
   }, [loadData])
 
   const handleSync = async () => {
     setSyncing(true)
     setSyncError(null)
+    setSyncSuccess(null)
     try {
       const statusRes = await safeJson(await fetch('/api/renpho/sync'))
       const connected = statusRes.json?.connected === true
@@ -101,16 +103,19 @@ export function HealthDashboard() {
         return
       }
 
-      const data = syncRes.json as { synced?: number; updated?: number; skipped?: number; scalesFound?: number }
-      if ((data.synced ?? 0) > 0 || (data.updated ?? 0) > 0) await loadData()
+      const data = syncRes.json as { synced?: number; updated?: number; skipped?: number; scalesFound?: number; latestMeasurementDate?: string | null }
+      await loadData()
       const parts: string[] = []
       if ((data.synced ?? 0) > 0) parts.push(`${data.synced} new`)
       if ((data.updated ?? 0) > 0) parts.push(`${data.updated} updated`)
       if ((data.skipped ?? 0) > 0) parts.push(`${data.skipped} already synced`)
       if (parts.length === 0 && data.scalesFound === 0) {
         setSyncError('Renpho sync found 0 connected scales for this account. Check RENPHO_EMAIL/RENPHO_PASSWORD.')
+      } else if (!data.latestMeasurementDate) {
+        setSyncError('Renpho returned no usable readings. Your previously stored data has been kept.')
       } else {
-        setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'up to date'}`)
+        const latestDate = format(new Date(data.latestMeasurementDate), 'MMM d, yyyy')
+        setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'no changes'}. Latest reading returned: ${latestDate}.`)
         setTimeout(() => setSyncSuccess(null), 6000)
       }
     } catch (error) {
