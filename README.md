@@ -26,7 +26,7 @@ Personal fitness tracking application with workout logging, goal setting, progre
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20.9+ and npm
 - PostgreSQL database (or Vercel Postgres)
 - Google OAuth credentials
 
@@ -282,9 +282,35 @@ disconnect credentials. Treat it like the database password:
   encrypted column-side with AES-256-GCM via `CREDENTIAL_ENC_KEY`
   (set to 64 hex chars — `openssl rand -hex 32`). Legacy plaintext
   rows remain readable; they re-encrypt on the next token refresh.
-- Soft-delete on `workout_sessions`: API DELETE / MCP `delete_workout`
-  set `deletedAt` rather than removing the row. List/get filter out
-  soft-deleted rows.
+- Soft-delete through MCP sets `deletedAt`; the REST delete path currently
+  removes rows permanently and is scheduled for the persistence fixes.
+- Renpho tokens use the same encryption. Production credential writes
+  fail if `CREDENTIAL_ENC_KEY` is missing or malformed. Development may
+  omit the key; a configured invalid key always fails. Keep your existing
+  key when upgrading—generating a replacement will not decrypt old rows.
+
+To encrypt existing plaintext credentials, install dependencies with
+`npm ci`, then populate `.env.local` with the database URLs and the
+**existing** `CREDENTIAL_ENC_KEY`. If no key has ever been configured and
+all rows are plaintext, generate one and configure that same key in both
+`.env.local` and the production environment. Keep this file out of version control.
+Review counts before applying:
+
+```bash
+npm run credentials:encrypt
+npm run credentials:encrypt -- --apply
+npm run credentials:encrypt
+```
+
+The default is a dry run. Apply encrypts legacy Peloton, Tonal, and Renpho
+credential columns, leaves nulls and encrypted values intact, and checks
+existing ciphertext with the configured key before any writes. Output
+contains counts only. Rows changed by a concurrent credential refresh are
+skipped; rerun if needed. The last dry run should report zero pending rows.
+
+The MCP server now uses SDK v2 with stateless HTTP and compatibility for
+2025-era Streamable HTTP clients. Its endpoint and bearer token stay the
+same; the legacy HTTP+SSE transport remains unsupported.
 
 ### Transport + browser hardening
 
