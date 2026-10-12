@@ -435,14 +435,11 @@ async function fetchMeasurementPages(
   tableName: string,
   userId: string,
   token: string,
-  totalCount: number | null,
   pageSize = 50,
 ): Promise<RenphoMeasurement[]> {
   const all: RenphoMeasurement[] = []
   let page = 1
-  // eslint-disable-next-line no-constant-condition
   while (true) {
-    if (totalCount != null && all.length >= totalCount) break
     const pageData = await renphoPost(
       endpoint,
       { pageNum: page, pageSize, userIds: [String(userId)], tableName },
@@ -478,19 +475,18 @@ export async function fetchAllRenphoMeasurements(token: string, userId: string):
       ? String(s.userIds[0])
       : userId
 
-    // Body-composition endpoint first (impedance scales); the server-side
-    // count is unreliable for these, so always attempt it. Fall back to the
-    // legacy endpoint (weight-only scales) when it comes back empty.
-    let records = await fetchMeasurementPages(
+    // Both endpoints can hold history for the same account. A nonempty
+    // composition response does not prove the legacy history is redundant.
+    // Read both to exhaustion; device/count is not a reliable page limit.
+    const compositionRecords = await fetchMeasurementPages(
       ENDPOINTS.bodyCompositionMeasurements,
       s.tableName,
       uid,
       token,
-      null,
     )
-    if (records.length === 0 && s.count > 0) {
-      records = await fetchMeasurementPages(ENDPOINTS.measurements, s.tableName, uid, token, s.count)
-    }
+    const legacyRecords = await fetchMeasurementPages(ENDPOINTS.measurements, s.tableName, uid, token)
+    // Prefer composition data for IDs present in both endpoint responses.
+    const records = [...compositionRecords, ...legacyRecords]
     console.log(`[renpho] table=${s.tableName} reportedCount=${s.count} fetched=${records.length}`)
 
     for (const m of records) {

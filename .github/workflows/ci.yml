@@ -93,3 +93,4 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npx tsc --noEmit
+      - run: npm test
