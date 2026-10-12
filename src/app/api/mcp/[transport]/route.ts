@@ -39,7 +39,7 @@ function corsHeaders(req: Request): Record<string, string> {
   return {
     'access-control-allow-origin': origin,
     'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
-    'access-control-allow-headers': 'authorization, content-type, mcp-session-id',
+    'access-control-allow-headers': 'authorization, content-type, mcp-session-id, mcp-protocol-version, mcp-method, mcp-name',
     'access-control-max-age': '600',
     vary: 'origin',
   }
@@ -47,23 +47,25 @@ function corsHeaders(req: Request): Record<string, string> {
 
 const handler = createMcpHandler(
   (server) => {
-    server.tool(
+    server.registerTool(
       'list_workouts',
-      'List workout sessions as raw rows from the database. ' +
-        'Supports optional filters by year, source (e.g. "Peloton", "Tonal"), activity, a ' +
-        'since-date (ISO-8601), and limit. Default order is most recent first. ' +
-        'Returns raw row shape — no aggregation, no derived fields.',
       {
-        year: z.number().int().min(2020).max(2100).optional()
-          .describe('Calendar year filter (e.g. 2025).'),
-        source: z.string().optional()
-          .describe('Workout source, e.g. "Peloton", "Tonal", "Cannondale", "Gym".'),
-        activity: z.string().optional()
-          .describe('Activity name, e.g. "Cycling", "Weight Lifting", "Running".'),
-        since: z.string().datetime({ offset: true }).optional()
-          .describe('ISO-8601 timestamp — only return workouts on or after this date.'),
-        limit: z.number().int().min(1).max(1000).default(100)
-          .describe('Max rows to return (1-1000). Default 100.'),
+        description: 'List workout sessions as raw rows from the database. ' +
+          'Supports optional filters by year, source (e.g. "Peloton", "Tonal"), activity, a ' +
+          'since-date (ISO-8601), and limit. Default order is most recent first. ' +
+          'Returns raw row shape — no aggregation, no derived fields.',
+        inputSchema: z.object({
+          year: z.number().int().min(2020).max(2100).optional()
+            .describe('Calendar year filter (e.g. 2025).'),
+          source: z.string().optional()
+            .describe('Workout source, e.g. "Peloton", "Tonal", "Cannondale", "Gym".'),
+          activity: z.string().optional()
+            .describe('Activity name, e.g. "Cycling", "Weight Lifting", "Running".'),
+          since: z.string().datetime({ offset: true }).optional()
+            .describe('ISO-8601 timestamp — only return workouts on or after this date.'),
+          limit: z.number().int().min(1).max(1000).default(100)
+            .describe('Max rows to return (1-1000). Default 100.'),
+        }),
       },
       async ({ year, source, activity, since, limit }) => {
         const where: {
@@ -99,10 +101,12 @@ const handler = createMcpHandler(
       },
     )
 
-    server.tool(
+    server.registerTool(
       'get_workout',
-      'Fetch a single workout session by its database ID.',
-      { id: z.string().min(1).describe('Workout session ID (cuid).') },
+      {
+        description: 'Fetch a single workout session by its database ID.',
+        inputSchema: z.object({ id: z.string().min(1).describe('Workout session ID (cuid).') }),
+      },
       async ({ id }) => {
         const row = await prisma.workoutSession.findUnique({ where: { id } })
         if (!row || row.deletedAt) {
@@ -115,17 +119,19 @@ const handler = createMcpHandler(
       },
     )
 
-    server.tool(
+    server.registerTool(
       'create_workout',
-      'Create a new workout session. Use this for manual entries; for Peloton/Tonal use the sync tools.',
       {
-        date: z.string().describe('Workout date. ISO-8601 date or full timestamp.'),
-        source: z.string().min(1).describe('e.g. "Peloton", "Tonal", "Cannondale", "Gym", "Other".'),
-        activity: z.string().min(1).describe('e.g. "Cycling", "Running", "Weight Lifting", "Yoga".'),
-        minutes: z.number().int().min(0).max(1440),
-        miles: z.number().min(0).max(500).optional(),
-        weightLifted: z.number().min(0).max(200000).optional(),
-        notes: z.string().max(2000).optional(),
+        description: 'Create a new workout session. Use this for manual entries; for Peloton/Tonal use the sync tools.',
+        inputSchema: z.object({
+          date: z.string().describe('Workout date. ISO-8601 date or full timestamp.'),
+          source: z.string().min(1).describe('e.g. "Peloton", "Tonal", "Cannondale", "Gym", "Other".'),
+          activity: z.string().min(1).describe('e.g. "Cycling", "Running", "Weight Lifting", "Yoga".'),
+          minutes: z.number().int().min(0).max(1440),
+          miles: z.number().min(0).max(500).optional(),
+          weightLifted: z.number().min(0).max(200000).optional(),
+          notes: z.string().max(2000).optional(),
+        }),
       },
       async ({ date, source, activity, minutes, miles, weightLifted, notes }, extra) => {
         const workoutDate = date.includes('T') ? new Date(date) : new Date(`${date}T12:00:00`)
@@ -140,24 +146,26 @@ const handler = createMcpHandler(
             notes: notes ?? null,
           },
         })
-        const req = (extra as { request?: Request }).request
+        const req = extra.http?.req
         if (req) await logAudit(req, null, 'mcp.create_workout', { id: created.id, source, activity })
         return { content: [{ type: 'text', text: JSON.stringify({ workout: created }, null, 2) }] }
       },
     )
 
-    server.tool(
+    server.registerTool(
       'update_workout',
-      'Update fields on an existing workout. Only provided fields are changed.',
       {
-        id: z.string().min(1),
-        date: z.string().optional(),
-        source: z.string().optional(),
-        activity: z.string().optional(),
-        minutes: z.number().int().min(0).max(1440).optional(),
-        miles: z.number().min(0).max(500).nullable().optional(),
-        weightLifted: z.number().min(0).max(200000).nullable().optional(),
-        notes: z.string().max(2000).nullable().optional(),
+        description: 'Update fields on an existing workout. Only provided fields are changed.',
+        inputSchema: z.object({
+          id: z.string().min(1),
+          date: z.string().optional(),
+          source: z.string().optional(),
+          activity: z.string().optional(),
+          minutes: z.number().int().min(0).max(1440).optional(),
+          miles: z.number().min(0).max(500).nullable().optional(),
+          weightLifted: z.number().min(0).max(200000).nullable().optional(),
+          notes: z.string().max(2000).nullable().optional(),
+        }),
       },
       async ({ id, date, source, activity, minutes, miles, weightLifted, notes }, extra) => {
         const data: Record<string, unknown> = {}
@@ -172,16 +180,18 @@ const handler = createMcpHandler(
         if (notes !== undefined) data.notes = notes
 
         const updated = await prisma.workoutSession.update({ where: { id }, data })
-        const req = (extra as { request?: Request }).request
+        const req = extra.http?.req
         if (req) await logAudit(req, null, 'mcp.update_workout', { id, fields: Object.keys(data) })
         return { content: [{ type: 'text', text: JSON.stringify({ workout: updated }, null, 2) }] }
       },
     )
 
-    server.tool(
+    server.registerTool(
       'delete_workout',
-      'Soft-delete a workout session by ID. Sets deletedAt; row remains for audit.',
-      { id: z.string().min(1) },
+      {
+        description: 'Soft-delete a workout session by ID. Sets deletedAt; row remains for audit.',
+        inputSchema: z.object({ id: z.string().min(1) }),
+      },
       async ({ id }, extra) => {
         // F-06: soft-delete instead of hard-delete so a runaway agent
         // cannot destroy data irreversibly.
@@ -189,19 +199,21 @@ const handler = createMcpHandler(
           where: { id },
           data: { deletedAt: new Date() },
         })
-        const req = (extra as { request?: Request }).request
+        const req = extra.http?.req
         if (req) await logAudit(req, null, 'mcp.delete_workout', { id })
         return { content: [{ type: 'text', text: JSON.stringify({ deleted: true, id, soft: true }) }] }
       },
     )
 
-    server.tool(
+    server.registerTool(
       'list_freeweight_progress',
-      'List the current Free Weights travel-mode programming: every exercise across the ' +
-        'Push/Pull/Legs routines with its current dumbbell weight and reps/set, merging any ' +
-        'saved progression over the built-in defaults. Read-only; useful for reviewing how ' +
-        'programming has progressed over time.',
-      {},
+      {
+        description: 'List the current Free Weights travel-mode programming: every exercise across the ' +
+          'Push/Pull/Legs routines with its current dumbbell weight and reps/set, merging any ' +
+          'saved progression over the built-in defaults. Read-only; useful for reviewing how ' +
+          'programming has progressed over time.',
+        inputSchema: z.object({}),
+      },
       async () => {
         const rows = await prisma.freeWeightProgress.findMany()
         const merged = mergeProgress(FREE_WEIGHT_ROUTINES, rows)
@@ -222,17 +234,19 @@ const handler = createMcpHandler(
       },
     )
 
-    server.tool(
+    server.registerTool(
       'set_freeweight_progress',
-      'Update the current reps/set (and optionally dumbbell weight) baseline for one Free ' +
-        'Weights exercise. Weight must be a single dumbbell pair (5, 10, 15, or 20 lb) or a sum ' +
-        'of stacked pairs (e.g. 30 for a 20 + 10 stack). Use list_freeweight_progress first to ' +
-        'find the exerciseId slug.',
       {
-        exerciseId: z.string().min(1).describe('Exercise slug, e.g. "push-overhead-press".'),
-        reps: z.number().int().min(1).max(100),
-        weightPerDumbbell: z.number().int().min(5).max(50)
-          .describe(`Single tier or stacked-tier sum. Valid values: ${combinedWeightOptions().join(', ')}.`),
+        description: 'Update the current reps/set (and optionally dumbbell weight) baseline for one Free ' +
+          'Weights exercise. Weight must be a single dumbbell pair (5, 10, 15, or 20 lb) or a sum ' +
+          'of stacked pairs (e.g. 30 for a 20 + 10 stack). Use list_freeweight_progress first to ' +
+          'find the exerciseId slug.',
+        inputSchema: z.object({
+          exerciseId: z.string().min(1).describe('Exercise slug, e.g. "push-overhead-press".'),
+          reps: z.number().int().min(1).max(100),
+          weightPerDumbbell: z.number().int().min(5).max(50)
+            .describe(`Single tier or stacked-tier sum. Valid values: ${combinedWeightOptions().join(', ')}.`),
+        }),
       },
       async ({ exerciseId, reps, weightPerDumbbell }, extra) => {
         const known = FREE_WEIGHT_ROUTINES.some(r => r.exercises.some(ex => ex.id === exerciseId))
@@ -253,16 +267,18 @@ const handler = createMcpHandler(
           update: { reps, weightPerDumbbell },
           create: { exerciseId, reps, weightPerDumbbell },
         })
-        const req = (extra as { request?: Request }).request
+        const req = extra.http?.req
         if (req) await logAudit(req, null, 'mcp.set_freeweight_progress', { exerciseId, reps, weightPerDumbbell })
         return { content: [{ type: 'text', text: JSON.stringify({ progress: updated }, null, 2) }] }
       },
     )
 
-    server.tool(
+    server.registerTool(
       'list_goals',
-      'List all configured goals (annual targets + derived weekly/quarterly values).',
-      {},
+      {
+        description: 'List all configured goals (annual targets + derived weekly/quarterly values).',
+        inputSchema: z.object({}),
+      },
       async () => {
         const goals = await prisma.goal.findMany({ orderBy: { year: 'desc' } })
         return {
@@ -271,10 +287,12 @@ const handler = createMcpHandler(
       },
     )
 
-    server.tool(
+    server.registerTool(
       'peloton_status',
-      'Check whether the app has valid Peloton credentials stored.',
-      {},
+      {
+        description: 'Check whether the app has valid Peloton credentials stored.',
+        inputSchema: z.object({}),
+      },
       async () => {
         const cred = await prisma.pelotonCredential.findFirst()
         return {
@@ -286,16 +304,18 @@ const handler = createMcpHandler(
       },
     )
 
-    server.tool(
+    server.registerTool(
       'sync_peloton',
-      'Trigger a Peloton sync — pulls new workouts from the Peloton API into the database. ' +
-        'Returns counts of synced / updated / skipped / total inspected.',
       {
-        limit: z.number().int().min(50).max(2000).default(200)
-          .describe('Max workouts to inspect from Peloton (50-2000, default 200).'),
+        description: 'Trigger a Peloton sync — pulls new workouts from the Peloton API into the database. ' +
+          'Returns counts of synced / updated / skipped / total inspected.',
+        inputSchema: z.object({
+          limit: z.number().int().min(50).max(2000).default(200)
+            .describe('Max workouts to inspect from Peloton (50-2000, default 200).'),
+        }),
       },
       async ({ limit }, extra) => {
-        const req = (extra as { request?: Request }).request
+        const req = extra.http?.req
         try {
           // F-04: call the sync lib directly — no self-fetch, no token
           // in an outbound request that could be redirected.
@@ -309,10 +329,12 @@ const handler = createMcpHandler(
       },
     )
 
-    server.tool(
+    server.registerTool(
       'tonal_status',
-      'Check whether the app has valid Tonal credentials stored.',
-      {},
+      {
+        description: 'Check whether the app has valid Tonal credentials stored.',
+        inputSchema: z.object({}),
+      },
       async () => {
         const cred = await prisma.tonalCredential.findFirst()
         return {
@@ -324,16 +346,18 @@ const handler = createMcpHandler(
       },
     )
 
-    server.tool(
+    server.registerTool(
       'sync_tonal',
-      'Trigger a Tonal sync — pulls new workouts from the Tonal API into the database. ' +
-        'Returns counts of synced / updated / skipped / total inspected.',
       {
-        limit: z.number().int().min(50).max(2000).default(200)
-          .describe('Max workouts to inspect from Tonal (50-2000, default 200).'),
+        description: 'Trigger a Tonal sync — pulls new workouts from the Tonal API into the database. ' +
+          'Returns counts of synced / updated / skipped / total inspected.',
+        inputSchema: z.object({
+          limit: z.number().int().min(50).max(2000).default(200)
+            .describe('Max workouts to inspect from Tonal (50-2000, default 200).'),
+        }),
       },
       async ({ limit }, extra) => {
-        const req = (extra as { request?: Request }).request
+        const req = extra.http?.req
         try {
           const result = await runTonalSync(limit)
           if (req) await logAudit(req, null, 'mcp.sync_tonal', { limit, result })
@@ -345,12 +369,9 @@ const handler = createMcpHandler(
       },
     )
   },
-  { serverInfo: { name: 'fitness-tracker', version: '0.2.0' } },
   {
-    basePath: '/api/mcp',
+    serverInfo: { name: 'fitness-tracker', version: '0.2.0' },
     verboseLogs: false,
-    maxDuration: 300,
-    disableSse: true,
   },
 )
 
