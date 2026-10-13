@@ -40,6 +40,7 @@ function fixture() {
     '@/lib/peloton-sync': { runPelotonSync: async () => result },
     '@/lib/tonal-sync': { runTonalSync: async () => result },
     '@/lib/freeWeights': freeWeights,
+    '@/lib/workout-date': loadTs('src/lib/workout-date.ts'),
     '@/lib/rate-limit': { limitMcp: () => null, limitSync: () => null },
     '@/lib/audit-log': { logAudit: async (req, _session, action) => audits.push({ action, path: new URL(req.url).pathname }) },
   })

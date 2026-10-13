@@ -2,7 +2,9 @@
   "name": "fitness-tracker",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": ">=20.9" },
+  "engines": {
+    "node": ">=20.9"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma db push && next build",
@@ -41,6 +43,7 @@
     "eslint-config-next": "^16.4.0",
     "postcss": "^8.5.6",
     "prisma": "^5.10.2",
+    "react-test-renderer": "^18.3.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { WorkoutSession } from '@/types/workout'
 import { Bike } from 'lucide-react'
@@ -16,7 +16,7 @@ interface WorkoutFormData {
 }
 
 interface WorkoutFormProps {
-  onSubmit: (session: Omit<WorkoutSession, 'id'>) => void
+  onSubmit: (session: Omit<WorkoutSession, 'id'>, requestId?: string) => void | Promise<void>
   initial?: Partial<WorkoutSession>
   submitLabel?: string
 }
@@ -75,10 +75,12 @@ function saveCustomActivity(activity: string) {
 
 export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: WorkoutFormProps) {
   // Default to today, or initial date if provided
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const requestId = useRef<string | null>(null)
   const today = useMemo(() => new Date(), [])
   const defaultDate = toLocalDateInputValue(initial?.date ?? today)
 
-  const { register, handleSubmit, watch, reset, formState: { errors }, setValue } = useForm<WorkoutFormData>({
+  const { register, handleSubmit, watch, reset, formState: { errors, isSubmitting }, setValue } = useForm<WorkoutFormData>({
     defaultValues: {
       date: defaultDate,
       source: initial?.source ?? '',
@@ -188,7 +190,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
     return false;
   })();
 
-  const onFormSubmit = (data: WorkoutFormData) => {
+  const onFormSubmit = async (data: WorkoutFormData) => {
     const finalActivity = source === 'Other' && customActivity ? customActivity : data.activity
     
     // Save custom activity to localStorage if it's from Other source
@@ -205,10 +207,17 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
       weightLifted: data.weightLifted ? Number(data.weightLifted) : undefined,
       notes: data.notes || undefined
     }
-    onSubmit(session)
-    reset()
-    setCustomActivity('') // Reset custom activity
-    setFormattedWeight('') // Reset formatted weight
+    setSaveError(null)
+    try {
+      requestId.current ??= crypto.randomUUID()
+      await onSubmit(session, requestId.current)
+      requestId.current = null
+      reset()
+      setCustomActivity('')
+      setFormattedWeight('')
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not save workout. Please retry.')
+    }
   }
 
   return (
@@ -365,13 +374,16 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
         />
       </div>
 
+      {saveError && <p role="alert" className="text-red-600 dark:text-red-400">{saveError}</p>}
+
       {/* Submit Button */}
       <div className="md:col-span-2 lg:col-span-4">
         <button
           type="submit"
+          disabled={isSubmitting}
           className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
         >
-          {submitLabel ?? 'Add Workout Session'}
+          {isSubmitting ? 'Saving…' : submitLabel}
         </button>
       </div>
     </form>

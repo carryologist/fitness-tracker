@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RoutinePicker } from './RoutinePicker'
 import { ActiveSession, type SetState } from './ActiveSession'
 import { SessionSummary } from './SessionSummary'
@@ -18,6 +18,8 @@ const STORAGE_KEY = 'fitness-tracker-freeweights-session'
 
 interface PersistedSession {
   routineId: string
+  sessionId: string
+  finishedElapsedSeconds?: number
   startedAt: number
   checked: Record<string, SetState[]>
 }
@@ -54,7 +56,8 @@ function loadPersistedSession(): PersistedSession | null {
         })),
       ])
     )
-    return { ...parsed, checked }
+    if (!Number.isFinite(parsed.startedAt) || !FREE_WEIGHT_ROUTINES.some(r => r.id === parsed.routineId)) return null
+    return { ...parsed, checked, sessionId: parsed.sessionId || crypto.randomUUID() }
   } catch {
     return null
   }
@@ -82,6 +85,8 @@ export function FreeWeightsMode() {
   // in-progress or just-finished session always reflects the current
   // baseline, not a stale snapshot from before the fetch resolved.
   const [routines, setRoutines] = useState<FreeWeightRoutine[]>(FREE_WEIGHT_ROUTINES)
+  const saveInFlight = useRef(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const [screen, setScreen] = useState<Screen>('picker')
   const [routineId, setRoutineId] = useState<string | null>(null)
   const [checked, setChecked] = useState<Record<string, SetState[]>>({})
@@ -123,7 +128,14 @@ export function FreeWeightsMode() {
     setRoutineId(persisted.routineId)
     setChecked(persisted.checked)
     setStartedAt(persisted.startedAt)
-    setScreen('active')
+    setSessionId(persisted.sessionId)
+    savePersistedSession(persisted)
+    if (persisted.finishedElapsedSeconds !== undefined) {
+      setFinishedElapsedSeconds(persisted.finishedElapsedSeconds)
+      setScreen('summary')
+    } else {
+      setScreen('active')
+    }
   }, [])
 
   // Live timer while a session is active.
@@ -149,6 +161,8 @@ export function FreeWeightsMode() {
   const handleSelectRoutine = useCallback((selected: FreeWeightRoutine) => {
     const initialChecked = initialSets(selected)
     const now = Date.now()
+    const id = crypto.randomUUID()
+    setSessionId(id)
     setRoutineId(selected.id)
     setChecked(initialChecked)
     setStartedAt(now)
@@ -156,7 +170,7 @@ export function FreeWeightsMode() {
     setSaved(false)
     setError(null)
     setScreen('active')
-    savePersistedSession({ routineId: selected.id, startedAt: now, checked: initialChecked })
+    savePersistedSession({ routineId: selected.id, sessionId: id, startedAt: now, checked: initialChecked })
   }, [])
 
   const handleToggleSet = useCallback(
@@ -166,13 +180,13 @@ export function FreeWeightsMode() {
           ...prev,
           [exerciseId]: prev[exerciseId].map((s, i) => (i === setIndex ? { ...s, completed: !s.completed } : s)),
         }
-        if (routineId && startedAt !== null) {
-          savePersistedSession({ routineId, startedAt, checked: next })
+        if (routineId && sessionId && startedAt !== null) {
+          savePersistedSession({ routineId, sessionId, startedAt, checked: next })
         }
         return next
       })
     },
-    [routineId, startedAt]
+    [routineId, sessionId, startedAt]
   )
 
   const handleEditSet = useCallback(
@@ -184,22 +198,25 @@ export function FreeWeightsMode() {
             i === setIndex ? { ...s, actualReps, actualWeight, actualWeightTiers } : s
           ),
         }
-        if (routineId && startedAt !== null) {
-          savePersistedSession({ routineId, startedAt, checked: next })
+        if (routineId && sessionId && startedAt !== null) {
+          savePersistedSession({ routineId, sessionId, startedAt, checked: next })
         }
         return next
       })
     },
-    [routineId, startedAt]
+    [routineId, sessionId, startedAt]
   )
 
   const handleFinish = useCallback(() => {
-    setFinishedElapsedSeconds(elapsedSeconds)
-    clearPersistedSession()
+    if (!routineId || !sessionId || startedAt === null) return
+    const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+    setFinishedElapsedSeconds(seconds)
+    savePersistedSession({ routineId, sessionId, startedAt, checked, finishedElapsedSeconds: seconds })
     setScreen('summary')
-  }, [elapsedSeconds])
+  }, [routineId, sessionId, startedAt, checked])
 
   const resetToPicker = useCallback(() => {
+    setSessionId(null)
     setRoutineId(null)
     setChecked({})
     setStartedAt(null)
@@ -216,7 +233,8 @@ export function FreeWeightsMode() {
   const elapsedMinutes = Math.max(1, Math.round(finishedElapsedSeconds / 60))
 
   const handleSave = useCallback(async () => {
-    if (!routine) return
+    if (!routine || !sessionId || startedAt === null || saved || saveInFlight.current) return
+    saveInFlight.current = true
     setSaving(true)
     setError(null)
     try {
@@ -225,9 +243,9 @@ export function FreeWeightsMode() {
 
       const res = await fetch('/api/workouts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': sessionId },
         body: JSON.stringify({
-          date: new Date().toISOString(),
+          date: new Date(startedAt).toISOString(),
           source: 'Free Weights',
           activity: 'Weight Lifting',
           minutes: elapsedMinutes,
@@ -241,15 +259,18 @@ export function FreeWeightsMode() {
         throw new Error(body.error || `Failed to log workout (${res.status})`)
       }
 
+      clearPersistedSession()
       setSaved(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to log workout')
     } finally {
+      saveInFlight.current = false
       setSaving(false)
     }
-  }, [routine, checked, elapsedMinutes, totalVolume])
+  }, [routine, checked, elapsedMinutes, totalVolume, sessionId, startedAt, saved])
 
   const handleDiscard = useCallback(() => {
+    clearPersistedSession()
     resetToPicker()
   }, [resetToPicker])
 

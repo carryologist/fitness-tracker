@@ -5,6 +5,7 @@ import { isValidApiToken } from '@/lib/api-auth'
 import { runPelotonSync } from '@/lib/peloton-sync'
 import { runTonalSync } from '@/lib/tonal-sync'
 import { limitMcp, limitSync } from '@/lib/rate-limit'
+import { parseWorkoutDate } from '@/lib/workout-date'
 import { logAudit } from '@/lib/audit-log'
 import { FREE_WEIGHT_ROUTINES, combinedWeightOptions, isValidCombinedWeight, mergeProgress } from '@/lib/freeWeights'
 
@@ -134,7 +135,8 @@ const handler = createMcpHandler(
         }),
       },
       async ({ date, source, activity, minutes, miles, weightLifted, notes }, extra) => {
-        const workoutDate = date.includes('T') ? new Date(date) : new Date(`${date}T12:00:00`)
+        const workoutDate = parseWorkoutDate(date)
+        if (!workoutDate) return { content: [{ type: 'text', text: 'Invalid workout date' }], isError: true }
         const created = await prisma.workoutSession.create({
           data: {
             date: workoutDate,
@@ -170,7 +172,9 @@ const handler = createMcpHandler(
       async ({ id, date, source, activity, minutes, miles, weightLifted, notes }, extra) => {
         const data: Record<string, unknown> = {}
         if (date !== undefined) {
-          data.date = date.includes('T') ? new Date(date) : new Date(`${date}T12:00:00`)
+          const parsed = parseWorkoutDate(date)
+          if (!parsed) return { content: [{ type: 'text', text: 'Invalid workout date' }], isError: true }
+          data.date = parsed
         }
         if (source !== undefined) data.source = source
         if (activity !== undefined) data.activity = activity
@@ -179,7 +183,7 @@ const handler = createMcpHandler(
         if (weightLifted !== undefined) data.weightLifted = weightLifted
         if (notes !== undefined) data.notes = notes
 
-        const updated = await prisma.workoutSession.update({ where: { id }, data })
+        const updated = await prisma.workoutSession.update({ where: { id, deletedAt: null }, data })
         const req = extra.http?.req
         if (req) await logAudit(req, null, 'mcp.update_workout', { id, fields: Object.keys(data) })
         return { content: [{ type: 'text', text: JSON.stringify({ workout: updated }, null, 2) }] }

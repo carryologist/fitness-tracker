@@ -137,14 +137,12 @@ export function WorkoutDashboard() {
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       console.error('Failed to load data:', error)
-      console.log('⚠️ Using empty data as fallback')
-      setSessions([])
-      setGoals([])
+      setSyncError('Could not refresh workout data. Your current view has been kept; please retry.')
       setLoading(false)
     }
   }
 
-  const addSession = async (session: Omit<WorkoutSession, 'id'>) => {
+  const addSession = async (session: Omit<WorkoutSession, 'id'>, requestId?: string) => {
     try {
       console.log('💪 Creating new workout via API:', session)
       
@@ -152,7 +150,8 @@ export function WorkoutDashboard() {
       const response = await fetch('/api/workouts', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(requestId ? { 'Idempotency-Key': requestId } : {}),
         },
         body: JSON.stringify({
           date: session.date.toISOString(),
@@ -184,17 +183,11 @@ export function WorkoutDashboard() {
         notes: data.workout.notes ?? undefined
       }
       
-      setSessions(prev => [newSession, ...prev])
+      setSessions(prev => [newSession, ...prev.filter(existing => existing.id !== newSession.id)])
     } catch (error) {
       console.error('💥 Error creating workout:', error)
       
-      // Fallback to local-only creation
-      console.log('⚠️ Falling back to local-only workout creation')
-      const newSession = {
-        ...session,
-        id: `local_${Date.now()}`
-      }
-      setSessions(prev => [newSession, ...prev])
+      throw error
     }
   }
 
@@ -206,9 +199,9 @@ export function WorkoutDashboard() {
         source: data.source,
         activity: data.activity,
         minutes: data.minutes,
-        miles: data.miles,
-        weightLifted: data.weightLifted,
-        notes: data.notes,
+        miles: data.miles ?? null,
+        weightLifted: data.weightLifted ?? null,
+        notes: data.notes ?? null,
       }
       const response = await fetch('/api/workouts', {
         method: 'PUT',
@@ -230,11 +223,12 @@ export function WorkoutDashboard() {
       } : s))
     } catch (e) {
       console.error('Error updating workout:', e)
+      throw e
     }
   }
 
-  const handleAddWorkout = async (workout: Omit<WorkoutSession, 'id'>) => {
-    await addSession(workout)
+  const handleAddWorkout = async (workout: Omit<WorkoutSession, 'id'>, requestId?: string) => {
+    await addSession(workout, requestId)
   }
 
   const handleDeleteWorkout = useCallback(async (id: string) => {
@@ -257,6 +251,7 @@ export function WorkoutDashboard() {
   // Goal management functions
   const handleCreateGoal = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newGoal = await saveGoalToAPI(goalData)
+    if (!newGoal) throw new Error('Failed to save goal. Please retry.')
     if (newGoal) {
       const updatedGoals = [...goals, newGoal]
       setGoals(updatedGoals)
@@ -268,6 +263,7 @@ export function WorkoutDashboard() {
     if (!editingGoal) return
     
     const updatedGoal = await saveGoalToAPI(goalData, editingGoal.id)
+    if (!updatedGoal) throw new Error('Failed to update goal. Please retry.')
     if (updatedGoal) {
       const updatedGoals = goals.map(g => g.id === editingGoal.id ? updatedGoal : g)
       setGoals(updatedGoals)
@@ -730,15 +726,8 @@ export function WorkoutDashboard() {
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              <WorkoutForm onSubmit={(data) => {
-                // Make sure newly added workouts use the currently selected year
-                const adjustedDate = new Date(data.date);
-                adjustedDate.setFullYear(currentYear);
-
-                handleAddWorkout({
-                  ...data,
-                  date: adjustedDate
-                })
+              <WorkoutForm onSubmit={async (data, requestId) => {
+                await handleAddWorkout(data, requestId)
                 setShowAddWorkout(false)
               }} />
             </div>

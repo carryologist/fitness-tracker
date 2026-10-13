@@ -8,7 +8,7 @@ import { createGoal } from '../utils/goalCalculations'
 interface GoalModalProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onSubmit: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => void | Promise<void>
   existingGoal?: Goal
 }
 
@@ -21,6 +21,8 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
     weeklySessionsTarget: existingGoal?.weeklySessionsTarget || 5
   })
 
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   // Focus trap: focus the panel on open, wrap Tab at boundaries
@@ -63,7 +65,7 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
     }
   }, [onClose])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     const goal = createGoal(
@@ -74,8 +76,17 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
       formData.weeklySessionsTarget
     )
     
-    onSubmit(goal)
-    onClose()
+    if (saving) return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await onSubmit(goal)
+      onClose()
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not save goal. Please retry.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   // Calculate derived values for display
@@ -107,6 +118,7 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {saveError && <p role="alert" className="text-red-600">{saveError}</p>}
           <div>
             <label htmlFor="goal-name" className="block text-sm font-medium text-gray-700 mb-1">
               Goal Name
@@ -217,9 +229,10 @@ export function GoalModal({ isOpen, onClose, onSubmit, existingGoal }: GoalModal
             </button>
             <button
               type="submit"
+              disabled={saving}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
-              {existingGoal ? 'Update Goal' : 'Create Goal'}
+              {saving ? 'Saving…' : existingGoal ? 'Update Goal' : 'Create Goal'}
             </button>
           </div>
         </form>
