@@ -1,3 +1,4 @@
+import { integrationFetch } from '@/lib/integration-fetch'
 // Peloton API client (community-reverse-engineered, no official docs)
 // Covers: Peloton indoor rides, outdoor rides tracked via Peloton app (Cannondale)
 
@@ -79,7 +80,7 @@ export async function authenticatePeloton(
 ): Promise<PelotonAuthResponse> {
   // ── 1. Try OAuth2 token endpoint first ────────────────────────────
   try {
-    const oauthRes = await fetch('https://auth.onepeloton.com/oauth/token', {
+    const oauthRes = await integrationFetch('https://auth.onepeloton.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -95,7 +96,7 @@ export async function authenticatePeloton(
       const oauthData = await oauthRes.json()
 
       // Use the access token to resolve the Peloton user-id
-      const meRes = await fetch(`${PELOTON_API_BASE}/api/me`, {
+      const meRes = await integrationFetch(`${PELOTON_API_BASE}/api/me`, {
         headers: {
           Authorization: `Bearer ${oauthData.access_token}`,
         },
@@ -118,7 +119,7 @@ export async function authenticatePeloton(
   }
 
   // ── 2. Fallback: legacy session auth with mobile user-agent ───────
-  const res = await fetch(`${PELOTON_API_BASE}/auth/login`, {
+  const res = await integrationFetch(`${PELOTON_API_BASE}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -145,7 +146,7 @@ export async function fetchPelotonWorkouts(
   page: number = 0,
   limit: number = 50,
 ): Promise<PelotonWorkoutsResponse> {
-  const res = await fetch(
+  const res = await integrationFetch(
     `${PELOTON_API_BASE}/api/user/${userId}/workouts?joins=ride,ride.instructor&limit=${limit}&page=${page}&sort_by=-created`,
     { headers: pelotonHeaders(sessionId) },
   )
@@ -163,7 +164,7 @@ export async function fetchPelotonWorkoutSummary(
 ): Promise<PelotonWorkout['overall_summary']> {
   // The old /summary endpoint now returns 404.
   // Use /performance_graph instead and extract metrics from the summaries array.
-  const res = await fetch(
+  const res = await integrationFetch(
     `${PELOTON_API_BASE}/api/workout/${workoutId}/performance_graph?every_n=900`,
     { headers: pelotonHeaders(sessionId) },
   )

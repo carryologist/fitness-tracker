@@ -6,6 +6,8 @@
  * The route handler is now a thin auth wrapper around `runTonalSync()`.
  */
 import prisma from '@/lib/prisma'
+import { withSyncWrite, validateSyncLimit } from '@/lib/sync-write'
+import { matchingWindow, uniqueWorkoutMatch } from '@/lib/workout-match'
 import {
   refreshTonalToken,
   fetchTonalActivitySummaries,
@@ -81,10 +83,11 @@ function pickBearerToken(cred: TonalCredential): string {
 
 /**
  * Run a Tonal sync. Pages through activities (newest first), backfills
- * 0-minute rows with detailed durations, links manually-entered rows by
- * date, creates new rows for the rest.
+ * 0-minute rows with detailed durations, links unambiguous manually-entered rows by
+ * activity, start time and duration, creates new rows for the rest.
  */
 export async function runTonalSync(limit = 200): Promise<SyncResult> {
+  validateSyncLimit(limit)
   let cred = await getCredentialOrFail()
   cred = await ensureFreshToken(cred)
 
@@ -97,7 +100,6 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
   let total = 0
   let offset = 0
   let hasMore = true
-  let caughtUp = false
   let batchCount = 0
   let reauthAttempted = false
 
@@ -115,7 +117,7 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (!message.includes('(401)') || reauthAttempted) {
-        throw new TonalSyncError(`Tonal sync failed: ${message}`, 401)
+        throw new TonalSyncError(`Tonal sync failed: ${message}`, message.includes('(401)') ? 401 : 502)
       }
       reauthAttempted = true
       cred = await ensureFreshToken({ ...cred, expiresAt: 0 })
@@ -123,26 +125,24 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
         return await fn()
       } catch (retryErr) {
         const retryMessage = retryErr instanceof Error ? retryErr.message : String(retryErr)
-        throw new TonalSyncError(`Tonal sync failed after re-auth: ${retryMessage}`, 401)
+        throw new TonalSyncError(`Tonal sync failed after re-auth: ${retryMessage}`, retryMessage.includes('(401)') ? 401 : 502)
       }
     }
   }
 
-  while (hasMore && !caughtUp) {
-    const token = pickBearerToken(cred)
-    const activities = await withReauthRetry(() =>
-      fetchTonalActivitySummaries(token, cred.userId, batchSize, offset),
+  while (hasMore) {
+    const fetchedActivities = await withReauthRetry(() =>
+      fetchTonalActivitySummaries(pickBearerToken(cred), cred.userId, Math.min(batchSize, limit - total), offset),
     )
 
-    if (!activities || activities.length === 0) {
+    if (!fetchedActivities || fetchedActivities.length === 0) {
       hasMore = false
       break
     }
 
+    const activities = fetchedActivities.slice(0, Math.min(batchSize, limit - total))
     total += activities.length
     batchCount++
-
-    let newOnThisPage = false
 
     const pageActivityIds = activities
       .map((a) => a.activityId ?? a.id)
@@ -164,15 +164,14 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
         const existingRow = alreadySynced.find((r) => r.tonalWorkoutId === tonalWorkoutId)
         if (existingRow && existingRow.minutes === 0) {
           try {
-            const t = pickBearerToken(cred)
-            const detailed = await fetchTonalWorkoutActivity(t, cred.userId, tonalWorkoutId)
+            const detailed = await withReauthRetry(() => fetchTonalWorkoutActivity(pickBearerToken(cred), cred.userId, tonalWorkoutId))
             if (detailed.duration_seconds > 0) {
               const fixedMinutes = Math.round(detailed.duration_seconds / 60)
-              await prisma.workoutSession.updateMany({
-                where: { tonalWorkoutId },
+              const result = await withSyncWrite(tx => tx.workoutSession.updateMany({
+                where: { tonalWorkoutId, deletedAt: null, minutes: 0 },
                 data: { minutes: fixedMinutes },
-              })
-              updated++
+              }))
+              updated += result.count
             }
           } catch {
             // ignore; will retry on next sync
@@ -182,16 +181,13 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
         continue
       }
 
-      newOnThisPage = true
-
       const preview = activity.workoutPreview
       const hasDuration =
         (preview?.totalDuration ?? preview?.durationSeconds ?? activity.duration_seconds ?? activity.duration) != null
       let detailedDurationSec: number | undefined
       if (!hasDuration) {
         try {
-          const t = pickBearerToken(cred)
-          const detailed = await fetchTonalWorkoutActivity(t, cred.userId, tonalWorkoutId)
+          const detailed = await withReauthRetry(() => fetchTonalWorkoutActivity(pickBearerToken(cred), cred.userId, tonalWorkoutId))
           detailedDurationSec = detailed.duration_seconds
         } catch {
           // ignore; we'll record what we have
@@ -199,6 +195,10 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
       }
 
       const mapped = mapTonalActivity(activity, detailedDurationSec)
+      if (!Number.isFinite(mapped.date.getTime()) || !Number.isFinite(mapped.minutes)) {
+        skipped++
+        continue
+      }
 
       // Ghost-activity guard: the Tonal API occasionally returns rows
       // that have a non-zero duration but zero total weight lifted.
@@ -211,89 +211,35 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
         continue
       }
 
-      const startOfDay = new Date(mapped.date)
-      startOfDay.setHours(0, 0, 0, 0)
-      const endOfDay = new Date(mapped.date)
-      endOfDay.setHours(23, 59, 59, 999)
-
-      // Peloton-echo guard (dedupe pattern P4, reverses the old P1): the
-      // Peloton app/Watch integration auto-logs a generic "Weight Lifting"
-      // row for the same real-world Tonal session, with no weight number
-      // and an under-counted duration. Apple Watch strength-training
-      // auto-detection is known to miss rest-period gaps; Tonal's own
-      // start/stop timer is the accurate one. Rather than create a second
-      // row, adopt the Peloton row's workout id onto this Tonal session
-      // and drop the Peloton echo. Guard on tonalWorkoutId being unset so
-      // an already-merged row isn't re-matched every sync.
-      const pelotonEcho = await prisma.workoutSession.findFirst({
-        where: {
-          source: 'Peloton',
-          activity: 'Weight Lifting',
-          tonalWorkoutId: null,
-          deletedAt: null,
-          date: { gte: startOfDay, lte: endOfDay },
-        },
-      })
-
-      if (pelotonEcho) {
-        await prisma.workoutSession.update({
-          where: { id: pelotonEcho.id },
-          data: {
-            source: 'Tonal',
-            minutes: mapped.minutes,
-            weightLifted: mapped.weightLifted,
-            notes: mapped.notes,
-            tonalWorkoutId: mapped.tonalWorkoutId,
-          },
+      const action = await withSyncWrite(async tx => {
+        // Recheck inside the lock: another sync may have written since prefetch.
+        if (await tx.workoutSession.findUnique({ where: { tonalWorkoutId } })) return 'skipped'
+        const candidates = await tx.workoutSession.findMany({
+          where: { activity: mapped.activity, deletedAt: null, date: matchingWindow(mapped.date) },
         })
-        updated++
-        continue
-      }
-
-      const manualMatch = await prisma.workoutSession.findFirst({
-        where: {
-          source: 'Tonal',
-          tonalWorkoutId: null,
-          date: { gte: startOfDay, lte: endOfDay },
-          deletedAt: null,
-        },
+        const pelotonEcho = uniqueWorkoutMatch(candidates.filter(row =>
+          row.source === 'Peloton' && !row.tonalWorkoutId && !(row.weightLifted ?? 0) &&
+          /traditional strength training/i.test(row.notes ?? '')), mapped, true)
+        const manualMatch = uniqueWorkoutMatch(candidates.filter(row =>
+          row.source === 'Tonal' && !row.tonalWorkoutId), mapped)
+        const match = pelotonEcho ?? manualMatch
+        if (match) {
+          const result = await tx.workoutSession.updateMany({
+            where: { id: match.id, deletedAt: null, tonalWorkoutId: null },
+            data: { source: 'Tonal', minutes: mapped.minutes || match.minutes,
+              weightLifted: mapped.weightLifted, notes: mapped.notes, tonalWorkoutId },
+          })
+          if (result.count) return 'updated'
+        }
+        await tx.workoutSession.create({ data: mapped })
+        return 'synced'
       })
-
-      if (manualMatch) {
-        await prisma.workoutSession.update({
-          where: { id: manualMatch.id },
-          data: {
-            minutes: mapped.minutes || manualMatch.minutes,
-            weightLifted: mapped.weightLifted,
-            notes: mapped.notes,
-            tonalWorkoutId: mapped.tonalWorkoutId,
-          },
-        })
-        updated++
-        continue
-      }
-
-      await prisma.workoutSession.create({
-        data: {
-          source: mapped.source,
-          activity: mapped.activity,
-          date: mapped.date,
-          minutes: mapped.minutes,
-          weightLifted: mapped.weightLifted,
-          notes: mapped.notes,
-          tonalWorkoutId: mapped.tonalWorkoutId,
-        },
-      })
-
-      synced++
+      if (action === 'updated') updated++
+      else if (action === 'synced') synced++
+      else skipped++
     }
 
-    if (!newOnThisPage && !caughtUp) {
-      caughtUp = true
-      break
-    }
-
-    if (batchCount >= maxBatches) hasMore = false
+    if (total >= limit || batchCount >= maxBatches) hasMore = false
     else if (activities.length < batchSize) hasMore = false
     else offset += batchSize
   }

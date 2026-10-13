@@ -5,6 +5,7 @@
  * upserts one BodyMeasurement row per day.
  */
 import prisma from '@/lib/prisma'
+import { withSyncWrite } from '@/lib/sync-write'
 import {
   loginToRenpho,
   fetchAllRenphoMeasurements,
@@ -84,6 +85,8 @@ export async function runRenphoSync(): Promise<RenphoSyncResult> {
       return await fn()
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      // Network failures and pagination failures are not expired credentials.
+      if (!/HTTP (401|403)|code=(401|403)\b|token.*(expired|invalid)|(expired|invalid).*token/i.test(message)) throw err
       cred = await authenticateAndStoreRenphoCredential()
       try {
         return await fn()
@@ -105,39 +108,44 @@ export async function runRenphoSync(): Promise<RenphoSyncResult> {
   const dailyReadings = pickDailyReadings(mapped)
 
   for (const reading of dailyReadings) {
-    const existing = await prisma.bodyMeasurement.findUnique({ where: { date: reading.date } })
+    const action = await withSyncWrite(async tx => {
+      const existing = await tx.bodyMeasurement.findUnique({ where: { date: reading.date } })
 
-    const data = {
-      weightLbs: reading.weightLbs,
-      bmi: reading.bmi,
-      bodyFatPct: reading.bodyFatPct,
-      waterPct: reading.waterPct,
-      musclePct: reading.musclePct,
-      boneMassPct: reading.boneMassPct,
-      bmr: reading.bmr,
-      visceralFatLevel: reading.visceralFatLevel,
-      subcutaneousFatPct: reading.subcutaneousFatPct,
-      proteinPct: reading.proteinPct,
-      bodyAgeYears: reading.bodyAgeYears,
-      leanBodyMassLbs: reading.leanBodyMassLbs,
-      fatFreeWeightLbs: reading.fatFreeWeightLbs,
-      heartRateBpm: reading.heartRateBpm,
-      renphoRecordId: reading.renphoRecordId,
-    }
+      const data = {
+        weightLbs: reading.weightLbs,
+        bmi: reading.bmi,
+        bodyFatPct: reading.bodyFatPct,
+        waterPct: reading.waterPct,
+        musclePct: reading.musclePct,
+        boneMassPct: reading.boneMassPct,
+        bmr: reading.bmr,
+        visceralFatLevel: reading.visceralFatLevel,
+        subcutaneousFatPct: reading.subcutaneousFatPct,
+        proteinPct: reading.proteinPct,
+        bodyAgeYears: reading.bodyAgeYears,
+        leanBodyMassLbs: reading.leanBodyMassLbs,
+        fatFreeWeightLbs: reading.fatFreeWeightLbs,
+        heartRateBpm: reading.heartRateBpm,
+        renphoRecordId: reading.renphoRecordId,
+      }
 
-    if (!existing) {
-      await prisma.bodyMeasurement.create({ data: { date: reading.date, source: 'Renpho', ...data } })
-      synced++
-    } else if ((Object.keys(data) as Array<keyof typeof data>).some(
-      key => data[key] !== undefined && data[key] !== existing[key],
-    )) {
-      // Renpho can revise values without changing the record ID. Compare
-      // supplied values too; missing optional fields leave stored data intact.
-      await prisma.bodyMeasurement.update({ where: { id: existing.id }, data })
-      updated++
-    } else {
-      skipped++
-    }
+      if (!existing) {
+        await tx.bodyMeasurement.create({ data: { date: reading.date, source: 'Renpho', ...data } })
+        return 'synced'
+      } else if ((Object.keys(data) as Array<keyof typeof data>).some(
+        key => data[key] !== undefined && data[key] !== existing[key],
+      )) {
+        // Renpho can revise values without changing the record ID. Compare
+        // supplied values too; missing optional fields leave stored data intact.
+        await tx.bodyMeasurement.update({ where: { id: existing.id }, data })
+        return 'updated'
+      } else {
+        return 'skipped'
+      }
+    })
+    if (action === 'synced') synced++
+    else if (action === 'updated') updated++
+    else skipped++
   }
 
   const latestMeasurementDate = dailyReadings.length > 0

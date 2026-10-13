@@ -6,7 +6,7 @@
  * their one-shot admin route was deleted) have been superseded by P4
  * below, the live Tonal/Peloton weight-lifting merge.
  *
- * P4. Peloton+Tonal same-day weight-lifting double-count: the Peloton
+ * P4. Peloton+Tonal overlapping weight-lifting double-count: the Peloton
  *      Watch/app auto-logs a generic "Weight Lifting" row that mirrors
  *      a real Tonal session, with no weight number and a less accurate
  *      duration (Apple Watch strength-training auto-detection is known
@@ -18,6 +18,8 @@
  *      which prevent this from recurring regardless of sync order.
  */
 import prisma from '@/lib/prisma'
+import { withSyncWrite } from '@/lib/sync-write'
+import { sameWorkout } from '@/lib/workout-match'
 
 export interface WeightLiftingMergeCandidate {
   tonalId: string
@@ -31,7 +33,7 @@ export interface WeightLiftingMergeCandidate {
 }
 
 /**
- * Find same-day pairs of a real Tonal "Weight Lifting" row and a
+ * Find time-compatible same-day pairs of a real Tonal "Weight Lifting" row and a
  * Peloton "Weight Lifting" row, where the Peloton row is the Watch/app
  * auto-tracked echo of the Tonal session. Skips any day with more than
  * one row per source, since that ambiguity can't be resolved without a
@@ -63,6 +65,9 @@ export async function findWeightLiftingMergeCandidates(): Promise<WeightLiftingM
 
     const tonal = tonalRows[0]!
     const peloton = pelotonRows[0]!
+    if ((peloton.weightLifted ?? 0) > 0 || !peloton.pelotonWorkoutId || !/traditional strength training/i.test(peloton.notes ?? '') ||
+        !sameWorkout(tonal, peloton, true) ||
+        (tonal.pelotonWorkoutId && tonal.pelotonWorkoutId !== peloton.pelotonWorkoutId)) continue
     candidates.push({
       tonalId: tonal.id,
       pelotonId: peloton.id,
@@ -95,22 +100,31 @@ export async function mergeWeightLiftingCandidates(
 ): Promise<number> {
   let merged = 0
   for (const c of candidates) {
-    if (!c.alreadyLinked) {
-      await prisma.workoutSession.update({
-        where: { id: c.pelotonId },
+    const didMerge = await withSyncWrite(async tx => {
+      const tonal = await tx.workoutSession.findUnique({ where: { id: c.tonalId } })
+      const peloton = await tx.workoutSession.findUnique({ where: { id: c.pelotonId } })
+      // Candidates may be stale by the time an admin applies them.
+      if (!tonal || !peloton || tonal.deletedAt || peloton.deletedAt ||
+          tonal.source !== 'Tonal' || peloton.source !== 'Peloton' ||
+          tonal.activity !== 'Weight Lifting' || peloton.activity !== 'Weight Lifting' ||
+          (peloton.weightLifted ?? 0) > 0 ||
+          !(tonal.weightLifted ?? 0) || !peloton.pelotonWorkoutId ||
+          !/traditional strength training/i.test(peloton.notes ?? '') ||
+          !sameWorkout(tonal, peloton, true) ||
+          (tonal.pelotonWorkoutId && tonal.pelotonWorkoutId !== peloton.pelotonWorkoutId)) return false
+      const retired = await tx.workoutSession.updateMany({
+        where: { id: peloton.id, deletedAt: null, pelotonWorkoutId: peloton.pelotonWorkoutId },
         data: { deletedAt: new Date(), pelotonWorkoutId: null },
       })
-      await prisma.workoutSession.update({
-        where: { id: c.tonalId },
-        data: { pelotonWorkoutId: c.pelotonWorkoutId },
+      if (!retired.count) return false
+      const adopted = await tx.workoutSession.updateMany({
+        where: { id: tonal.id, deletedAt: null, pelotonWorkoutId: tonal.pelotonWorkoutId },
+        data: { pelotonWorkoutId: peloton.pelotonWorkoutId },
       })
-    } else {
-      await prisma.workoutSession.update({
-        where: { id: c.pelotonId },
-        data: { deletedAt: new Date(), pelotonWorkoutId: null },
-      })
-    }
-    merged++
+      if (!adopted.count) throw new Error('Workout changed during merge; rolled back')
+      return true
+    })
+    if (didMerge) merged++
   }
   return merged
 }
