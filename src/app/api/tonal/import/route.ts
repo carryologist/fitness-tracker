@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { parseWorkoutDate } from '@/lib/workout-date'
+import { trackerMidnight, workoutDay, dayNumber } from '@/lib/calendar'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
 
@@ -38,8 +40,8 @@ export async function POST(req: Request) {
       }
     }
 
-    const date = new Date(body.date)
-    if (isNaN(date.getTime())) {
+    const date = parseWorkoutDate(body.date)
+    if (!date) {
       return NextResponse.json(
         { success: false, error: 'Invalid date format' },
         { status: 400 },
@@ -47,15 +49,16 @@ export async function POST(req: Request) {
     }
 
     // Check for duplicate: same day + source + minutes
-    const startOfDay = new Date(date)
-    startOfDay.setHours(0, 0, 0, 0)
-    const endOfDay = new Date(date)
-    endOfDay.setHours(23, 59, 59, 999)
+    const day = workoutDay(date)
+    const startOfDay = trackerMidnight(day)
+    const nextDay = new Date((dayNumber(day) + 1) * 86400000).toISOString().slice(0, 10)
+    const endOfDay = trackerMidnight(nextDay)
 
     const existing = await prisma.workoutSession.findFirst({
       where: {
         source: 'Tonal',
-        date: { gte: startOfDay, lte: endOfDay },
+        date: { gte: startOfDay, lt: endOfDay },
+        deletedAt: null,
         minutes: body.minutes,
       },
     })

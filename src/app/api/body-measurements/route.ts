@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { parseWorkoutDate } from '@/lib/workout-date'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
 
@@ -16,8 +17,14 @@ export async function GET(request: Request) {
     const where: { date?: { gte?: Date; lte?: Date } } = {}
     if (from || to) {
       where.date = {}
-      if (from) where.date.gte = new Date(from)
-      if (to) where.date.lte = new Date(to)
+      for (const value of [from, to]) {
+        if (value && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !parseWorkoutDate(value))) {
+          return NextResponse.json({ error: 'from and to must be valid YYYY-MM-DD dates' }, { status: 400 })
+        }
+      }
+      if (from && to && from > to) return NextResponse.json({ error: 'from must be on or before to' }, { status: 400 })
+      if (from) where.date.gte = new Date(`${from}T00:00:00Z`)
+      if (to) where.date.lte = new Date(`${to}T00:00:00Z`)
     }
 
     const measurements = await prisma.bodyMeasurement.findMany({

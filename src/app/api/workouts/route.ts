@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { yearRange } from '@/lib/calendar'
 import { parseWorkoutDate } from '@/lib/workout-date'
 import { logAudit } from '@/lib/audit-log'
 import type { WorkoutSession as StoredWorkout } from '@prisma/client'
@@ -29,12 +30,11 @@ export async function GET(request: NextRequest) {
     // (set by /api/admin/dedupe-workouts and MCP delete_workout).
     const where: { date?: { gte: Date; lt: Date }; deletedAt: null } = { deletedAt: null }
     if (yearParam) {
-      const year = parseInt(yearParam, 10)
-      if (!isNaN(year) && year >= 2020 && year <= 2100) {
-        where.date = {
-          gte: new Date(year, 0, 1),
-          lt: new Date(year + 1, 0, 1),
-        }
+      const year = Number(yearParam)
+      if (Number.isInteger(year) && year >= 2020 && year <= 2100) {
+        where.date = yearRange(year)
+      } else {
+        return NextResponse.json({ error: 'year must be an integer between 2020 and 2100' }, { status: 400 })
       }
     }
 

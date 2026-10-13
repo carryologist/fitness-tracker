@@ -1,5 +1,7 @@
 'use client'
 
+import { workoutCalendarDate, workoutDay } from '@/lib/calendar'
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { WorkoutTable } from './WorkoutTable'
 import { WorkoutForm } from './WorkoutForm'
@@ -28,7 +30,7 @@ export function WorkoutDashboard() {
   const [chartView, setChartView] = useState<'annual' | 'monthly' | 'custom'>('annual')
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null)
   const [selectedMonths, setSelectedMonths] = useState<Date[]>([])
-  const [currentYear, setCurrentYear] = useState(2026) // Default year
+  const [currentYear, setCurrentYear] = useState(() => Number(workoutDay(new Date()).slice(0, 4)))
   const [currentDate, setCurrentDate] = useState<Date | null>(null) // Initialize as null
   const [showAddWorkout, setShowAddWorkout] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
@@ -44,9 +46,16 @@ export function WorkoutDashboard() {
 
   // Filter sessions by current year
   const currentYearSessions = useMemo(() => 
-    sessions.filter(session => session.date.getFullYear() === currentYear),
+    sessions.filter(session => workoutCalendarDate(session.date).getFullYear() === currentYear),
     [sessions, currentYear]
   )
+
+  const availableYears = useMemo(() => {
+    const thisYear = Number(workoutDay(new Date()).slice(0, 4))
+    const choices = [currentYear, ...Array.from({ length: Math.max(1, thisYear - 2018) }, (_, i) => 2020 + i),
+      ...goals.map(goal => goal.year), ...sessions.map(session => Number(workoutDay(session.date).slice(0, 4)))]
+    return [...new Set(choices)].sort((a, b) => b - a)
+  }, [currentYear, goals, sessions])
 
   // Apply default mileage for cycling workouts without recorded miles, then outdoor multipliers
   const enhancedSessions = useMemo(() => {
@@ -56,11 +65,17 @@ export function WorkoutDashboard() {
 
   // Set current date/year on client side only
   useEffect(() => {
-    const now = new Date()
+    const now = workoutCalendarDate(new Date())
     setCurrentYear(now.getFullYear())
     setCurrentDate(now)
     setSelectedMonth(now)
   }, [])
+
+  useEffect(() => {
+    setChartView('annual')
+    setSelectedMonth(null)
+    setSelectedMonths([])
+  }, [currentYear])
 
   // Handle view change from chart
   const handleViewChange = useCallback((view: 'annual' | 'monthly' | 'custom') => {
@@ -71,7 +86,7 @@ export function WorkoutDashboard() {
     } else if (view === 'monthly') {
       // If no months are selected, select the current month
       if (selectedMonths.length === 0) {
-        const monthToSelect = currentDate || new Date(currentYear, new Date().getMonth(), 1)
+        const monthToSelect = new Date(currentYear, (currentDate || workoutCalendarDate(new Date())).getMonth(), 1)
         setSelectedMonth(monthToSelect)
         setSelectedMonths([monthToSelect])
       } else if (selectedMonths.length > 1) {
@@ -82,10 +97,10 @@ export function WorkoutDashboard() {
     } else if (view === 'custom') {
       // For custom view, ensure we have at least 2 months selected
       if (selectedMonths.length < 2) {
-        const currentMonthIndex = currentDate ? currentDate.getMonth() : new Date().getMonth()
-        const nextMonthIndex = (currentMonthIndex + 1) % 12
-        const month1 = new Date(currentYear, currentMonthIndex, 1)
-        const month2 = new Date(currentYear, nextMonthIndex, 1)
+        const currentMonthIndex = currentDate ? currentDate.getMonth() : workoutCalendarDate(new Date()).getMonth()
+        const firstMonthIndex = Math.min(currentMonthIndex, 10)
+        const month1 = new Date(currentYear, firstMonthIndex, 1)
+        const month2 = new Date(currentYear, firstMonthIndex + 1, 1)
         setSelectedMonths([month1, month2])
         setSelectedMonth(null)
       }
@@ -428,7 +443,7 @@ export function WorkoutDashboard() {
             const userMin = prompt(
               `${file.name}: OCR couldn't read the duration.\n` +
               `Parsed: ${parsed.weightLifted ? parsed.weightLifted + ' lbs' : 'no volume'}` +
-              `, date: ${parsed.date.toLocaleDateString()}\n\n` +
+              `, date: ${workoutCalendarDate(parsed.date).toLocaleDateString()}\n\n` +
               `Enter workout duration in minutes:`
             )
             if (userMin) {
@@ -533,6 +548,7 @@ export function WorkoutDashboard() {
       />
       {/* Header */}
       <DashboardHeader
+        years={availableYears}
         currentYear={currentYear}
         setCurrentYear={setCurrentYear}
         syncing={syncing}
@@ -575,9 +591,10 @@ export function WorkoutDashboard() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <ClientProgressChart
+            year={currentYear}
             sessions={enhancedSessions}
             viewMode={chartView}
-            selectedMonth={selectedMonth || currentDate || new Date(currentYear, 0, 1)}
+            selectedMonth={selectedMonth || new Date(currentYear, (currentDate || workoutCalendarDate(new Date())).getMonth(), 1)}
             selectedMonths={selectedMonths}
             onMonthChange={(months) => {
               if (months.length === 1) {
@@ -652,6 +669,7 @@ export function WorkoutDashboard() {
             return (
               <div className="relative">
                 <GoalTracker
+                  year={currentYear}
                   sessions={enhancedSessions}
                   goals={{
                     quarterly: {
@@ -679,6 +697,7 @@ export function WorkoutDashboard() {
             )
           })()}
           <WorkoutSummary
+            year={currentYear}
             sessions={enhancedSessions}
             goals={currentGoal ? {
               quarterly: {
@@ -736,6 +755,7 @@ export function WorkoutDashboard() {
         
         {/* Goal Modal */}
         <GoalModal
+          defaultYear={currentYear}
           isOpen={showGoalModal}
           onClose={closeGoalModal}
           onSubmit={editingGoal ? handleEditGoal : handleCreateGoal}

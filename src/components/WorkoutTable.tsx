@@ -1,5 +1,8 @@
 'use client'
 
+import { creditedMiles, creditedMinutes } from '@/utils/workoutTotals'
+import { workoutCalendarDate } from '@/lib/calendar'
+
 import { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { WorkoutSession } from '@/types/workout'
@@ -18,6 +21,10 @@ type SortDirection = 'asc' | 'desc'
 export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) {
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const sortBy = (field: SortField) => {
+    setSortDirection(sortField === field && sortDirection === 'asc' ? 'desc' : 'asc')
+    setSortField(field)
+  }
   const [activityFilter, setActivityFilter] = useState<string | null>(null)
 
   // Derive unique activity types with counts, sorted by frequency
@@ -55,12 +62,12 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
           bValue = b.activity.toLowerCase()
           break
         case 'minutes':
-          aValue = a.minutes
-          bValue = b.minutes
+          aValue = creditedMinutes(a)
+          bValue = creditedMinutes(b)
           break
         case 'miles':
-          aValue = a.miles || 0
-          bValue = b.miles || 0
+          aValue = creditedMiles(a)
+          bValue = creditedMiles(b)
           break
         case 'weightLifted':
           aValue = a.weightLifted || 0
@@ -123,12 +130,22 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700">
-              <th className="text-left py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Date</th>
-              <th className="text-left py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Source</th>
-              <th className="text-left py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Activity</th>
-              <th className="text-right py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Minutes</th>
-              <th className="text-right py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Miles</th>
-              <th className="text-right py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Weight</th>
+              {([
+                { field: 'date', label: 'Date', numeric: false },
+                { field: 'source', label: 'Source', numeric: false },
+                { field: 'activity', label: 'Activity', numeric: false },
+                { field: 'minutes', label: 'Minutes', numeric: true },
+                { field: 'miles', label: 'Miles', numeric: true },
+                { field: 'weightLifted', label: 'Weight', numeric: true },
+              ] as const).map(column => (
+                <th key={column.field}
+                  className={`${column.numeric ? 'text-right' : 'text-left'} py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300`}
+                  aria-sort={sortField === column.field ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" aria-label={`Sort by ${column.label.toLowerCase()}`} onClick={() => sortBy(column.field)}>
+                    {column.label}<span aria-hidden="true">{sortField === column.field ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ''}</span>
+                  </button>
+                </th>
+              ))}
               <th className="text-center py-2 px-2 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Actions</th>
             </tr>
           </thead>
@@ -136,8 +153,8 @@ export function WorkoutTable({ sessions, onEdit, onDelete }: WorkoutTableProps) 
             {sortedSessions.map((session) => (
               <tr key={session.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                 <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                  <span className="sm:hidden">{format(new Date(session.date), 'M/d/yy')}</span>
-                  <span className="hidden sm:inline">{format(new Date(session.date), 'MMM d, yyyy')}</span>
+                  <span className="sm:hidden">{format(workoutCalendarDate(session.date), 'M/d/yy')}</span>
+                  <span className="hidden sm:inline">{format(workoutCalendarDate(session.date), 'MMM d, yyyy')}</span>
                 </td>
                 <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                   {session.source}

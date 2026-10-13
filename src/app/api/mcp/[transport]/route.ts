@@ -1,3 +1,4 @@
+import { yearRange } from '@/lib/calendar'
 import { createMcpHandler, withMcpAuth } from 'mcp-handler'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
@@ -77,9 +78,12 @@ const handler = createMcpHandler(
         } = { deletedAt: null }
 
         if (year !== undefined) {
-          where.date = { gte: new Date(year, 0, 1), lt: new Date(year + 1, 0, 1) }
+          where.date = yearRange(year)
         }
-        if (since) where.date = { ...(where.date ?? {}), gte: new Date(since) }
+        if (since) {
+          const sinceDate = new Date(since)
+          where.date = { ...(where.date ?? {}), gte: where.date?.gte && where.date.gte > sinceDate ? where.date.gte : sinceDate }
+        }
         if (source) where.source = source
         if (activity) where.activity = activity
 

@@ -1,12 +1,13 @@
 'use client'
 
 import React from 'react'
-import { Plus, Calendar, Settings, RefreshCw, Upload } from 'lucide-react'
+import { Plus, Settings, RefreshCw, Upload } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { AuthHeader } from './AuthHeader'
 import { NavTabs } from './NavTabs'
 
 interface DashboardHeaderProps {
+  years: number[]
   currentYear: number
   setCurrentYear: (year: number) => void
   syncing: 'peloton' | 'tonal' | null
@@ -20,6 +21,7 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({
   currentYear,
+  years,
   setCurrentYear,
   syncing,
   importing,
@@ -100,30 +102,14 @@ export function DashboardHeader({
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              <button
-                onClick={() => setCurrentYear(2025)}
-                className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
-                  currentYear === 2025
-                  ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
-                }`}
-              >
-                <Calendar className="w-3 h-3" />
-                <span>2025</span>
-              </button>
-              <button
-                onClick={() => setCurrentYear(2026)}
-                className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
-                  currentYear === 2026
-                  ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
-                }`}
-              >
-                <Calendar className="w-3 h-3" />
-                <span>2026</span>
-              </button>
-            </div>
+            <select
+              aria-label="Workout year"
+              value={currentYear}
+              onChange={event => setCurrentYear(Number(event.target.value))}
+              className="rounded-lg bg-gray-100 dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-2 py-1"
+            >
+              {years.map(year => <option key={year} value={year}>{year}</option>)}
+            </select>
             <button
               onClick={onAddWorkoutClick}
               className="bg-primary-500 hover:bg-primary-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 shadow-sm text-sm"
@@ -151,30 +137,14 @@ export function DashboardHeader({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              <button
-                onClick={() => setCurrentYear(2025)}
-                className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
-                  currentYear === 2025
-                  ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
-                }`}
-              >
-                <Calendar className="w-4 h-4" />
-                <span>2025</span>
-              </button>
-              <button
-                onClick={() => setCurrentYear(2026)}
-                className={`px-2 py-1 rounded-md text-sm flex items-center gap-1 transition-colors ${
-                  currentYear === 2026
-                  ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
-                }`}
-              >
-                <Calendar className="w-4 h-4" />
-                <span>2026</span>
-              </button>
-            </div>
+            <select
+              aria-label="Workout year"
+              value={currentYear}
+              onChange={event => setCurrentYear(Number(event.target.value))}
+              className="rounded-lg bg-gray-100 dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 px-2 py-1"
+            >
+              {years.map(year => <option key={year} value={year}>{year}</option>)}
+            </select>
             <button
               onClick={() => onSync('peloton')}
               disabled={syncing !== null}

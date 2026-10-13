@@ -14,7 +14,7 @@ function loadTs(path, mocks = {}, globals = {}) {
   })
   const exports = {}
   vm.runInNewContext(outputText, {
-    exports, require: name => mocks[name] ?? require(name),
+    exports, require: name => mocks[name] ?? (['@/lib/calendar', '@/lib/goal-input', '@/utils/goalPeriods', '@/utils/workoutTotals'].includes(name) ? loadTs('src/' + name.slice(2) + '.ts') : require(name)),
     Date, Error, Request, Response, Headers, URL, console, crypto: webcrypto,
     setInterval, clearInterval, ...globals,
   })
@@ -157,6 +157,7 @@ test('goal modal stays open and preserves values when save fails, closing only o
   const props = { isOpen: true, onClose: () => closed++, onSubmit: async () => { throw new Error('Goal save failed') } }
   let renderer
   await act(async () => { renderer = create(React.createElement(GoalModal, props)) })
+  await act(async () => { renderer.root.findByProps({ id: 'goal-name' }).props.onChange({ target: { value: 'Fitness' } }) })
   const before = renderer.root.findAllByType('input').map(input => input.props.value)
   await act(async () => { await renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }) })
   assert.equal(closed, 0)

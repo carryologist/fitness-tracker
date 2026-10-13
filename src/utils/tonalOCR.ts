@@ -1,3 +1,4 @@
+import { parseWorkoutDate } from '@/lib/workout-date'
 // Normalize common OCR character misreads (letter↔digit swaps)
 export function ocrNormalize(text: string): string {
   return text
@@ -73,7 +74,7 @@ export function parseTonalOCR(text: string) {
     let year = parseInt(dateMatch[3], 10)
     if (year < 100) year += 2000
     if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      date = new Date(year, month - 1, day, 12, 0, 0)
+      date = parseWorkoutDate(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`)
     }
   }
   // Fallback: try matching date-like patterns with OCR artifacts (e.g. "5/4/ 26", "5 /4/26")
@@ -85,7 +86,7 @@ export function parseTonalOCR(text: string) {
       let year = parseInt(looseDateMatch[3], 10)
       if (year < 100) year += 2000
       if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-        date = new Date(year, month - 1, day, 12, 0, 0)
+        date = parseWorkoutDate(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`)
       }
     }
   }
@@ -99,7 +100,7 @@ export function parseTonalOCR(text: string) {
       let year = parseInt(dotDateMatch[3], 10)
       if (year < 100) year += 2000
       if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-        date = new Date(year, month - 1, day, 12, 0, 0)
+        date = parseWorkoutDate(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`)
       }
     }
   }
@@ -112,7 +113,7 @@ export function parseTonalOCR(text: string) {
       let year = parseInt(dashDateMatch[3], 10)
       if (year < 100) year += 2000
       if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-        date = new Date(year, month - 1, day, 12, 0, 0)
+        date = parseWorkoutDate(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`)
       }
     }
   }

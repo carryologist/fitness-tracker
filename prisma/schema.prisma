@@ -78,7 +78,7 @@ model RenphoCredential {
 // see pickDailyReading() in src/lib/renpho-sync.ts.
 model BodyMeasurement {
   id                 String   @id @default(cuid())
-  date               DateTime @unique // calendar date (local midnight), one row per day
+  date               DateTime @unique // UTC calendar day label (midnight), one row per day
   weightLbs          Float
   bmi                Float?
   bodyFatPct         Float?

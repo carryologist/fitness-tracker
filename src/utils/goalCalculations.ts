@@ -1,104 +1,22 @@
-import { 
-  getQuarter, 
-  getYear, 
-  startOfQuarter, 
-  endOfQuarter, 
-  startOfYear, 
-  endOfYear, 
-  isWithinInterval,
-  differenceInDays
-} from 'date-fns'
 import { WorkoutSession, Goal, GoalProgress } from '@/types/workout'
+import { periodMetrics, selectedQuarter } from '@/utils/goalPeriods'
 
-export function calculateGoalProgress(goal: Goal, sessions: WorkoutSession[]): GoalProgress {
-  const now = new Date()
-  const currentQuarter = getQuarter(now)
-  const currentYear = getYear(now)
-  
-  // Time periods
-  const quarterStart = startOfQuarter(now)
-  const quarterEnd = endOfQuarter(now)
-  const yearStart = startOfYear(now)
-  const yearEnd = endOfYear(now)
-  
-  // Filter sessions for current periods
-  const quarterSessions = sessions.filter(session => 
-    isWithinInterval(session.date, { start: quarterStart, end: quarterEnd })
-  )
-  const yearSessions = sessions.filter(session => 
-    isWithinInterval(session.date, { start: yearStart, end: yearEnd })
-  )
-  
-  // Calculate actual progress
-  const actualWeightQuarter = quarterSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-  const actualWeightYear = yearSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
-  const actualMinutesQuarter = quarterSessions.reduce((sum, s) => sum + s.minutes, 0)
-  const actualMinutesYear = yearSessions.reduce((sum, s) => sum + s.minutes, 0)
-  const actualSessionsQuarter = quarterSessions.length
-  const actualSessionsYear = yearSessions.length
-  
-  // Calculate expected progress (linear based on time elapsed)
-  const daysIntoQuarter = differenceInDays(now, quarterStart) + 1
-  const totalDaysInQuarter = differenceInDays(quarterEnd, quarterStart) + 1
-  const quarterProgress = daysIntoQuarter / totalDaysInQuarter
-  
-  const daysIntoYear = differenceInDays(now, yearStart) + 1
-  const totalDaysInYear = differenceInDays(yearEnd, yearStart) + 1
-  const yearProgress = daysIntoYear / totalDaysInYear
-  
-  const expectedWeightQuarter = goal.quarterlyWeightTarget * quarterProgress
-  const expectedWeightYear = goal.annualWeightTarget * yearProgress
-  const expectedMinutesQuarter = goal.quarterlyMinutesTarget * quarterProgress
-  const expectedMinutesYear = goal.annualMinutesTarget * yearProgress
-  const expectedSessionsQuarter = goal.quarterlySessionsTarget * quarterProgress
-  const expectedSessionsYear = (goal.weeklySessionsTarget * 52) * yearProgress
-  
-  // Calculate sessions needed to hit targets
-  // For quarterly: remaining minutes ÷ minutes per session
-  const remainingMinutesQuarter = Math.max(0, goal.quarterlyMinutesTarget - actualMinutesQuarter)
-  const sessionsNeededForQuarter = Math.max(0, 
-    Math.ceil(remainingMinutesQuarter / goal.minutesPerSession)
-  )
-  
-  // For annual: remaining minutes ÷ minutes per session  
-  const remainingMinutesYear = Math.max(0, goal.annualMinutesTarget - actualMinutesYear)
-  const sessionsNeededForYear = Math.max(0, 
-    Math.ceil(remainingMinutesYear / goal.minutesPerSession)
-  )
-  
-  // Calculate days remaining in quarter
-  const daysRemainingInQuarter = Math.max(0, differenceInDays(quarterEnd, now))
-  
+export function calculateGoalProgress(goal: Goal, sessions: WorkoutSession[], now = new Date()): GoalProgress {
+  const currentYear = goal.year
+  const currentQuarter = selectedQuarter(currentYear, now)
+  const quarter = periodMetrics(sessions, currentYear, currentQuarter, now)
+  const year = periodMetrics(sessions, currentYear, undefined, now)
+  const pair = (q: number, y: number) => ({ quarterToDate: q, yearToDate: y })
   return {
-    currentQuarter,
-    currentYear,
-    actualWeightLifted: {
-      quarterToDate: actualWeightQuarter,
-      yearToDate: actualWeightYear
-    },
-    actualMinutes: {
-      quarterToDate: actualMinutesQuarter,
-      yearToDate: actualMinutesYear
-    },
-    actualSessions: {
-      quarterToDate: actualSessionsQuarter,
-      yearToDate: actualSessionsYear
-    },
-    expectedWeightLifted: {
-      quarterToDate: expectedWeightQuarter,
-      yearToDate: expectedWeightYear
-    },
-    expectedMinutes: {
-      quarterToDate: expectedMinutesQuarter,
-      yearToDate: expectedMinutesYear
-    },
-    expectedSessions: {
-      quarterToDate: expectedSessionsQuarter,
-      yearToDate: expectedSessionsYear
-    },
-    sessionsNeededForQuarter,
-    sessionsNeededForYear,
-    daysRemainingInQuarter
+    currentQuarter, currentYear,
+    actualWeightLifted: pair(quarter.weight, year.weight), actualMinutes: pair(quarter.minutes, year.minutes),
+    actualSessions: pair(quarter.sessions, year.sessions),
+    expectedWeightLifted: pair(goal.quarterlyWeightTarget * quarter.fraction, goal.annualWeightTarget * year.fraction),
+    expectedMinutes: pair(goal.quarterlyMinutesTarget * quarter.fraction, goal.annualMinutesTarget * year.fraction),
+    expectedSessions: pair(goal.quarterlySessionsTarget * quarter.fraction, goal.weeklySessionsTarget * 52 * year.fraction),
+    sessionsNeededForQuarter: goal.minutesPerSession > 0 ? Math.ceil(Math.max(0, goal.quarterlyMinutesTarget - quarter.minutes) / goal.minutesPerSession) : 0,
+    sessionsNeededForYear: goal.minutesPerSession > 0 ? Math.ceil(Math.max(0, goal.annualMinutesTarget - year.minutes) / goal.minutesPerSession) : 0,
+    daysRemainingInQuarter: quarter.daysRemaining,
   }
 }
 
@@ -109,14 +27,7 @@ export function createGoal(
   minutesPerSession: number,
   weeklySessionsTarget: number
 ): Omit<Goal, 'id' | 'createdAt' | 'updatedAt'> {
-  // For 2026 goals: 3 days at 45 mins and 2 days at 60 mins per week = 255 mins per week
-  // But we'll maintain backward compatibility with the existing model
-  let weeklyMinutesTarget = minutesPerSession * weeklySessionsTarget
-
-  // If it's for year 2026, calculate using the new mixed session model
-  if (year === 2026) {
-    weeklyMinutesTarget = (45 * 3) + (60 * 2) // 3 days at 45 mins, 2 days at 60 mins
-  }
+  const weeklyMinutesTarget = minutesPerSession * weeklySessionsTarget
 
   return {
     name,

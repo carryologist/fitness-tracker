@@ -135,3 +135,16 @@ test('repeated full pages fail instead of looping forever or reporting a partial
   await assert.rejects(client.fetchAllRenphoMeasurements('token', 'user'), /repeated a page/)
   assert.equal(pages, 2)
 })
+
+test('Renpho calendar buckets are independent of runtime timezone and missing timestamps are not assigned today', () => {
+  const previous = process.env.TZ
+  const client = loadTs('src/lib/renpho.ts')
+  try {
+    for (const zone of ['UTC', 'America/Los_Angeles', 'Asia/Tokyo']) {
+      process.env.TZ = zone
+      const mapped = client.mapRenphoMeasurement({ weight: 90, timeStamp: Date.parse('2026-10-13T02:00:00Z') / 1000 })
+      assert.equal(mapped.date.toISOString(), '2026-10-13T00:00:00.000Z')
+    }
+    assert.equal(client.mapRenphoMeasurement({ weight: 90 }), null)
+  } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous }
+})

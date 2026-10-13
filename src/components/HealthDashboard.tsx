@@ -1,5 +1,7 @@
 'use client'
 
+import { measurementCalendarDate } from '@/lib/calendar'
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { RefreshCw, Scale, TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp } from 'lucide-react'
 import { format } from 'date-fns'
@@ -114,7 +116,7 @@ export function HealthDashboard() {
       } else if (!data.latestMeasurementDate) {
         setSyncError('Renpho returned no usable readings. Your previously stored data has been kept.')
       } else {
-        const latestDate = format(new Date(data.latestMeasurementDate), 'MMM d, yyyy')
+        const latestDate = format(measurementCalendarDate(new Date(data.latestMeasurementDate)), 'MMM d, yyyy')
         setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'no changes'}. Latest reading returned: ${latestDate}.`)
         setTimeout(() => setSyncSuccess(null), 6000)
       }
@@ -173,7 +175,7 @@ export function HealthDashboard() {
             {latest ? `${latest.weightLbs.toFixed(1)} lbs` : '—'}
           </p>
           {latest && (
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">as of {format(latest.date, 'MMM d, yyyy')}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">as of {format(measurementCalendarDate(latest.date), 'MMM d, yyyy')}</p>
           )}
         </div>
         <ChangeStat label="7-Day Change" current={latest?.weightLbs ?? null} previous={findAsOf(7)} />
@@ -218,7 +220,7 @@ export function HealthDashboard() {
               <tbody>
                 {sorted.map(m => (
                   <tr key={m.id} className="border-t border-gray-100 dark:border-gray-800">
-                    <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{format(m.date, 'MMM d, yyyy')}</td>
+                    <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{format(measurementCalendarDate(m.date), 'MMM d, yyyy')}</td>
                     <td className="px-4 py-2 text-gray-900 dark:text-gray-100">{m.weightLbs.toFixed(1)} lbs</td>
                     <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{m.bodyFatPct != null ? `${m.bodyFatPct.toFixed(1)}%` : '—'}</td>
                     <td className="px-4 py-2 text-gray-600 dark:text-gray-400">{m.musclePct != null ? `${m.musclePct.toFixed(1)}%` : '—'}</td>
