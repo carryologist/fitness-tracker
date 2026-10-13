@@ -1,5 +1,7 @@
 'use client'
 
+import { workoutDay } from '@/lib/calendar'
+
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { WorkoutSession } from '@/types/workout'
@@ -21,17 +23,8 @@ interface WorkoutFormProps {
   submitLabel?: string
 }
 
-function toLocalDateInputValue(d: Date) {
-  const today = new Date(d.getTime() - (d.getTimezoneOffset() * 60000))
-    .toISOString()
-    .split('T')[0]
-  return today
-}
-
-function parseLocalDateInput(dateString: string): Date {
-  const [year, month, day] = dateString.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
+function toLocalDateInputValue(d: Date) { return workoutDay(d) }
+function parseLocalDateInput(dateString: string): Date { return new Date(`${dateString}T12:00:00Z`) }
 
 // Helper to format weight with commas (no decimals)
 function formatWeight(value: string | number): string {
@@ -259,7 +252,7 @@ export function WorkoutForm({ onSubmit, initial, submitLabel = 'Add Workout' }: 
         {source === 'Cannondale' && (
           <p className="text-green-600 dark:text-green-400 text-xs mt-1 flex items-center gap-1">
             <Bike className="w-3 h-3" />
-            <span>1.5× miles multiplier applied for goal tracking</span>
+            <span>Outdoor bonus applied to displayed miles and minutes</span>
           </p>
         )}
         {errors.source && <p className="text-red-500 text-xs mt-1">{errors.source.message}</p>}

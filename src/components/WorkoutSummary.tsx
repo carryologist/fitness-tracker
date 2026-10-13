@@ -1,11 +1,16 @@
 'use client'
 
+import { creditedMiles, creditedMinutes } from '@/utils/workoutTotals'
+import { workoutDay } from '@/lib/calendar'
+import { periodMetrics, selectedQuarter } from '@/utils/goalPeriods'
+
 import React, { useMemo, useState, useEffect } from 'react'
 import { Activity, TrendingUp, Calendar, Weight, Target, Clock, CalendarDays } from 'lucide-react'
 import { WorkoutSession } from '@/types/workout'
 import { formatNumber } from '../utils/numberFormat'
 
 interface WorkoutSummaryProps {
+  year?: number
   sessions: WorkoutSession[]
   goals: {
     quarterly: {
@@ -21,22 +26,13 @@ interface WorkoutSummaryProps {
   }
 }
 
-function getQuarter(date: Date): number {
-  return Math.floor(date.getMonth() / 3) + 1
-}
-
-function getQuarterMonths(quarter: number): [number, number, number] {
-  const start = (quarter - 1) * 3
-  return [start, start + 1, start + 2]
-}
-
 function getQuarterLabel(quarter: number): string {
   const labels = ['Q1', 'Q2', 'Q3', 'Q4']
   return labels[quarter - 1]
 }
 
-export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2025, 0, 1))
+export function WorkoutSummary({ sessions, goals, year }: WorkoutSummaryProps) {
+  const [currentDate, setCurrentDate] = useState<Date | null>(null)
   
   useEffect(() => {
     setCurrentDate(new Date())
@@ -46,8 +42,8 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     if (sessions.length === 0) return null
 
     const totalSessions = sessions.length
-    const totalMinutes = sessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
-    const totalMiles = sessions.reduce((sum, s) => sum + (s.miles || 0), 0)
+    const totalMinutes = sessions.reduce((sum, s) => sum + creditedMinutes(s), 0)
+    const totalMiles = sessions.reduce((sum, s) => sum + creditedMiles(s), 0)
     const totalWeight = sessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
 
     // Activity breakdown with case-insensitive grouping
@@ -64,7 +60,7 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
         acc[normalizedActivity] = { count: 0, minutes: 0 }
       }
       acc[normalizedActivity].count++
-      acc[normalizedActivity].minutes += session.minutes || 0
+      acc[normalizedActivity].minutes += creditedMinutes(session)
       return acc
     }, {} as Record<string, { count: number; minutes: number }>)
 
@@ -76,7 +72,7 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     // Find single session records
     const singleSessionRecords = {
       highestMiles: sessions.reduce((max, session) => {
-        const miles = session.miles || 0
+        const miles = creditedMiles(session)
         return miles > (max.miles || 0) ? {
           miles,
           activity: session.activity,
@@ -110,38 +106,21 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
   const pacingMetrics = useMemo(() => {
     if (!goals) return null
     
-    const currentQuarter = getQuarter(currentDate)
-    const currentYear = currentDate.getFullYear()
-    const quarterMonths = getQuarterMonths(currentQuarter)
-    
-    // Quarterly goal from goals prop
-    const quarterlyGoalMinutes = goals.quarterly.minutes
-    
-    // Get current quarter's progress
-    const quarterSessions = sessions.filter(s => {
-      const sessionDate = new Date(s.date)
-      return quarterMonths.includes(sessionDate.getMonth()) && 
-             sessionDate.getFullYear() === currentYear
-    })
-    
-    const minutesCompleted = quarterSessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
-    
-    const minutesRemaining = Math.max(0, quarterlyGoalMinutes - minutesCompleted)
-    
-    // Calculate days remaining in quarter
-    const quarterEnd = new Date(currentYear, quarterMonths[2] + 1, 0)
-    const daysRemaining = Math.max(0, Math.floor((quarterEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)
-    
-    // Calculate minutes per day needed
+    if (!currentDate) return null
+    const selectedYear = year ?? Number(workoutDay(currentDate).slice(0, 4))
+    const currentQuarter = selectedQuarter(selectedYear, currentDate)
+    const metrics = periodMetrics(sessions, selectedYear, currentQuarter, currentDate)
+    const minutesRemaining = Math.max(0, goals.quarterly.minutes - metrics.minutes)
+    const daysRemaining = metrics.daysRemaining
     const minutesPerDay = daysRemaining > 0 ? minutesRemaining / daysRemaining : 0
-    
+
     return {
       currentQuarter,
       minutesRemaining,
       daysRemaining,
       minutesPerDay
     }
-  }, [sessions, goals, currentDate])
+  }, [sessions, goals, currentDate, year])
 
   if (!summaryStats) {
     return (
@@ -165,7 +144,7 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
     <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 h-full">
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Workout Summary</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">Your all-time statistics</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">Your {year ?? 'selected year'} statistics</p>
       </div>
 
       {/* Stats Grid */}
@@ -221,7 +200,7 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
               <div className="flex items-center gap-3">
                 <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-gray-100">Longest Distance</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">Highest Credited Miles</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {summaryStats.singleSessionRecords.highestMiles.activity} • {summaryStats.singleSessionRecords.highestMiles.source}
                   </p>
@@ -255,7 +234,7 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
 
       {/* Activity Breakdown */}
       <div className="space-y-3 mt-6">
-        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Top Activities - All Time</h3>
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Top Activities - Selected Year</h3>
         {summaryStats.topActivities.map(([activity, stats]) => (
           <div key={activity} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
             <div className="flex items-center gap-3">
@@ -305,7 +284,7 @@ export function WorkoutSummary({ sessions, goals }: WorkoutSummaryProps) {
                 <span className="text-sm sm:text-base text-blue-700 dark:text-blue-300">Minutes per day</span>
               </div>
               <span className="font-bold text-sm sm:text-base text-blue-900 dark:text-blue-100 whitespace-nowrap">
-                {pacingMetrics.minutesPerDay === 0 ? 'Done!' : `${pacingMetrics.minutesPerDay.toFixed(1)} min/day`}
+                {pacingMetrics.minutesRemaining === 0 ? 'Done!' : pacingMetrics.daysRemaining === 0 ? 'Period ended' : `${pacingMetrics.minutesPerDay.toFixed(1)} min/day`}
               </span>
             </div>
           </div>

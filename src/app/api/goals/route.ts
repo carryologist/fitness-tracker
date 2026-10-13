@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { goalInput } from '@/lib/goal-input'
+import { createGoal } from '@/utils/goalCalculations'
 
 // GET /api/goals - Fetch all goals
 export async function GET(request: NextRequest) {
@@ -22,151 +24,42 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/goals - Create a new goal
+// Derived targets are calculated from the validated base fields in one place.
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request)
   if (authResult instanceof NextResponse) return authResult
-
   try {
-    const body = await request.json()
-    
-    // Validate required fields
-    const { name, year, annualWeightTarget, minutesPerSession, weeklySessionsTarget } = body
-    
-    if (!name || !year || !annualWeightTarget || !minutesPerSession || !weeklySessionsTarget) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
-
-    if (typeof year !== 'number' || year < 2020 || year > 2100) {
-      return NextResponse.json(
-        { error: 'year must be between 2020 and 2100' },
-        { status: 400 }
-      )
-    }
-    if (typeof annualWeightTarget !== 'number' || annualWeightTarget <= 0 || annualWeightTarget >= 10000000) {
-      return NextResponse.json(
-        { error: 'annualWeightTarget must be > 0 and < 10000000' },
-        { status: 400 }
-      )
-    }
-    if (typeof minutesPerSession !== 'number' || minutesPerSession < 1 || minutesPerSession > 480) {
-      return NextResponse.json(
-        { error: 'minutesPerSession must be between 1 and 480' },
-        { status: 400 }
-      )
-    }
-    if (typeof weeklySessionsTarget !== 'number' || weeklySessionsTarget < 1 || weeklySessionsTarget > 30) {
-      return NextResponse.json(
-        { error: 'weeklySessionsTarget must be between 1 and 30' },
-        { status: 400 }
-      )
-    }
-    
-    // Calculate derived fields
-    const weeklyMinutesTarget = minutesPerSession * weeklySessionsTarget
-    const annualMinutesTarget = weeklyMinutesTarget * 52
-    const quarterlyWeightTarget = annualWeightTarget / 4
-    const quarterlyMinutesTarget = annualMinutesTarget / 4
-    const quarterlySessionsTarget = weeklySessionsTarget * 13
-    
-    const goal = await prisma.goal.create({
-      data: {
-        name,
-        year,
-        annualWeightTarget,
-        minutesPerSession,
-        weeklySessionsTarget,
-        weeklyMinutesTarget,
-        annualMinutesTarget,
-        quarterlyWeightTarget,
-        quarterlyMinutesTarget,
-        quarterlySessionsTarget
-      }
-    })
-    
+    const parsed = goalInput.safeParse(await request.json())
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid goal fields', details: parsed.error.issues }, { status: 400 })
+    const data = parsed.data
+    const goal = await prisma.goal.create({ data: createGoal(data.name, data.year, data.annualWeightTarget, data.minutesPerSession, data.weeklySessionsTarget) })
     return NextResponse.json({ goal }, { status: 201 })
   } catch (error) {
-    console.error('Error creating goal:', error)
-    return NextResponse.json(
-      { error: 'Failed to create goal' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to create goal' }, { status: error instanceof SyntaxError ? 400 : 500 })
   }
 }
 
-// PUT /api/goals - Update an existing goal
 export async function PUT(request: NextRequest) {
   const authResult = await requireAuth(request)
   if (authResult instanceof NextResponse) return authResult
-
   try {
     const body = await request.json()
-    const { id, name, year, annualWeightTarget, minutesPerSession, weeklySessionsTarget } = body
-    
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Goal ID is required' },
-        { status: 400 }
-      )
-    }
-
-    if (year !== undefined && (typeof year !== 'number' || year < 2020 || year > 2100)) {
-      return NextResponse.json(
-        { error: 'year must be between 2020 and 2100' },
-        { status: 400 }
-      )
-    }
-    if (annualWeightTarget !== undefined && (typeof annualWeightTarget !== 'number' || annualWeightTarget <= 0 || annualWeightTarget >= 10000000)) {
-      return NextResponse.json(
-        { error: 'annualWeightTarget must be > 0 and < 10000000' },
-        { status: 400 }
-      )
-    }
-    if (minutesPerSession !== undefined && (typeof minutesPerSession !== 'number' || minutesPerSession < 1 || minutesPerSession > 480)) {
-      return NextResponse.json(
-        { error: 'minutesPerSession must be between 1 and 480' },
-        { status: 400 }
-      )
-    }
-    if (weeklySessionsTarget !== undefined && (typeof weeklySessionsTarget !== 'number' || weeklySessionsTarget < 1 || weeklySessionsTarget > 30)) {
-      return NextResponse.json(
-        { error: 'weeklySessionsTarget must be between 1 and 30' },
-        { status: 400 }
-      )
-    }
-    
-    // Calculate derived fields
-    const weeklyMinutesTarget = minutesPerSession * weeklySessionsTarget
-    const annualMinutesTarget = weeklyMinutesTarget * 52
-    const quarterlyWeightTarget = annualWeightTarget / 4
-    const quarterlyMinutesTarget = annualMinutesTarget / 4
-    const quarterlySessionsTarget = weeklySessionsTarget * 13
-    
-    const goal = await prisma.goal.update({
-      where: { id },
-      data: {
-        name,
-        year,
-        annualWeightTarget,
-        minutesPerSession,
-        weeklySessionsTarget,
-        weeklyMinutesTarget,
-        annualMinutesTarget,
-        quarterlyWeightTarget,
-        quarterlyMinutesTarget,
-        quarterlySessionsTarget
-      }
+    if (!body || typeof body.id !== 'string' || !body.id.trim()) return NextResponse.json({ error: 'Goal ID is required' }, { status: 400 })
+    const parsed = goalInput.partial().safeParse(body)
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid goal fields', details: parsed.error.issues }, { status: 400 })
+    const goal = await prisma.$transaction(async tx => {
+      // Serialize read/merge/update so concurrent partial edits preserve omitted fields.
+      await tx.$executeRaw`SELECT id FROM goals WHERE id = ${body.id} FOR UPDATE`
+      const existing = await tx.goal.findUnique({ where: { id: body.id } })
+      if (!existing) return null
+      const data = { ...existing, ...parsed.data }
+      const validated = goalInput.parse(data)
+      return tx.goal.update({ where: { id: body.id }, data: createGoal(validated.name, validated.year,
+        validated.annualWeightTarget, validated.minutesPerSession, validated.weeklySessionsTarget) })
     })
-    
+    if (!goal) return NextResponse.json({ error: 'Goal not found' }, { status: 404 })
     return NextResponse.json({ goal })
   } catch (error) {
-    console.error('Error updating goal:', error)
-    return NextResponse.json(
-      { error: 'Failed to update goal' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to update goal' }, { status: error instanceof SyntaxError ? 400 : 500 })
   }
 }

@@ -1,5 +1,7 @@
 'use client'
 
+import { measurementCalendarDate, workoutCalendarDate } from '@/lib/calendar'
+
 import React, { useMemo, useState } from 'react'
 import {
   LineChart,
@@ -11,7 +13,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { format, subDays, subMonths, isAfter } from 'date-fns'
+import { format, subDays, subMonths } from 'date-fns'
 import { BodyMeasurement } from '@/types/health'
 
 type RangeMode = '30d' | '90d' | '6m' | '1y' | 'all'
@@ -40,18 +42,18 @@ export function WeightProgressChart({ measurements }: WeightProgressChartProps) 
 
   const filtered = useMemo(() => {
     if (range === 'all') return measurements
-    const now = new Date()
+    const now = workoutCalendarDate(new Date())
     const cutoff =
-      range === '30d' ? subDays(now, 30) :
-      range === '90d' ? subDays(now, 90) :
+      range === '30d' ? subDays(now, 29) :
+      range === '90d' ? subDays(now, 89) :
       range === '6m' ? subMonths(now, 6) :
       subMonths(now, 12)
-    return measurements.filter(m => isAfter(m.date, cutoff))
+    return measurements.filter(m => measurementCalendarDate(m.date) >= cutoff)
   }, [measurements, range])
 
   const chartData = useMemo(() => {
     return filtered.map(m => ({
-      dateLabel: format(m.date, 'MMM d'),
+      dateLabel: format(measurementCalendarDate(m.date), 'MMM d'),
       weight: Math.round(m.weightLbs * 10) / 10,
       secondary:
         secondaryMetric !== 'none' && typeof m[secondaryMetric] === 'number'

@@ -1,5 +1,8 @@
 'use client'
 
+import { creditedMiles, creditedMinutes } from '@/utils/workoutTotals'
+import { workoutCalendarDate } from '@/lib/calendar'
+
 import React from 'react'
 import { WorkoutSession } from '@/types/workout'
 import { formatNumber } from '../utils/numberFormat'
@@ -19,14 +22,14 @@ export function MonthlySummary({ sessions, selectedMonths = [], onMonthToggle }:
   // Sessions are already filtered by year in the parent — just bucket by month
   const monthlyStats = months.map((month, index) => {
     const monthSessions = sessions.filter(session => {
-      const date = new Date(session.date)
+      const date = workoutCalendarDate(session.date)
       return date.getMonth() === index
     })
 
     return {
       sessions: monthSessions.length,
-      minutes: monthSessions.reduce((sum, s) => sum + s.minutes, 0),
-      miles: monthSessions.reduce((sum, s) => sum + (s.adjustedMiles || s.miles || 0), 0),
+      minutes: monthSessions.reduce((sum, s) => sum + creditedMinutes(s), 0),
+      miles: monthSessions.reduce((sum, s) => sum + creditedMiles(s), 0),
       weight: monthSessions.reduce((sum, s) => sum + (s.weightLifted || 0), 0)
     }
   })

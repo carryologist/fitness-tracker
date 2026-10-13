@@ -1,5 +1,8 @@
 'use client'
 
+import { creditedMiles, creditedMinutes } from '@/utils/workoutTotals'
+import { workoutCalendarDate } from '@/lib/calendar'
+
 import React, { useMemo, useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, eachMonthOfInterval } from 'date-fns'
@@ -10,6 +13,7 @@ import { formatNumber } from '../utils/numberFormat'
 type ViewMode = 'annual' | 'monthly' | 'custom'
 
 interface ProgressChartProps {
+  year?: number
   sessions: WorkoutSession[]
   viewMode?: ViewMode
   selectedMonth?: Date
@@ -18,7 +22,7 @@ interface ProgressChartProps {
   onViewModeChange?: (mode: ViewMode) => void
 }
 
-export function ProgressChart({ 
+export function ProgressChart({ year,
   sessions, 
   viewMode = 'annual',
   selectedMonth = new Date(),
@@ -56,19 +60,17 @@ export function ProgressChart({
       const monthlyData = new Map<string, { minutes: number, miles: number, weight: number }>()
       
       sessions.forEach(session => {
-        const monthKey = format(new Date(session.date), 'MMM yyyy')
+        const monthKey = format(workoutCalendarDate(session.date), 'MMM yyyy')
         const existing = monthlyData.get(monthKey) || { minutes: 0, miles: 0, weight: 0 }
         monthlyData.set(monthKey, {
-          minutes: existing.minutes + (session.minutes || 0),
-          miles: existing.miles + (session.miles || 0),
+          minutes: existing.minutes + creditedMinutes(session),
+          miles: existing.miles + creditedMiles(session),
           weight: existing.weight + (session.weightLifted || 0)
         })
       })
 
       // Get all months in the year — derive year from sessions data
-      const sessionYear = sessions.length > 0
-        ? new Date(sessions[0].date).getFullYear()
-        : new Date().getFullYear()
+      const sessionYear = year ?? selectedMonth.getFullYear()
       const months = eachMonthOfInterval({
         start: new Date(sessionYear, 0, 1),
         end: new Date(sessionYear, 11, 31)
@@ -87,13 +89,13 @@ export function ProgressChart({
       const dailyData = new Map<string, { minutes: number, miles: number, weight: number }>()
       
       sessions.forEach(session => {
-        const sessionDate = new Date(session.date)
+        const sessionDate = workoutCalendarDate(session.date)
         if (format(sessionDate, 'yyyy-MM') === format(selectedMonth, 'yyyy-MM')) {
           const dayKey = format(sessionDate, 'd')
           const existing = dailyData.get(dayKey) || { minutes: 0, miles: 0, weight: 0 }
           dailyData.set(dayKey, {
-            minutes: existing.minutes + (session.minutes || 0),
-            miles: existing.miles + (session.miles || 0),
+            minutes: existing.minutes + creditedMinutes(session),
+            miles: existing.miles + creditedMiles(session),
             weight: existing.weight + (session.weightLifted || 0)
           })
         }
@@ -118,12 +120,12 @@ export function ProgressChart({
       const monthlyData = new Map<string, { minutes: number, miles: number, weight: number }>()
       
       sessions.forEach(session => {
-        const monthKey = format(new Date(session.date), 'MMM yyyy')
-        if (selectedMonthKeys.includes(format(new Date(session.date), 'yyyy-MM'))) {
+        const monthKey = format(workoutCalendarDate(session.date), 'MMM yyyy')
+        if (selectedMonthKeys.includes(format(workoutCalendarDate(session.date), 'yyyy-MM'))) {
           const existing = monthlyData.get(monthKey) || { minutes: 0, miles: 0, weight: 0 }
           monthlyData.set(monthKey, {
-            minutes: existing.minutes + (session.minutes || 0),
-            miles: existing.miles + (session.miles || 0),
+            minutes: existing.minutes + creditedMinutes(session),
+            miles: existing.miles + creditedMiles(session),
             weight: existing.weight + (session.weightLifted || 0)
           })
         }
@@ -139,7 +141,7 @@ export function ProgressChart({
         }
       }).filter(item => monthlyData.has(item.label)) // Only include months that have data
     }
-  }, [sessions, viewMode, selectedMonth, selectedMonthKeys, selectedMonths])
+  }, [sessions, year, viewMode, selectedMonth, selectedMonthKeys, selectedMonths])
 
   const domains = useMemo(() => {
     const allValues = chartData.flatMap(d => [d.minutes, d.miles, d.weight])

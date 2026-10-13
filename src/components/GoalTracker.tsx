@@ -1,11 +1,15 @@
 'use client'
 
+import { periodMetrics, selectedQuarter, progressPercent } from '@/utils/goalPeriods'
+import { workoutDay } from '@/lib/calendar'
+
 import React, { useState, useEffect } from 'react'
 import { Dumbbell, Activity, CheckCircle, Calendar, BarChart3 } from 'lucide-react'
 import { WorkoutSession } from '@/types/workout'
 import { formatNumber } from '../utils/numberFormat'
 
 interface GoalTrackerProps {
+  year?: number
   sessions: WorkoutSession[]
   goals: {
     quarterly: {
@@ -23,7 +27,7 @@ interface GoalTrackerProps {
 
 type ViewMode = 'quarterly' | 'annual'
 
-export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
+export function GoalTracker({ sessions, goals, year }: GoalTrackerProps) {
   const [currentDate, setCurrentDate] = useState<Date | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('quarterly')
   
@@ -35,54 +39,26 @@ export function GoalTracker({ sessions, goals }: GoalTrackerProps) {
     return null // Don't render on server
   }
   
-  const currentQuarter = Math.floor(currentDate.getMonth() / 3) + 1
-  const currentYear = currentDate.getFullYear()
-  
-  // Calculate date ranges based on view mode
-  const getDateRange = () => {
-    if (viewMode === 'quarterly') {
-      const quarterStart = new Date(currentYear, (currentQuarter - 1) * 3, 1)
-      const quarterEnd = new Date(currentYear, currentQuarter * 3, 0)
-      return { start: quarterStart, end: quarterEnd }
-    } else {
-      const yearStart = new Date(currentYear, 0, 1)
-      const yearEnd = new Date(currentYear, 11, 31)
-      return { start: yearStart, end: yearEnd }
-    }
-  }
-  
-  const { start: periodStart, end: periodEnd } = getDateRange()
-  
-  // Filter sessions for the selected period
-  const periodSessions = sessions.filter(session => {
-    const sessionDate = new Date(session.date)
-    return sessionDate >= periodStart && sessionDate <= periodEnd
-  })
-  
-  // Calculate actual values
-  const actualSessions = periodSessions.length
-  const actualMinutes = periodSessions.reduce((sum, session) => sum + (session.minutes || 0), 0)
-  const actualWeight = periodSessions.reduce((sum, session) => sum + (session.weightLifted || 0), 0)
-  
-  // Get targets based on view mode
+  const currentYear = year ?? Number(workoutDay(currentDate).slice(0, 4))
+  const currentQuarter = selectedQuarter(currentYear, currentDate)
+  const metrics = periodMetrics(sessions, currentYear, viewMode === 'quarterly' ? currentQuarter : undefined, currentDate)
+  const actualSessions = metrics.sessions
+  const actualMinutes = metrics.minutes
+  const actualWeight = metrics.weight
   const targets = viewMode === 'quarterly' ? goals.quarterly : goals.annual
   const targetSessions = targets.sessions
   const targetMinutes = targets.minutes
   const targetWeight = targets.weight
-  
-  // Calculate expected progress based on time elapsed
-  const totalDays = Math.floor((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-  const daysElapsed = Math.floor((currentDate.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-  const timeProgress = Math.min(daysElapsed / totalDays, 1)
-  
+  const timeProgress = metrics.fraction
+
   const expectedSessions = targetSessions * timeProgress
   const expectedMinutes = targetMinutes * timeProgress
   const expectedWeight = targetWeight * timeProgress
   
   // Calculate progress percentages
-  const sessionsProgress = (actualSessions / targetSessions) * 100
-  const minutesProgress = (actualMinutes / targetMinutes) * 100
-  const weightProgress = (actualWeight / targetWeight) * 100
+  const sessionsProgress = progressPercent(actualSessions, targetSessions)
+  const minutesProgress = progressPercent(actualMinutes, targetMinutes)
+  const weightProgress = progressPercent(actualWeight, targetWeight)
   
   // Helper functions
   const getStatus = (actual: number, expected: number) => {

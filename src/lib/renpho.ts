@@ -510,7 +510,7 @@ const KG_TO_LBS = 2.20462
 
 /** Mapped shape used for storage — Renpho's kg fields converted to lbs to match the app's unit convention. */
 export interface MappedBodyMeasurement {
-  date: Date // local calendar date, midnight
+  date: Date // UTC calendar day label, not a local timestamp
   weightLbs: number
   bmi?: number
   bodyFatPct?: number
@@ -529,9 +529,11 @@ export interface MappedBodyMeasurement {
 }
 
 export function mapRenphoMeasurement(m: RenphoMeasurement): MappedBodyMeasurement | null {
-  if (m.weight == null) return null
-  const ts = m.timeStamp ? new Date(m.timeStamp * 1000) : new Date()
-  const date = new Date(ts.getFullYear(), ts.getMonth(), ts.getDate())
+  if (m.weight == null || !Number.isFinite(m.weight) || !m.timeStamp) return null
+  const ts = new Date(m.timeStamp * 1000)
+  if (!Number.isFinite(ts.getTime())) return null
+  // Preserve the existing UTC day buckets regardless of the runtime timezone.
+  const date = new Date(Date.UTC(ts.getUTCFullYear(), ts.getUTCMonth(), ts.getUTCDate()))
 
   return {
     date,

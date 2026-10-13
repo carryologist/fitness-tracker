@@ -370,3 +370,35 @@ Strength Training title and at least 50 percent overlap of the shorter session.
 Date-only manual entries (including historical midnight and UTC-noon values),
 ambiguous matches, and already-linked sessions are kept separate. This can
 leave apparent duplicates for manual review, while preserving distinct sessions.
+
+
+### Calendar days, goal periods, and outdoor credit
+
+Timestamped workouts use America/Los_Angeles calendar days throughout the
+UI, REST year filters, MCP year filters, and goal progress. Date-only manual
+and screenshot entries use UTC noon to preserve the entered calendar date.
+Quarter and year ranges include the full final day and exclude the next
+period's midnight. Selecting a past year shows Q4; selecting a future year
+shows Q1, with expected progress clamped to zero before the period and full
+progress after it. The year selector includes historical data/goals and the
+next year; empty-year charts still display the selected year.
+
+Renpho measurement dates retain their existing UTC calendar-day buckets.
+They are displayed as day labels, not converted to local timestamps. Sync
+mapping now explicitly uses UTC rather than the runtime timezone. This fixes
+the previous-day display without rekeying historical measurements; it does
+not regroup measurements by Los Angeles weigh-in time.
+
+The configured Cannondale outdoor bonus is used consistently for credited
+miles and minutes in every chart view, monthly/annual summaries, workout
+history display and sorting, and minute-based goal progress/pacing. Original
+miles and minutes remain stored unchanged and are used for editing, API/MCP
+responses, and bonus tooltips. Highest Credited Miles is a credited-distance
+record, not a physical-distance record. Missing cycling mileage continues to
+use the configured default speed before the outdoor bonus is applied.
+
+Goal targets now always derive from minutes per session × sessions per week,
+with 52 weeks per year and 13 weeks per quarter, including 2026. The goal form
+preview and server use the same calculation. Partial goal updates merge with
+stored base fields under a row lock, validate finite numeric/integer bounds,
+and recalculate targets. Existing goals are not rewritten until edited.
