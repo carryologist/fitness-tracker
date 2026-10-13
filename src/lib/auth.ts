@@ -1,3 +1,4 @@
+import { limitRestRequest } from '@/lib/rate-limit'
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 import type { Session } from "next-auth"
@@ -86,9 +87,12 @@ async function verifySessionFromRequest(request: Request): Promise<{
 export async function requireAuth(
   request?: Request,
 ): Promise<Session | NextResponse | null> {
+  const finish = (session: Session | null) => request ? limitRestRequest(request) ?? session : session
+  // Bearer calls need no session decoding or OAuth configuration work.
+  if (request && isValidApiToken(extractBearerToken(request))) return finish(null)
   // 1. Real session, when v5 cooperates.
   const session = await getSession()
-  if (session) return session
+  if (session) return finish(session)
 
   if (request) {
     // 2. Cryptographically verify the session JWT directly.
@@ -96,18 +100,18 @@ export async function requireAuth(
     if (token) {
       // Synthesize a minimal Session shape from the decoded JWT so
       // handlers that read `session.user.email` still work.
-      return {
+      return finish({
         user: {
           id: token.sub,
           email: token.email,
         },
         expires: "",
-      } as Session
+      } as Session)
     }
 
     // 3. Bearer-token (MCP / scripts).
     const bearer = extractBearerToken(request)
-    if (isValidApiToken(bearer)) return null
+    if (isValidApiToken(bearer)) return finish(null)
   }
 
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

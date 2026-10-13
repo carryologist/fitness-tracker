@@ -2,10 +2,10 @@ import { SyncInputError } from '@/lib/sync-write'
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
-import { runTonalSync, ensureFreshToken, TonalSyncError } from '@/lib/tonal-sync'
+import { runTonalSync, TonalSyncError } from '@/lib/tonal-sync'
 import { logAudit } from '@/lib/audit-log'
 
-// GET — connection status (auto-refreshes if needed)
+// GET — cached connection status; POST owns token refresh.
 export async function GET(request: Request) {
   const authResult = await requireAuth(request)
   if (authResult instanceof NextResponse) return authResult
@@ -14,12 +14,8 @@ export async function GET(request: Request) {
     const cred = await prisma.tonalCredential.findFirst()
     if (!cred) return NextResponse.json({ connected: false })
 
-    try {
-      await ensureFreshToken(cred)
-      return NextResponse.json({ connected: true, userId: cred.userId })
-    } catch {
-      return NextResponse.json({ connected: false, reason: 'token_expired' })
-    }
+    const canSync = !!cred.refreshToken || (cred.expiresAt !== null && cred.expiresAt > Math.floor(Date.now() / 1000))
+    return NextResponse.json({ connected: canSync, userId: cred.userId })
   } catch (error) {
     console.error('Tonal status check error:', error instanceof Error ? error.message : 'unknown')
     return NextResponse.json({ connected: false }, { status: 500 })

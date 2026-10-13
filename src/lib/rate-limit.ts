@@ -7,7 +7,7 @@
  *
  * Limits are conservative defaults:
  *   - 60 requests / minute / IP for mutation routes
- *   - 30 requests / minute / IP for sync routes (each one fans out to
+ *   - 10 requests / minute / IP for sync routes (each one fans out to
  *     external Peloton/Tonal APIs, so they're more expensive)
  *
  * Returns a `NextResponse` (429) when the bucket is empty, otherwise
@@ -63,6 +63,7 @@ export function rateLimit(
   let b = buckets.get(key)
   if (!b) {
     b = { tokens: capacity - 1, ts: now }
+    if (buckets.size >= 10_000) buckets.delete(buckets.keys().next().value!)
     buckets.set(key, b)
     return null
   }
@@ -94,3 +95,11 @@ export function rateLimit(
 export const limitMutation = (req: Request) => rateLimit(req, 'mutation', 60, 1)
 export const limitSync = (req: Request) => rateLimit(req, 'sync', 10, 10 / 60) // 10/min
 export const limitMcp = (req: Request) => rateLimit(req, 'mcp', 120, 2) // 120/min, 2/s burst
+
+export function limitRestRequest(req: Request): NextResponse | null {
+  const path = new URL(req.url).pathname
+  if (/^\/api\/(renpho|tonal|peloton)\/auth$/.test(path)) return rateLimit(req, 'integration-auth', 5, 5 / 60)
+  if ((req.method === 'POST' && path.endsWith('/sync')) || path === '/api/renpho/debug') return limitSync(req)
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return limitMutation(req)
+  return null
+}

@@ -149,8 +149,9 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
       .filter(Boolean) as string[]
     const alreadySynced = await prisma.workoutSession.findMany({
       where: { tonalWorkoutId: { in: pageActivityIds } },
-      select: { tonalWorkoutId: true, minutes: true },
+      select: { tonalWorkoutId: true, minutes: true, deletedAt: true },
     })
+    const syncedRows = new Map(alreadySynced.map(row => [row.tonalWorkoutId, row]))
     const syncedIdSet = new Set(alreadySynced.map((r) => r.tonalWorkoutId))
 
     for (const activity of activities) {
@@ -161,8 +162,8 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
       }
 
       if (syncedIdSet.has(tonalWorkoutId)) {
-        const existingRow = alreadySynced.find((r) => r.tonalWorkoutId === tonalWorkoutId)
-        if (existingRow && existingRow.minutes === 0) {
+        const existingRow = syncedRows.get(tonalWorkoutId)
+        if (existingRow && !existingRow.deletedAt && existingRow.minutes === 0) {
           try {
             const detailed = await withReauthRetry(() => fetchTonalWorkoutActivity(pickBearerToken(cred), cred.userId, tonalWorkoutId))
             if (detailed.duration_seconds > 0) {
@@ -182,6 +183,11 @@ export async function runTonalSync(limit = 200): Promise<SyncResult> {
       }
 
       const preview = activity.workoutPreview
+      // Duration details cannot make a zero-volume ghost into a real workout.
+      if (!(preview?.totalVolume ?? activity.total_volume_lbs ?? activity.total_volume ?? 0)) {
+        skipped++
+        continue
+      }
       const hasDuration =
         (preview?.totalDuration ?? preview?.durationSeconds ?? activity.duration_seconds ?? activity.duration) != null
       let detailedDurationSec: number | undefined

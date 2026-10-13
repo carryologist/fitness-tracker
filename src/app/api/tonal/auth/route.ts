@@ -1,3 +1,4 @@
+import { logAudit } from '@/lib/audit-log'
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
@@ -44,8 +45,10 @@ export async function POST(request: Request) {
       },
     })
 
+    await logAudit(request, authResult, 'tonal.authenticate', {})
     return NextResponse.json({ connected: true, userId })
   } catch (error) {
+    await logAudit(request, authResult, 'tonal.authenticate.failed', {})
     console.error('💥 Tonal auth error:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
     console.error('Detailed error:', message)

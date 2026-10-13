@@ -157,7 +157,7 @@ test('upstream requests carry a 15-second abort signal', async () => {
 test('Tonal detail retries also pick up the refreshed token', async () => {
   const fixture = database()
   const tokens = []
-  const activity = workout('incoming', 'Tonal', '08:05', { activityId: 'incoming' })
+  const activity = workout('incoming', 'Tonal', '08:05', { activityId: 'incoming', total_volume: 5000 })
   const client = tonalClient(fixture, {
     fetchTonalActivitySummaries: async () => [activity],
     fetchTonalWorkoutActivity: async token => {
@@ -183,7 +183,7 @@ test('matching echo workouts merges in either sync order and retains both extern
       result = await client.runPelotonSync()
     } else {
       const client = tonalClient(fixture, { fetchTonalActivitySummaries: async () => [
-        workout('tonal', 'Tonal', '08:07', { activityId: 'tonal', duration: 2400 }),
+        workout('tonal', 'Tonal', '08:07', { activityId: 'tonal', duration: 2400, total_volume: 5000 }),
       ] })
       result = await client.runTonalSync()
     }
@@ -221,7 +221,7 @@ test('simultaneous Peloton and Tonal imports produce one canonical session', asy
     mapPelotonWorkout: () => incoming,
   } })
   const tonal = tonalClient(fixture, { fetchTonalActivitySummaries: async () => [
-    workout('tonal', 'Tonal', '08:07', { activityId: 'tonal', duration: 2400 }),
+    workout('tonal', 'Tonal', '08:07', { activityId: 'tonal', duration: 2400, total_volume: 5000 }),
   ] })
   await Promise.all([peloton.runPelotonSync(), tonal.runTonalSync()])
   assert.equal(fixture.rows().length, 1)

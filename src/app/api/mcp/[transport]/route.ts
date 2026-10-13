@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma'
 import { isValidApiToken } from '@/lib/api-auth'
 import { runPelotonSync } from '@/lib/peloton-sync'
 import { runTonalSync } from '@/lib/tonal-sync'
-import { limitMcp, limitSync } from '@/lib/rate-limit'
+import { limitMcp, limitSync, limitMutation } from '@/lib/rate-limit'
 import { parseWorkoutDate } from '@/lib/workout-date'
 import { logAudit } from '@/lib/audit-log'
 import { FREE_WEIGHT_ROUTINES, combinedWeightOptions, isValidCombinedWeight, mergeProgress } from '@/lib/freeWeights'
@@ -139,6 +139,9 @@ const handler = createMcpHandler(
         }),
       },
       async ({ date, source, activity, minutes, miles, weightLifted, notes }, extra) => {
+        const req = extra.http?.req
+        if (req && limitMutation(req)) return { content: [{ type: 'text', text: 'Too many requests' }], isError: true }
+
         const workoutDate = parseWorkoutDate(date)
         if (!workoutDate) return { content: [{ type: 'text', text: 'Invalid workout date' }], isError: true }
         const created = await prisma.workoutSession.create({
@@ -152,7 +155,6 @@ const handler = createMcpHandler(
             notes: notes ?? null,
           },
         })
-        const req = extra.http?.req
         if (req) await logAudit(req, null, 'mcp.create_workout', { id: created.id, source, activity })
         return { content: [{ type: 'text', text: JSON.stringify({ workout: created }, null, 2) }] }
       },
@@ -174,6 +176,9 @@ const handler = createMcpHandler(
         }),
       },
       async ({ id, date, source, activity, minutes, miles, weightLifted, notes }, extra) => {
+        const req = extra.http?.req
+        if (req && limitMutation(req)) return { content: [{ type: 'text', text: 'Too many requests' }], isError: true }
+
         const data: Record<string, unknown> = {}
         if (date !== undefined) {
           const parsed = parseWorkoutDate(date)
@@ -188,7 +193,6 @@ const handler = createMcpHandler(
         if (notes !== undefined) data.notes = notes
 
         const updated = await prisma.workoutSession.update({ where: { id, deletedAt: null }, data })
-        const req = extra.http?.req
         if (req) await logAudit(req, null, 'mcp.update_workout', { id, fields: Object.keys(data) })
         return { content: [{ type: 'text', text: JSON.stringify({ workout: updated }, null, 2) }] }
       },
@@ -201,13 +205,15 @@ const handler = createMcpHandler(
         inputSchema: z.object({ id: z.string().min(1) }),
       },
       async ({ id }, extra) => {
+        const req = extra.http?.req
+        if (req && limitMutation(req)) return { content: [{ type: 'text', text: 'Too many requests' }], isError: true }
+
         // F-06: soft-delete instead of hard-delete so a runaway agent
         // cannot destroy data irreversibly.
         await prisma.workoutSession.update({
           where: { id },
           data: { deletedAt: new Date() },
         })
-        const req = extra.http?.req
         if (req) await logAudit(req, null, 'mcp.delete_workout', { id })
         return { content: [{ type: 'text', text: JSON.stringify({ deleted: true, id, soft: true }) }] }
       },
@@ -257,6 +263,9 @@ const handler = createMcpHandler(
         }),
       },
       async ({ exerciseId, reps, weightPerDumbbell }, extra) => {
+        const req = extra.http?.req
+        if (req && limitMutation(req)) return { content: [{ type: 'text', text: 'Too many requests' }], isError: true }
+
         const known = FREE_WEIGHT_ROUTINES.some(r => r.exercises.some(ex => ex.id === exerciseId))
         if (!known) {
           return {
@@ -275,7 +284,6 @@ const handler = createMcpHandler(
           update: { reps, weightPerDumbbell },
           create: { exerciseId, reps, weightPerDumbbell },
         })
-        const req = extra.http?.req
         if (req) await logAudit(req, null, 'mcp.set_freeweight_progress', { exerciseId, reps, weightPerDumbbell })
         return { content: [{ type: 'text', text: JSON.stringify({ progress: updated }, null, 2) }] }
       },
@@ -324,6 +332,7 @@ const handler = createMcpHandler(
       },
       async ({ limit }, extra) => {
         const req = extra.http?.req
+        if (req && limitSync(req)) return { content: [{ type: 'text', text: 'Too many requests' }], isError: true }
         try {
           // F-04: call the sync lib directly — no self-fetch, no token
           // in an outbound request that could be redirected.
@@ -366,6 +375,7 @@ const handler = createMcpHandler(
       },
       async ({ limit }, extra) => {
         const req = extra.http?.req
+        if (req && limitSync(req)) return { content: [{ type: 'text', text: 'Too many requests' }], isError: true }
         try {
           const result = await runTonalSync(limit)
           if (req) await logAudit(req, null, 'mcp.sync_tonal', { limit, result })
@@ -415,15 +425,6 @@ async function withGuards(req: Request): Promise<Response> {
     const headers = new Headers(limited.headers)
     for (const [k, v] of Object.entries(corsHeaders(req))) headers.set(k, v)
     return new Response(limited.body, { status: 429, headers })
-  }
-
-  // Coarse second bucket for sync-like calls. We can't read the body here
-  // without breaking the streamable transport, so apply uniformly.
-  const limitedSync = limitSync(req)
-  if (limitedSync) {
-    const headers = new Headers(limitedSync.headers)
-    for (const [k, v] of Object.entries(corsHeaders(req))) headers.set(k, v)
-    return new Response(limitedSync.body, { status: 429, headers })
   }
 
   const res = await authed(req)

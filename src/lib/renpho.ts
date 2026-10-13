@@ -207,11 +207,13 @@ async function renphoPostRaw<T = unknown>(
   token: string,
   userId: string,
   context: string,
+  signal?: AbortSignal,
 ): Promise<{ ok: true; data: T | null } | { ok: false; status: number; text: string }> {
   const res = await integrationFetch(`${API_BASE_URL}/${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders(token, userId) },
     body: JSON.stringify(encryptedBody),
+    signal,
   })
   if (!res.ok) return { ok: false, status: res.status, text: await res.text() }
 
@@ -227,8 +229,9 @@ async function renphoPost<T = unknown>(
   token: string,
   userId: string,
   context: string,
+  signal?: AbortSignal,
 ): Promise<T | null> {
-  const result = await renphoPostRaw<T>(endpoint, encryptRequest(body), token, userId, context)
+  const result = await renphoPostRaw<T>(endpoint, encryptRequest(body), token, userId, context, signal)
   if (!result.ok) throw new Error(`Renpho ${context} HTTP ${result.status}: ${result.text}`)
   return result.data
 }
@@ -437,17 +440,20 @@ async function fetchMeasurementPages(
   userId: string,
   token: string,
   pageSize = 50,
+  signal?: AbortSignal,
 ): Promise<RenphoMeasurement[]> {
   const all: RenphoMeasurement[] = []
   let page = 1
   const pageSignatures = new Set<string>()
   while (page <= 1000) {
+    signal?.throwIfAborted()
     const pageData = await renphoPost(
       endpoint,
       { pageNum: page, pageSize, userIds: [String(userId)], tableName },
       token,
       userId,
       `Measurements page ${page}`,
+      signal,
     )
     const records = extractRecords(pageData)
     if (!records) return all
@@ -483,13 +489,19 @@ export async function fetchAllRenphoMeasurements(token: string, userId: string):
     // Both endpoints can hold history for the same account. A nonempty
     // composition response does not prove the legacy history is redundant.
     // Read both to exhaustion; device/count is not a reliable page limit.
-    const compositionRecords = await fetchMeasurementPages(
-      ENDPOINTS.bodyCompositionMeasurements,
-      s.tableName,
-      uid,
-      token,
-    )
-    const legacyRecords = await fetchMeasurementPages(ENDPOINTS.measurements, s.tableName, uid, token)
+    const controller = new AbortController()
+    const requests = [
+      fetchMeasurementPages(ENDPOINTS.bodyCompositionMeasurements, s.tableName, uid, token, 50, controller.signal),
+      fetchMeasurementPages(ENDPOINTS.measurements, s.tableName, uid, token, 50, controller.signal),
+    ]
+    let compositionRecords: RenphoMeasurement[], legacyRecords: RenphoMeasurement[]
+    try {
+      [compositionRecords, legacyRecords] = await Promise.all(requests)
+    } catch (error) {
+      controller.abort()
+      await Promise.allSettled(requests)
+      throw error
+    }
     // Prefer composition data for IDs present in both endpoint responses.
     const records = [...compositionRecords, ...legacyRecords]
     console.log(`[renpho] table=${s.tableName} reportedCount=${s.count} fetched=${records.length}`)

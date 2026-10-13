@@ -17,15 +17,16 @@ function loadTs(path, mocks = {}, globals = {}) {
   return exports
 }
 
-function fixture() {
+function fixture(limits = {}) {
   const token = 'test-token-for-mcp-security'
   const freeWeights = loadTs('src/lib/freeWeights.ts')
   const audits = []
+  let mutationCount = 0
   const row = { id: 'workout', date: new Date('2026-10-12T12:00:00Z'), source: 'Gym', activity: 'Cycling', minutes: 30, deletedAt: null }
   const prisma = {
     workoutSession: {
       findMany: async () => [row], findUnique: async () => row,
-      create: async ({ data }) => ({ id: 'created', ...data }),
+      create: async ({ data }) => { mutationCount++; return { id: 'created', ...data } },
       update: async ({ data }) => ({ ...row, ...data }),
     },
     goal: { findMany: async () => [] },
@@ -42,7 +43,7 @@ function fixture() {
     '@/lib/freeWeights': freeWeights,
     '@/lib/workout-date': loadTs('src/lib/workout-date.ts'),
     '@/lib/calendar': loadTs('src/lib/calendar.ts'),
-    '@/lib/rate-limit': { limitMcp: () => null, limitSync: () => null },
+    '@/lib/rate-limit': { limitMcp: () => null, limitSync: () => null, limitMutation: () => null, ...limits },
     '@/lib/audit-log': { logAudit: async (req, _session, action) => audits.push({ action, path: new URL(req.url).pathname }) },
   })
   let id = 0
@@ -73,7 +74,7 @@ function fixture() {
     }
     return { res, body }
   }
-  return { rpc, audits, freeWeights }
+  return { rpc, audits, freeWeights, mutationCount: () => mutationCount }
 }
 
 test('real MCP handler rejects missing or invalid bearer tokens', async () => {
@@ -125,4 +126,17 @@ test('current MCP protocol supports authenticated discovery', async () => {
   assert.equal(called.body.error, undefined)
   assert.notEqual(called.body.result.isError, true)
   assert.equal(audits.length, 1)
+})
+
+test('read-only MCP discovery does not consume sync quota, and exhausted mutation quota blocks writes', async () => {
+  const limits = loadTs('src/lib/rate-limit.ts')
+  const { rpc } = fixture(limits)
+  for (let i = 0; i < 12; i++) assert.equal((await rpc('tools/list', {})).res.status, 200)
+  const synced = await rpc('tools/call', { name: 'sync_peloton', arguments: { limit: 50 } })
+  assert.equal(synced.body.result.isError, undefined)
+  const denied = fixture({ limitMutation: () => new Response('{}', { status: 429 }) })
+  const result = await denied.rpc('tools/call', { name: 'create_workout', arguments: { date: '2026-10-12', source: 'Gym', activity: 'Cycling', minutes: 30 } })
+  assert.equal(result.body.result.isError, true)
+  assert.equal(denied.audits.length, 0)
+  assert.equal(denied.mutationCount(), 0)
 })

@@ -1,3 +1,4 @@
+import { logAudit } from '@/lib/audit-log'
 import { NextResponse } from 'next/server'
 import { parseWorkoutDate } from '@/lib/workout-date'
 import { trackerMidnight, workoutDay, dayNumber } from '@/lib/calendar'
@@ -73,6 +74,7 @@ export async function POST(req: Request) {
             notes: body.notes || existing.notes,
           },
         })
+        await logAudit(req, authResult, 'tonal.import.update', { id: updated.id })
         return NextResponse.json({
           success: true,
           updated: true,
@@ -104,6 +106,7 @@ export async function POST(req: Request) {
       },
     })
 
+    await logAudit(req, authResult, 'tonal.import.create', { id: workout.id })
     return NextResponse.json({
       success: true,
       workout: {

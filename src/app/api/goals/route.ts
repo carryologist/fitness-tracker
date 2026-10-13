@@ -1,3 +1,4 @@
+import { logAudit } from '@/lib/audit-log'
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: 'Invalid goal fields', details: parsed.error.issues }, { status: 400 })
     const data = parsed.data
     const goal = await prisma.goal.create({ data: createGoal(data.name, data.year, data.annualWeightTarget, data.minutesPerSession, data.weeklySessionsTarget) })
+    await logAudit(request, authResult, 'goal.create', { id: goal.id, year: goal.year })
     return NextResponse.json({ goal }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create goal' }, { status: error instanceof SyntaxError ? 400 : 500 })
@@ -58,6 +60,7 @@ export async function PUT(request: NextRequest) {
         validated.annualWeightTarget, validated.minutesPerSession, validated.weeklySessionsTarget) })
     })
     if (!goal) return NextResponse.json({ error: 'Goal not found' }, { status: 404 })
+    await logAudit(request, authResult, 'goal.update', { id: goal.id, fields: Object.keys(parsed.data) })
     return NextResponse.json({ goal })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update goal' }, { status: error instanceof SyntaxError ? 400 : 500 })
