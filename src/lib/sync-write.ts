@@ -3,10 +3,10 @@ import type { Prisma } from '@prisma/client'
 
 /** Serialize sync writes across serverless instances, without holding a
  * transaction open during upstream requests. Roll back incomplete merges. */
-export function withSyncWrite<T>(write: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+export function withSyncWrite<T>(write: (tx: Prisma.TransactionClient) => Promise<T>, scope: 'workouts' | 'measurements' = 'workouts'): Promise<T> {
   return prisma.$transaction(async tx => {
-    // All integrations share this key because Peloton and Tonal can link rows.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(782341, 1)`
+    // Peloton/Tonal share key 1; measurement batches use independent key 2.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(782341, ${scope === 'measurements' ? 2 : 1})`
     return write(tx)
   }, { maxWait: 10_000, timeout: 15_000 })
 }

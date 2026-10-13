@@ -13,7 +13,7 @@ function load(path, mocks = {}, globals = {}) {
   vm.runInNewContext(outputText, { exports, require: name => mocks[name] ?? (name.startsWith('../utils/') ? load('src/utils/' + name.slice(9) + '.ts') :
     (name.startsWith('@/lib/workout-date') || name.startsWith('@/lib/calendar') || name.startsWith('@/lib/goal-input') || name.startsWith('@/utils/')
       ? load('src/' + name.slice(2) + '.ts') : require(name))),
-    Date, Error, Request, Response, URL, console, process, ...globals }, { filename: path })
+    Date, Error, Request, Response, URL, console: { log() {}, warn() {}, error() {}, info() {} }, process, ...globals }, { filename: path })
   return exports
 }
 const calendar = load('src/lib/calendar.ts')
@@ -124,7 +124,7 @@ function goalRoutes() {
     const wait = tail; let release; tail = new Promise(resolve => { release = resolve }); await wait
     try { return await fn({ goal, $executeRaw: async () => 1 }) } finally { release() }
   } }
-  const route = load('src/app/api/goals/route.ts', { '@/lib/prisma': { default: db }, '@/lib/auth': { requireAuth: async () => null } })
+  const route = load('src/app/api/goals/route.ts', { '@/lib/audit-log': { logAudit: async () => {} }, '@/lib/prisma': { default: db }, '@/lib/auth': { requireAuth: async () => null } })
   const call = (method, body) => route[method](new Request('http://localhost/api/goals', { method,
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }))
   return { call, rows }

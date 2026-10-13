@@ -99,7 +99,7 @@ export async function runPelotonSync(limit = 200): Promise<SyncResult> {
         continue
       }
 
-      if (!workout.overall_summary) {
+      if (!workout.overall_summary && (workout.is_outdoor || ['cycling', 'running', 'outdoor'].includes(workout.fitness_discipline))) {
         try {
           workout.overall_summary = await fetchPelotonWorkoutSummary(sessionId, workout.id)
         } catch {

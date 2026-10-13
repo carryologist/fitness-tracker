@@ -354,15 +354,24 @@ export function WorkoutDashboard() {
 
     const successes: string[] = []
     const failures: string[] = []
+    let worker: import('tesseract.js').Worker | undefined
 
     try {
       const Tesseract = (await import('tesseract.js')).default
+      worker = await Tesseract.createWorker('eng', 1, {
+        workerBlobURL: false,
+        workerPath: `${window.location.origin}/ocr/worker.min.js`,
+        corePath: `${window.location.origin}/ocr/core`,
+        langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int',
+      })
 
       // Preprocess image: grayscale + high contrast for better OCR on dark Tonal screenshots
       const preprocessImage = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
           const img = new Image()
+          const objectUrl = URL.createObjectURL(file)
           img.onload = () => {
+            URL.revokeObjectURL(objectUrl)
             const canvas = document.createElement('canvas')
             canvas.width = img.width
             canvas.height = img.height
@@ -384,8 +393,8 @@ export function WorkoutDashboard() {
             ctx.putImageData(imageData, 0, 0)
             resolve(canvas.toDataURL('image/png'))
           }
-          img.onerror = reject
-          img.src = URL.createObjectURL(file)
+          img.onerror = error => { URL.revokeObjectURL(objectUrl); reject(error) }
+          img.src = objectUrl
         })
       }
 
@@ -397,10 +406,10 @@ export function WorkoutDashboard() {
           let rawText = ''
           try {
             const preprocessed = await preprocessImage(file)
-            const result = await Tesseract.recognize(preprocessed, 'eng')
+            const result = await worker.recognize(preprocessed)
             rawText = result.data.text
           } catch {
-            const result = await Tesseract.recognize(file, 'eng')
+            const result = await worker.recognize(file)
             rawText = result.data.text
           }
           console.log(`OCR [${i + 1}/${total}] raw text:`, rawText)
@@ -497,6 +506,7 @@ export function WorkoutDashboard() {
     } catch (error) {
       setSyncError(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
+      await worker?.terminate().catch(() => {})
       setImporting(false)
       setImportProgress(null)
       if (tonalFileRef.current) tonalFileRef.current.value = ''

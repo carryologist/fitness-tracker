@@ -5,7 +5,7 @@
  * upserts one BodyMeasurement row per day.
  */
 import prisma from '@/lib/prisma'
-import { withSyncWrite } from '@/lib/sync-write'
+import { persistRenphoReadings } from '@/lib/renpho-persistence'
 import {
   loginToRenpho,
   fetchAllRenphoMeasurements,
@@ -21,6 +21,7 @@ export interface RenphoSyncResult {
   skipped: number
   total: number
   scalesFound: number
+  timingsMs: { auth: number; fetch: number; database: number; total: number }
   latestMeasurementDate: string | null
 }
 
@@ -54,7 +55,7 @@ export async function authenticateAndStoreRenphoCredential(): Promise<RenphoCred
 }
 
 async function getCredentialOrFail(): Promise<RenphoCredential> {
-  const cred = await prisma.renphoCredential.findFirst()
+  const cred = await prisma.renphoCredential.findFirst({ orderBy: { obtainedAt: 'desc' } })
   if (!cred) {
     throw new RenphoSyncError('No Renpho credentials found. POST /api/renpho/auth first.', 401)
   }
@@ -73,12 +74,11 @@ export async function ensureFreshRenphoToken(cred: RenphoCredential): Promise<Re
  * lowest-weight reading per day, upsert into BodyMeasurement by date.
  */
 export async function runRenphoSync(): Promise<RenphoSyncResult> {
+  const startedAt = Date.now()
   let cred = await getCredentialOrFail()
   cred = await ensureFreshRenphoToken(cred)
 
-  let synced = 0
-  let updated = 0
-  let skipped = 0
+  const authFinishedAt = Date.now()
 
   async function withReauthRetry<T>(fn: () => Promise<T>): Promise<T> {
     try {
@@ -107,49 +107,14 @@ export async function runRenphoSync(): Promise<RenphoSyncResult> {
     .filter((m): m is NonNullable<typeof m> => m != null)
   const dailyReadings = pickDailyReadings(mapped)
 
-  for (const reading of dailyReadings) {
-    const action = await withSyncWrite(async tx => {
-      const existing = await tx.bodyMeasurement.findUnique({ where: { date: reading.date } })
-
-      const data = {
-        weightLbs: reading.weightLbs,
-        bmi: reading.bmi,
-        bodyFatPct: reading.bodyFatPct,
-        waterPct: reading.waterPct,
-        musclePct: reading.musclePct,
-        boneMassPct: reading.boneMassPct,
-        bmr: reading.bmr,
-        visceralFatLevel: reading.visceralFatLevel,
-        subcutaneousFatPct: reading.subcutaneousFatPct,
-        proteinPct: reading.proteinPct,
-        bodyAgeYears: reading.bodyAgeYears,
-        leanBodyMassLbs: reading.leanBodyMassLbs,
-        fatFreeWeightLbs: reading.fatFreeWeightLbs,
-        heartRateBpm: reading.heartRateBpm,
-        renphoRecordId: reading.renphoRecordId,
-      }
-
-      if (!existing) {
-        await tx.bodyMeasurement.create({ data: { date: reading.date, source: 'Renpho', ...data } })
-        return 'synced'
-      } else if ((Object.keys(data) as Array<keyof typeof data>).some(
-        key => data[key] !== undefined && data[key] !== existing[key],
-      )) {
-        // Renpho can revise values without changing the record ID. Compare
-        // supplied values too; missing optional fields leave stored data intact.
-        await tx.bodyMeasurement.update({ where: { id: existing.id }, data })
-        return 'updated'
-      } else {
-        return 'skipped'
-      }
-    })
-    if (action === 'synced') synced++
-    else if (action === 'updated') updated++
-    else skipped++
-  }
+  const fetchFinishedAt = Date.now()
+  const { synced, updated, skipped } = await persistRenphoReadings(dailyReadings)
+  const timingsMs = { auth: authFinishedAt - startedAt, fetch: fetchFinishedAt - authFinishedAt,
+    database: Date.now() - fetchFinishedAt, total: Date.now() - startedAt }
+  console.info('renpho.sync', { synced, updated, skipped, total, timingsMs })
 
   const latestMeasurementDate = dailyReadings.length > 0
     ? new Date(Math.max(...dailyReadings.map(reading => reading.date.getTime()))).toISOString()
     : null
-  return { synced, updated, skipped, total, scalesFound, latestMeasurementDate }
+  return { synced, updated, skipped, total, scalesFound, latestMeasurementDate, timingsMs }
 }

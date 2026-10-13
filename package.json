@@ -6,13 +6,15 @@
     "node": ">=20.9"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma db push && next build",
+    "dev": "node scripts/prepare-ocr.cjs && next dev",
+    "build": "prisma generate && node scripts/prepare-ocr.cjs && next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "test": "node --test tests/*.test.cjs",
     "credentials:encrypt": "node --env-file=.env.local scripts/encrypt-credentials.cjs",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",

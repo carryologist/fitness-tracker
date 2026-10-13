@@ -356,10 +356,10 @@ All upstream integration requests time out after 15 seconds. Renpho aborts
 repeated pages or histories exceeding 1000 pages per endpoint/table instead
 of reporting incomplete data as a successful sync.
 
-Sync writes use short PostgreSQL transactions with a shared transaction-scoped
-advisory lock. External ID checks happen again inside the lock, so overlapping
+Workout sync writes use short PostgreSQL transactions with a shared transaction-scoped
+advisory lock. Renpho batches use a separate measurement lock. External ID checks happen again inside the lock, so overlapping
 sync calls cannot create the same imported workout twice. Renpho daily writes
-and multi-row strength-workout merges use the same boundary. Network requests
+and multi-row strength-workout merges use the same transaction helper. Network requests
 remain outside these transactions; previously committed items remain saved if
 a later item fails, and retries skip them.
 
@@ -402,3 +402,66 @@ with 52 weeks per year and 13 weeks per quarter, including 2026. The goal form
 preview and server use the same calculation. Partial goal updates merge with
 stored base fields under a row lock, validate finite numeric/integer bounds,
 and recalculate targets. Existing goals are not rewritten until edited.
+
+
+### Sync performance and API safeguards
+
+Renpho still fetches both complete histories, with at most two upstream
+requests in flight (one per endpoint). Composition records retain precedence
+when IDs overlap. Unchanged history uses one bulk database comparison and
+no transactions or writes. Changed days are rechecked under a dedicated
+measurement lock, inserted with createMany, and updated in batches of up to
+100 using bound JSON parameters. Omitted optional metrics are retained.
+The workout lock remains separate so a Renpho import does not block strength
+merges. A failed batch rolls back; earlier completed batches remain saved.
+The response/log includes auth, fetch, database, and total durations in
+milliseconds; the health banner displays completion time. Actual production
+speed still depends on Renpho and database latency.
+
+Connection-status GETs read cached credentials without refreshing them. Tonal
+reports disconnected when an expired credential has no refresh token.
+Renpho prefers the most recently obtained stored credential. Bearer requests
+skip session work. Peloton strength imports skip unnecessary distance-summary
+requests; Tonal skips detail requests for zero-volume ghosts/deleted records
+and uses indexed page lookups. Screenshot batches reuse one OCR worker and
+terminate it afterward. Worker/core assets are served locally from pinned
+installed dependencies; only English trained data downloads from the specific
+jsDelivr package path. CSP permits same-origin workers and WebAssembly compilation,
+without enabling general JavaScript unsafe-eval or third-party worker scripts.
+
+All authenticated REST mutations share a 60/minute bucket; integration login
+has 5/minute and sync/diagnostic calls 10/minute. MCP read traffic has its own
+120/minute bucket, and only mutating/sync tools consume their respective
+budgets, before writing. These are bounded process-local safeguards, not a
+distributed quota across Vercel instances. Success audits cover workouts,
+goals, free-weight settings, imports, integration auth/disconnects, and syncs;
+failed integration auth attempts are recorded without credential payloads.
+
+### Explicit database migrations
+
+Builds now generate the Prisma client and local OCR assets, then build Next.js.
+They do not connect to or change a database. CI runs tests, lint, and this
+build without database credentials. New databases use `npm run db:migrate`;
+future schema changes use `npm run db:migrate:dev -- --name <name>` in development.
+Run reviewed migrations explicitly against the intended environment before
+releasing code that depends on them.
+
+The initial migration records the existing schema; this PR needs no schema
+change on an existing deployment. Existing databases created by db push must
+be baselined once before using migrate deploy. With credentials configured for
+the intended environment, first verify there is no schema drift:
+
+```bash
+npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code
+```
+
+Only after that exits 0, record the baseline without running its CREATE TABLEs:
+
+```bash
+npx prisma migrate resolve --applied 20261013000000_baseline
+npm run db:migrate
+```
+
+If the diff exits 2, review and reconcile the drift first. Do not execute the
+baseline SQL directly against a populated database. No production baseline
+or migration is run automatically by this PR.

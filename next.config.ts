@@ -19,11 +19,12 @@ const isProd = process.env.NODE_ENV === 'production'
  */
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://accounts.google.com",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://accounts.google.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
+  "worker-src 'self'",
   "font-src 'self' data:",
-  "connect-src 'self' https://api.onepeloton.com https://*.tonal.com https://*.auth0.com",
+  "connect-src 'self' https://api.onepeloton.com https://*.tonal.com https://*.auth0.com https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int/",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self' https://accounts.google.com",

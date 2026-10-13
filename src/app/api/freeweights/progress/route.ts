@@ -1,3 +1,4 @@
+import { logAudit } from '@/lib/audit-log'
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
@@ -47,6 +48,7 @@ export async function PATCH(request: NextRequest) {
       create: { exerciseId, reps: parsedReps, weightPerDumbbell: parsedWeight },
     })
 
+    await logAudit(request, authResult, 'freeweights.progress.update', { exerciseId, reps: parsedReps, weightPerDumbbell: parsedWeight })
     return NextResponse.json({ progress: updated })
   } catch (error) {
     console.error('Error updating free weight progress:', error instanceof Error ? error.message : 'unknown')

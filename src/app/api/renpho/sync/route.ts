@@ -1,24 +1,21 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
-import { runRenphoSync, ensureFreshRenphoToken, RenphoSyncError } from '@/lib/renpho-sync'
+import { runRenphoSync, RenphoSyncError } from '@/lib/renpho-sync'
 import { logAudit } from '@/lib/audit-log'
 
-// GET — connection status (auto-refreshes token if stale)
+export const maxDuration = 300
+
+// GET — cached connection status; POST owns token refresh.
 export async function GET(request: Request) {
   const authResult = await requireAuth(request)
   if (authResult instanceof NextResponse) return authResult
 
   try {
-    const cred = await prisma.renphoCredential.findFirst()
+    const cred = await prisma.renphoCredential.findFirst({ orderBy: { obtainedAt: 'desc' } })
     if (!cred) return NextResponse.json({ connected: false })
 
-    try {
-      await ensureFreshRenphoToken(cred)
-      return NextResponse.json({ connected: true, userId: cred.userId })
-    } catch {
-      return NextResponse.json({ connected: false, reason: 'token_expired' })
-    }
+    return NextResponse.json({ connected: true, userId: cred.userId })
   } catch (error) {
     console.error('Renpho status check error:', error instanceof Error ? error.message : 'unknown')
     return NextResponse.json({ connected: false }, { status: 500 })
@@ -54,8 +51,8 @@ export async function DELETE(request: Request) {
   if (authResult instanceof NextResponse) return authResult
 
   try {
-    const cred = await prisma.renphoCredential.findFirst()
-    if (cred) await prisma.renphoCredential.delete({ where: { id: cred.id } })
+    // Legacy account-ID precision could leave more than one cached row.
+    await prisma.renphoCredential.deleteMany()
     await logAudit(request, authResult, 'renpho.disconnect', {})
     return NextResponse.json({ disconnected: true })
   } catch (error) {

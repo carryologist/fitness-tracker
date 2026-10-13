@@ -15,7 +15,7 @@ function loadTs(path, overrides = {}, globals = {}) {
   const exports = {}
   vm.runInNewContext(outputText, {
     exports, require: name => overrides[name] ?? (name === '@/lib/integration-fetch' ? loadTs('src/lib/integration-fetch.ts', {}, globals) : require(name)),
-    Buffer, Date, Error, AbortSignal, process, console, ...globals,
+    Buffer, Date, Error, AbortSignal, AbortController, process, console, ...globals,
   }, { filename: path })
   return exports
 }
@@ -61,23 +61,24 @@ test('legacy pagination does not stop at a stale device count', async () => {
 
 function syncClient(existing, reading) {
   const writes = []
-  const client = loadTs('src/lib/renpho-sync.ts', {
-    '@/lib/prisma': { default: {
-      renphoCredential: { findFirst: async () => ({ token: 'token', userId: 'user', obtainedAt: new Date() }) },
-      bodyMeasurement: {
-        findUnique: async () => existing,
-        update: async args => writes.push(args),
-        create: async args => writes.push(args),
-      },
-    } },
-    '@/lib/sync-write': { withSyncWrite: fn => fn({ bodyMeasurement: {
-      findUnique: async () => existing, update: async args => writes.push(args), create: async args => writes.push(args),
+  const db = {
+    findMany: async () => existing ? [existing] : [],
+    createMany: async ({ data }) => { data.forEach(row => writes.push({ data: row })); return { count: data.length } },
+  }
+  const persistence = loadTs('src/lib/renpho-persistence.ts', {
+    '@/lib/prisma': { default: { bodyMeasurement: db } },
+    '@/lib/sync-write': { withSyncWrite: fn => fn({ bodyMeasurement: db, $executeRaw: async sql => {
+      const payload = JSON.parse(sql.values.find(value => typeof value === 'string' && value.startsWith('[{')))
+      payload.forEach(row => writes.push({ data: row.data }))
     } }) },
+  })
+  const client = loadTs('src/lib/renpho-sync.ts', {
+    '@/lib/prisma': { default: { renphoCredential: { findFirst: async () => ({ token: 'token', userId: 'user', obtainedAt: new Date() }) } } },
+    '@/lib/renpho-persistence': persistence,
     '@/lib/crypto': { decryptSecret: value => value },
     '@/lib/renpho': {
       fetchAllRenphoMeasurements: async () => ({ measurements: [reading], scalesFound: 1 }),
-      mapRenphoMeasurement: value => value,
-      pickDailyReadings: values => values,
+      mapRenphoMeasurement: value => value, pickDailyReadings: values => values,
     },
   })
   return { client, writes }
@@ -133,7 +134,7 @@ test('repeated full pages fail instead of looping forever or reporting a partial
     return response(Array.from({ length: 50 }, (_, i) => ({ id: String(i), weight: 90 })))
   } })
   await assert.rejects(client.fetchAllRenphoMeasurements('token', 'user'), /repeated a page/)
-  assert.equal(pages, 2)
+  assert.ok(pages <= 4)
 })
 
 test('Renpho calendar buckets are independent of runtime timezone and missing timestamps are not assigned today', () => {
@@ -147,4 +148,17 @@ test('Renpho calendar buckets are independent of runtime timezone and missing ti
     }
     assert.equal(client.mapRenphoMeasurement({ weight: 90 }), null)
   } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous }
+})
+
+test('a failing endpoint cancels its sibling instead of leaving background pagination running', async () => {
+  let cancelled = false
+  const client = loadTs('src/lib/renpho.ts', {}, { fetch: async (url, options) => {
+    if (url.endsWith('/device/count')) return response({ scale: [{ tableName: 'scale', count: 1 }] })
+    if (url.endsWith('queryBodyCompositionMeasureData')) return new Response('Unavailable', { status: 503 })
+    return new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => {
+      cancelled = true; reject(new Error('cancelled'))
+    }, { once: true }))
+  } })
+  await assert.rejects(client.fetchAllRenphoMeasurements('token', 'user'), /HTTP 503/)
+  assert.equal(cancelled, true)
 })

@@ -105,7 +105,7 @@ export function HealthDashboard() {
         return
       }
 
-      const data = syncRes.json as { synced?: number; updated?: number; skipped?: number; scalesFound?: number; latestMeasurementDate?: string | null }
+      const data = syncRes.json as { synced?: number; updated?: number; skipped?: number; scalesFound?: number; latestMeasurementDate?: string | null; timingsMs?: { total: number } }
       await loadData()
       const parts: string[] = []
       if ((data.synced ?? 0) > 0) parts.push(`${data.synced} new`)
@@ -117,7 +117,7 @@ export function HealthDashboard() {
         setSyncError('Renpho returned no usable readings. Your previously stored data has been kept.')
       } else {
         const latestDate = format(measurementCalendarDate(new Date(data.latestMeasurementDate)), 'MMM d, yyyy')
-        setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'no changes'}. Latest reading returned: ${latestDate}.`)
+        setSyncSuccess(`Renpho sync: ${parts.length > 0 ? parts.join(', ') : 'no changes'}. Latest reading returned: ${latestDate}.${data.timingsMs ? ` Completed in ${(data.timingsMs.total / 1000).toFixed(1)}s.` : ''}`)
         setTimeout(() => setSyncSuccess(null), 6000)
       }
     } catch (error) {
