@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
+import { parseWorkoutDate } from '@/lib/workout-date'
+import { logAudit } from '@/lib/audit-log'
+import type { WorkoutSession as StoredWorkout } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
+
+type WorkoutWrite = Pick<StoredWorkout, 'date' | 'source' | 'activity' | 'minutes' | 'miles' | 'weightLifted' | 'notes'>
+
+function replayResponse(existing: StoredWorkout, data: WorkoutWrite) {
+  if (existing.deletedAt) return NextResponse.json({ error: 'This workout was deleted' }, { status: 409 })
+  const matches = existing.date.getTime() === data.date.getTime() &&
+    (Object.keys(data) as Array<keyof WorkoutWrite>).filter(key => key !== 'date').every(key => existing[key] === data[key])
+  if (!matches) return NextResponse.json({ error: 'This save request already logged a different workout' }, { status: 409 })
+  return NextResponse.json({ workout: existing })
+}
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request)
@@ -64,6 +77,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request)
   if (authResult instanceof NextResponse) return authResult
+  const key = request.headers.get('Idempotency-Key')
+  let requestedData: WorkoutWrite | undefined
 
   try {
     const body = await request.json()
@@ -107,25 +122,41 @@ export async function POST(request: NextRequest) {
 
     // Create workout in database
     // Parse date - handle both ISO timestamps and date-only strings
-    const workoutDate = date.includes('T') 
-      ? new Date(date)  // Full ISO timestamp
-      : new Date(date + 'T12:00:00')  // Date-only string from manual entry
+    const workoutDate = parseWorkoutDate(date)
+    if (!workoutDate) return NextResponse.json({ error: 'Invalid workout date' }, { status: 400 })
+    if (key && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key)) {
+      return NextResponse.json({ error: 'Invalid Idempotency-Key' }, { status: 400 })
+    }
+    // A stable client-generated UUID maps retries to one existing primary key.
+    // This needs no schema migration and works across server instances.
+    const retryId = key ? `manual_${key.toLowerCase()}` : undefined
+    requestedData = {
+      date: workoutDate, source, activity, minutes: parsedMinutes,
+      miles: miles == null ? null : parseFloat(miles),
+      weightLifted: weightLifted == null ? null : parseFloat(weightLifted),
+      notes: notes || null,
+    }
+    if (retryId) {
+      const existing = await prisma.workoutSession.findUnique({ where: { id: retryId } })
+      if (existing) return replayResponse(existing, requestedData)
+    }
     const newWorkout = await prisma.workoutSession.create({
       data: {
-        date: workoutDate,
-        source: source,
-        activity: activity,
-        minutes: parseInt(minutes),
-        miles: miles ? parseFloat(miles) : null,
-        weightLifted: weightLifted ? parseFloat(weightLifted) : null,
-        notes: notes || null
+        id: retryId,
+        ...requestedData,
       }
     })
     
     console.log('✅ Workout created successfully:', newWorkout.id)
+    await logAudit(request, authResult, 'workout.create', { id: newWorkout.id })
     
     return NextResponse.json({ workout: newWorkout }, { status: 201 })
   } catch (error) {
+    // A concurrent retry may have committed between findUnique and create.
+    if (key && requestedData && error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      const existing = await prisma.workoutSession.findUnique({ where: { id: `manual_${key.toLowerCase()}` } })
+      if (existing) return replayResponse(existing, requestedData)
+    }
     console.error('Error creating workout:', error instanceof Error ? error.message : 'unknown')
     
     // Handle duplicate entry errors
@@ -160,9 +191,14 @@ export async function DELETE(request: NextRequest) {
     
     console.log('🗑️ Deleting workout:', id)
     
-    await prisma.workoutSession.delete({
-      where: { id }
+    const deleted = await prisma.workoutSession.updateMany({
+      where: { id, deletedAt: null },
+      data: { deletedAt: new Date() },
     })
+    if (!deleted.count && !await prisma.workoutSession.findUnique({ where: { id } })) {
+      return NextResponse.json({ error: 'Workout not found' }, { status: 404 })
+    }
+    if (deleted.count) await logAudit(request, authResult, 'workout.delete', { id })
     
     console.log('✅ Workout deleted successfully')
     
@@ -228,7 +264,11 @@ export async function PUT(request: NextRequest) {
       weightLifted?: number | null
       notes?: string | null
     } = {}
-    if (date) updateData.date = new Date(date + 'T12:00:00')
+    if (date !== undefined) {
+      const parsed = parseWorkoutDate(date)
+      if (!parsed) return NextResponse.json({ error: 'Invalid workout date' }, { status: 400 })
+      updateData.date = parsed
+    }
     if (source !== undefined) updateData.source = String(source)
     if (activity !== undefined) updateData.activity = String(activity)
     if (minutes !== undefined) updateData.minutes = parseInt(minutes)
@@ -237,12 +277,16 @@ export async function PUT(request: NextRequest) {
     if (notes !== undefined) updateData.notes = notes || null
 
     const updated = await prisma.workoutSession.update({
-      where: { id },
+      where: { id, deletedAt: null },
       data: updateData
     })
 
+    await logAudit(request, authResult, 'workout.update', { id, fields: Object.keys(updateData) })
     return NextResponse.json({ workout: updated })
   } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+      return NextResponse.json({ error: 'Workout not found' }, { status: 404 })
+    }
     console.error('Error updating workout:', error instanceof Error ? error.message : 'unknown')
     return NextResponse.json(
       { error: 'Failed to update workout' },

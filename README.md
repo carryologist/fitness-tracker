@@ -282,8 +282,11 @@ disconnect credentials. Treat it like the database password:
   encrypted column-side with AES-256-GCM via `CREDENTIAL_ENC_KEY`
   (set to 64 hex chars — `openssl rand -hex 32`). Legacy plaintext
   rows remain readable; they re-encrypt on the next token refresh.
-- Soft-delete through MCP sets `deletedAt`; the REST delete path currently
-  removes rows permanently and is scheduled for the persistence fixes.
+- REST and MCP workout deletion set `deletedAt`, preserving the record and
+  external workout IDs so later syncs do not recreate deleted workouts.
+- Free-weight summaries remain recoverable after refresh until successfully
+  saved or explicitly discarded. Retries use a stable `Idempotency-Key` UUID
+  on `/api/workouts` to avoid duplicate entries after a lost response.
 - Renpho tokens use the same encryption. Production credential writes
   fail if `CREDENTIAL_ENC_KEY` is missing or malformed. Development may
   omit the key; a configured invalid key always fails. Keep your existing
