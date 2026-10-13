@@ -108,6 +108,8 @@ test('soft deletion keeps external IDs, hides history, and cannot be resurrected
   assert.equal((await call('DELETE', null, null, created.id)).status, 200)
   assert.equal(audits.filter(action => action === 'workout.delete').length, 1)
   const sync = loadTs('src/lib/peloton-sync.ts', {
+    '@/lib/sync-write': { validateSyncLimit: () => {}, withSyncWrite: fn => fn({ workoutSession: db }) },
+    '@/lib/workout-match': loadTs('src/lib/workout-match.ts'),
     '@/lib/prisma': { default: { workoutSession: db, pelotonCredential: { findFirst: async () => ({ sessionId: 'test', userId: 'user', expiresAt: Math.floor(Date.now() / 1000) + 3600 }) } } },
     '@/lib/crypto': { decryptSecret: value => value },
     '@/lib/peloton': { fetchPelotonWorkouts: async () => ({ data: [{ id: 'external-id', status: 'COMPLETE' }], page_count: 1 }) },

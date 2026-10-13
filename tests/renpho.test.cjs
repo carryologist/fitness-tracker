@@ -14,8 +14,8 @@ function loadTs(path, overrides = {}, globals = {}) {
   })
   const exports = {}
   vm.runInNewContext(outputText, {
-    exports, require: name => overrides[name] ?? require(name),
-    Buffer, Date, process, console, ...globals,
+    exports, require: name => overrides[name] ?? (name === '@/lib/integration-fetch' ? loadTs('src/lib/integration-fetch.ts', {}, globals) : require(name)),
+    Buffer, Date, Error, AbortSignal, process, console, ...globals,
   }, { filename: path })
   return exports
 }
@@ -70,6 +70,9 @@ function syncClient(existing, reading) {
         create: async args => writes.push(args),
       },
     } },
+    '@/lib/sync-write': { withSyncWrite: fn => fn({ bodyMeasurement: {
+      findUnique: async () => existing, update: async args => writes.push(args), create: async args => writes.push(args),
+    } }) },
     '@/lib/crypto': { decryptSecret: value => value },
     '@/lib/renpho': {
       fetchAllRenphoMeasurements: async () => ({ measurements: [reading], scalesFound: 1 }),
@@ -120,4 +123,15 @@ test('daily selection retains the lowest-weight reading across endpoints', () =>
   const daily = client.pickDailyReadings(records)
   assert.equal(daily.length, 1)
   assert.equal(daily[0].renphoRecordId, 'low')
+})
+
+test('repeated full pages fail instead of looping forever or reporting a partial success', async () => {
+  let pages = 0
+  const client = loadTs('src/lib/renpho.ts', {}, { fetch: async url => {
+    if (url.endsWith('/device/count')) return response({ scale: [{ tableName: 'scale', count: 0 }] })
+    pages++
+    return response(Array.from({ length: 50 }, (_, i) => ({ id: String(i), weight: 90 })))
+  } })
+  await assert.rejects(client.fetchAllRenphoMeasurements('token', 'user'), /repeated a page/)
+  assert.equal(pages, 2)
 })

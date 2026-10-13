@@ -1,3 +1,4 @@
+import { SyncInputError } from '@/lib/sync-write'
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth'
@@ -27,11 +28,12 @@ export async function POST(req: Request) {
 
   try {
     const url = new URL(req.url)
-    const limit = parseInt(url.searchParams.get('limit') || '200', 10)
+    const limit = Number(url.searchParams.get('limit') ?? '200')
     const result = await runPelotonSync(limit)
     await logAudit(req, authResult, 'peloton.sync', { limit, result })
     return NextResponse.json(result)
   } catch (error) {
+    if (error instanceof SyncInputError) return NextResponse.json({ error: error.message }, { status: 400 })
     const message = error instanceof Error ? error.message : 'Sync failed'
     console.error('Peloton sync error:', message)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

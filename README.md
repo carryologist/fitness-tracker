@@ -346,3 +346,27 @@ MIT
 ## Contributing
 
 This is a personal project, but feel free to fork and adapt for your own use!
+
+
+### Integration sync safeguards
+
+Peloton and Tonal inspect the requested number of recent workouts (1–2000,
+default 200), including later pages when the first page is already synced.
+All upstream integration requests time out after 15 seconds. Renpho aborts
+repeated pages or histories exceeding 1000 pages per endpoint/table instead
+of reporting incomplete data as a successful sync.
+
+Sync writes use short PostgreSQL transactions with a shared transaction-scoped
+advisory lock. External ID checks happen again inside the lock, so overlapping
+sync calls cannot create the same imported workout twice. Renpho daily writes
+and multi-row strength-workout merges use the same boundary. Network requests
+remain outside these transactions; previously committed items remain saved if
+a later item fails, and retries skip them.
+
+Automatic linking requires a unique candidate with the same activity and start
+times within 10 minutes. Manual matches also require durations within three
+minutes or 10 percent. Peloton/Tonal echoes require the generic Traditional
+Strength Training title and at least 50 percent overlap of the shorter session.
+Date-only manual entries (including historical midnight and UTC-noon values),
+ambiguous matches, and already-linked sessions are kept separate. This can
+leave apparent duplicates for manual review, while preserving distinct sessions.

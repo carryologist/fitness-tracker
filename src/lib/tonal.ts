@@ -1,3 +1,4 @@
+import { integrationFetch } from '@/lib/integration-fetch'
 // Tonal API client (reverse-engineered, no official docs)
 // Auth via Auth0 password grant — no audience param needed.
 // Bearer token MUST be the `id_token`, NOT the `access_token`.
@@ -82,7 +83,7 @@ export interface TonalSet {
  * Returns tokens; use `id_token` as Bearer for all API calls.
  */
 export async function authenticateTonal(email: string, password: string): Promise<TonalAuthResponse> {
-  const res = await fetch(TONAL_AUTH_URL, {
+  const res = await integrationFetch(TONAL_AUTH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -137,7 +138,7 @@ export function computeExpiresAt(authResponse: TonalAuthResponse): number {
 
 export async function refreshTonalToken(refreshToken: string): Promise<TonalAuthResponse> {
   // No audience param — matches the auth fix above
-  const res = await fetch(TONAL_AUTH_URL, {
+  const res = await integrationFetch(TONAL_AUTH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -161,7 +162,7 @@ export async function refreshTonalToken(refreshToken: string): Promise<TonalAuth
  * Uses `id_token` as Bearer.
  */
 export async function fetchTonalUserId(token: string): Promise<string> {
-  const res = await fetch(`${TONAL_API_BASE}/users/userinfo`, {
+  const res = await integrationFetch(`${TONAL_API_BASE}/users/userinfo`, {
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,
@@ -209,7 +210,7 @@ export async function fetchTonalActivitySummaries(
 ): Promise<TonalActivityItem[]> {
   const params = new URLSearchParams({ limit: String(limit) })
   if (offset > 0) params.set('offset', String(offset))
-  const res = await fetch(
+  const res = await integrationFetch(
     `${TONAL_API_BASE}/users/${userId}/activities?${params}`,
     {
       headers: {
@@ -234,7 +235,7 @@ export async function fetchTonalWorkoutActivity(
   userId: string,
   activityId: string
 ): Promise<TonalWorkoutActivity> {
-  const res = await fetch(
+  const res = await integrationFetch(
     `${TONAL_API_BASE}/users/${userId}/workout-activities/${activityId}`,
     {
       headers: {
@@ -281,7 +282,7 @@ export function mapTonalActivity(activity: TonalActivityItem, detailedDurationSe
   return {
     source: 'Tonal',
     activity: 'Weight Lifting',
-    date: dateStr ? new Date(dateStr) : new Date(),
+    date: dateStr ? new Date(dateStr) : new Date(NaN),
     minutes,
     weightLifted: Math.round(totalVolume),
     notes: noteParts.join(' — '),

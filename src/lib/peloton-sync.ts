@@ -6,6 +6,8 @@
  * The route handler is now a thin auth wrapper around `runPelotonSync()`.
  */
 import prisma from '@/lib/prisma'
+import { withSyncWrite, validateSyncLimit } from '@/lib/sync-write'
+import { matchingWindow, uniqueWorkoutMatch } from '@/lib/workout-match'
 import {
   fetchPelotonWorkouts,
   fetchPelotonWorkoutSummary,
@@ -41,11 +43,12 @@ async function getValidCredential(): Promise<{ sessionId: string; userId: string
 /**
  * Run a Peloton sync. Pages through workouts (newest first), skipping
  * already-synced rows, backfilling manually-entered rows that match by
- * date+source, and creating new rows for the rest.
+ * source, activity, start time and duration, and creating new rows for the rest.
  *
  * @param limit  Max workouts to inspect from Peloton (default 200).
  */
 export async function runPelotonSync(limit = 200): Promise<SyncResult> {
+  validateSyncLimit(limit)
   let { sessionId, userId } = await getValidCredential()
 
   const maxPages = Math.ceil(limit / 50)
@@ -55,10 +58,9 @@ export async function runPelotonSync(limit = 200): Promise<SyncResult> {
   let updated = 0
   let total = 0
   let page = 0
-  let caughtUp = false
   let retriedAuth = false
 
-  while (!caughtUp) {
+  while (true) {
     let response
     try {
       response = await fetchPelotonWorkouts(sessionId, userId, page)
@@ -73,7 +75,7 @@ export async function runPelotonSync(limit = 200): Promise<SyncResult> {
         throw err
       }
     }
-    const workouts = response.data
+    const workouts = response.data.slice(0, limit - total)
     total += workouts.length
 
     if (workouts.length === 0) break
@@ -87,8 +89,6 @@ export async function runPelotonSync(limit = 200): Promise<SyncResult> {
     })
     const syncedIdSet = new Set(alreadySynced.map((r) => r.pelotonWorkoutId))
 
-    let newOnThisPage = false
-
     for (const workout of workouts) {
       if (workout.status !== 'COMPLETE') {
         skipped++
@@ -99,8 +99,6 @@ export async function runPelotonSync(limit = 200): Promise<SyncResult> {
         continue
       }
 
-      newOnThisPage = true
-
       if (!workout.overall_summary) {
         try {
           workout.overall_summary = await fetchPelotonWorkoutSummary(sessionId, workout.id)
@@ -110,98 +108,50 @@ export async function runPelotonSync(limit = 200): Promise<SyncResult> {
       }
 
       const mapped = mapPelotonWorkout(workout)
+      if (!Number.isFinite(mapped.date.getTime()) || !Number.isFinite(mapped.minutes)) {
+        skipped++
+        continue
+      }
 
       if (mapped.minutes < 1) {
         skipped++
         continue
       }
 
-      const startOfDay = new Date(mapped.date)
-      startOfDay.setHours(0, 0, 0, 0)
-      const endOfDay = new Date(mapped.date)
-      endOfDay.setHours(23, 59, 59, 999)
-
-      // Tonal-dup guard (dedupe pattern P4): if the Peloton activity is
-      // "Weight Lifting" and there's already a real Tonal row on the
-      // same day, this Peloton record is the Watch/app auto-tracked
-      // mirror of that Tonal workout (generic "Traditional Strength
-      // Training" title, no weight number). Tonal is canonical: it has
-      // the real weight-lifted number, and its own start/stop timer is
-      // more accurate than Apple Watch's auto-detected duration for
-      // strength training (see tonal-sync.ts's matching guard). Do not
-      // create a duplicate row here. Match on same day only, not exact
-      // minutes, since the two trackers' durations routinely differ by
-      // several minutes for the same session. If the Tonal row hasn't
-      // been linked to a Peloton workout id yet, adopt this one onto it
-      // so future syncs recognize it as already handled.
-      if (mapped.activity === 'Weight Lifting') {
-        const tonalDup = await prisma.workoutSession.findFirst({
-          where: {
-            source: 'Tonal',
-            activity: 'Weight Lifting',
-            weightLifted: { gt: 0 },
-            date: { gte: startOfDay, lte: endOfDay },
-            deletedAt: null,
-          },
+      const action = await withSyncWrite(async tx => {
+        if (await tx.workoutSession.findUnique({ where: { pelotonWorkoutId: workout.id } })) return 'skipped'
+        const candidates = await tx.workoutSession.findMany({
+          where: { activity: mapped.activity, deletedAt: null, date: matchingWindow(mapped.date) },
         })
-        if (tonalDup) {
-          if (!tonalDup.pelotonWorkoutId) {
-            await prisma.workoutSession.update({
-              where: { id: tonalDup.id },
-              data: { pelotonWorkoutId: mapped.pelotonWorkoutId },
-            })
-            updated++
-          } else {
-            skipped++
-          }
-          continue
+        const tonalEcho = mapped.activity === 'Weight Lifting' &&
+          /traditional strength training/i.test(mapped.notes ?? '')
+          ? uniqueWorkoutMatch(candidates.filter(row => row.source === 'Tonal' &&
+            (row.weightLifted ?? 0) > 0 && !row.pelotonWorkoutId), mapped, true) : undefined
+        const manualMatch = uniqueWorkoutMatch(candidates.filter(row =>
+          row.source === mapped.source && !row.pelotonWorkoutId), mapped)
+        const match = tonalEcho ?? manualMatch
+        if (match) {
+          const result = await tx.workoutSession.updateMany({
+            where: { id: match.id, deletedAt: null, pelotonWorkoutId: null },
+            data: tonalEcho ? { pelotonWorkoutId: workout.id } : {
+              miles: mapped.miles ?? match.miles, notes: mapped.notes ?? match.notes,
+              pelotonWorkoutId: workout.id,
+            },
+          })
+          if (result.count) return 'updated'
         }
-      }
-
-      const manualMatch = await prisma.workoutSession.findFirst({
-        where: {
-          source: mapped.source,
-          pelotonWorkoutId: null,
-          date: { gte: startOfDay, lte: endOfDay },
-          deletedAt: null,
-        },
+        await tx.workoutSession.create({ data: {
+          ...mapped, weightLifted: null, miles: mapped.miles ?? null, notes: mapped.notes ?? null,
+        } })
+        return 'synced'
       })
-
-      if (manualMatch) {
-        await prisma.workoutSession.update({
-          where: { id: manualMatch.id },
-          data: {
-            miles: mapped.miles ?? manualMatch.miles,
-            notes: mapped.notes ?? manualMatch.notes,
-            pelotonWorkoutId: mapped.pelotonWorkoutId,
-          },
-        })
-        updated++
-        continue
-      }
-
-      await prisma.workoutSession.create({
-        data: {
-          date: mapped.date,
-          source: mapped.source,
-          activity: mapped.activity,
-          minutes: mapped.minutes,
-          miles: mapped.miles ?? null,
-          weightLifted: null,
-          notes: mapped.notes ?? null,
-          pelotonWorkoutId: mapped.pelotonWorkoutId,
-        },
-      })
-      synced++
-    }
-
-    if (!newOnThisPage && !caughtUp) {
-      caughtUp = true
-      break
+      if (action === 'updated') updated++
+      else if (action === 'synced') synced++
+      else skipped++
     }
 
     if (page + 1 >= response.page_count) break
-    if (page + 1 >= maxPages) break
+    if (total >= limit || page + 1 >= maxPages) break
     page++
   }
 

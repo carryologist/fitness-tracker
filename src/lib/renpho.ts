@@ -1,3 +1,4 @@
+import { integrationFetch } from '@/lib/integration-fetch'
 // Renpho API client (reverse-engineered, no official docs)
 // Auth via a proprietary AES-128-ECB encrypted JSON envelope over HTTPS —
 // every request body is `{ encryptData: base64(AES-128-ECB(JSON)) }` and
@@ -115,7 +116,7 @@ export async function loginToRenpho(email: string, password: string): Promise<Re
     bindingList: { deviceTypes: BODY_WEIGHT_SCALES },
   }
 
-  const res = await fetch(`${API_BASE_URL}/${ENDPOINTS.login}`, {
+  const res = await integrationFetch(`${API_BASE_URL}/${ENDPOINTS.login}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(encryptRequest(payload)),
@@ -159,7 +160,7 @@ export async function debugLoginRaw(email: string, password: string) {
     bindingList: { deviceTypes: BODY_WEIGHT_SCALES },
   }
 
-  const res = await fetch(`${API_BASE_URL}/${ENDPOINTS.login}`, {
+  const res = await integrationFetch(`${API_BASE_URL}/${ENDPOINTS.login}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(encryptRequest(payload)),
@@ -207,7 +208,7 @@ async function renphoPostRaw<T = unknown>(
   userId: string,
   context: string,
 ): Promise<{ ok: true; data: T | null } | { ok: false; status: number; text: string }> {
-  const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
+  const res = await integrationFetch(`${API_BASE_URL}/${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders(token, userId) },
     body: JSON.stringify(encryptedBody),
@@ -247,7 +248,7 @@ export interface RenphoScaleInfo {
 export async function debugDeviceInfoAttempts(token: string, userId: string) {
   async function describe(label: string, body: { encryptData: string }) {
     try {
-      const res = await fetch(`${API_BASE_URL}/${ENDPOINTS.deviceInfo}`, {
+      const res = await integrationFetch(`${API_BASE_URL}/${ENDPOINTS.deviceInfo}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders(token, userId) },
         body: JSON.stringify(body),
@@ -313,7 +314,7 @@ export async function debugMeasurementFetch(
 ) {
   async function describe(label: string, endpoint: string) {
     try {
-      const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
+      const res = await integrationFetch(`${API_BASE_URL}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders(token, scaleUserId) },
         body: JSON.stringify(encryptRequest({ pageNum: 1, pageSize: 5, userIds: [String(scaleUserId)], tableName })),
@@ -439,7 +440,8 @@ async function fetchMeasurementPages(
 ): Promise<RenphoMeasurement[]> {
   const all: RenphoMeasurement[] = []
   let page = 1
-  while (true) {
+  const pageSignatures = new Set<string>()
+  while (page <= 1000) {
     const pageData = await renphoPost(
       endpoint,
       { pageNum: page, pageSize, userIds: [String(userId)], tableName },
@@ -448,12 +450,15 @@ async function fetchMeasurementPages(
       `Measurements page ${page}`,
     )
     const records = extractRecords(pageData)
-    if (!records) break
+    if (!records) return all
+    const signature = JSON.stringify(records)
+    if (pageSignatures.has(signature)) throw new Error('Renpho pagination repeated a page')
+    pageSignatures.add(signature)
     all.push(...records)
-    if (records.length < pageSize) break
+    if (records.length < pageSize) return all
     page++
   }
-  return all
+  throw new Error('Renpho pagination exceeded 1000 pages')
 }
 
 /**
