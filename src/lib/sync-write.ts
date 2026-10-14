@@ -6,7 +6,8 @@ import type { Prisma } from '@prisma/client'
 export function withSyncWrite<T>(write: (tx: Prisma.TransactionClient) => Promise<T>, scope: 'workouts' | 'measurements' = 'workouts'): Promise<T> {
   return prisma.$transaction(async tx => {
     // Peloton/Tonal share key 1; measurement batches use independent key 2.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(782341, ${scope === 'measurements' ? 2 : 1})`
+    // Prisma binds JS integers as bigint; the two-key overload requires int4.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(782341, ${scope === 'measurements' ? 2 : 1}::integer)`
     return write(tx)
   }, { maxWait: 10_000, timeout: 15_000 })
 }

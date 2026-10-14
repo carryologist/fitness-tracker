@@ -440,8 +440,12 @@ failed integration auth attempts are recorded without credential payloads.
 ### Explicit database migrations
 
 Builds now generate the Prisma client and local OCR assets, then build Next.js.
-They do not connect to or change a database. CI runs tests, lint, and this
-build without database credentials. New databases use `npm run db:migrate`;
+They do not connect to or change a database. CI runs unit tests, lint, and this
+build without production database credentials. It also runs `npm run test:postgres`
+against an isolated PostgreSQL service to verify Prisma's sync locks. To run
+those checks locally, set `TEST_POSTGRES_URL` to a disposable test database;
+the suite uses advisory locks and does not need application tables.
+New databases use `npm run db:migrate`;
 future schema changes use `npm run db:migrate:dev -- --name <name>` in development.
 Run reviewed migrations explicitly against the intended environment before
 releasing code that depends on them.
