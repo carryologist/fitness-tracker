@@ -33,6 +33,55 @@ function requestBody(options) {
   return text ? JSON.parse(text) : null
 }
 
+test('normal and diagnostic login send app metadata before a session exists', async () => {
+  let requests = 0
+  const client = loadTs('src/lib/renpho.ts', {}, { fetch: async (url, options) => {
+    requests++
+    assert.ok(url.endsWith('/renpho-aggregation/user/login'))
+    const body = requestBody(options)
+    const headers = new Headers(options.headers)
+    assert.equal(headers.get('content-type'), 'application/json')
+    assert.equal(headers.get('appVersion'), body.login.appRevision)
+    assert.equal(headers.get('platform'), 'android')
+    assert.equal(body.login.platform, 'android')
+    assert.equal(headers.has('token'), false)
+    assert.equal(body.login.email, 'test@example.invalid')
+    assert.equal(body.login.password, 'test-password')
+    // The live API rejects an otherwise valid envelope without these headers.
+    if (!headers.get('appVersion') || !headers.get('platform')) {
+      return new Response(JSON.stringify({ code: -114, message: 'Decryption failed', data: null }))
+    }
+    return response({ login: { token: 'test-token', id: '2132938788905981073' } })
+  } })
+  const session = await client.loginToRenpho('test@example.invalid', 'test-password')
+  assert.equal(session.token, 'test-token')
+  assert.equal(session.userId, '2132938788905981073')
+  const diagnostic = await client.debugLoginRaw('test@example.invalid', 'test-password')
+  assert.equal(diagnostic.code, 200)
+  assert.equal(diagnostic.idAfterBigIntSafeParse, session.userId)
+  assert.equal(requests, 2)
+})
+
+test('login preserves Renpho message errors and legacy msg errors without exposing credentials', async () => {
+  for (const fields of [
+    { message: 'Decryption failed, please check the parameters or key' },
+    { msg: 'Legacy Renpho error' },
+    { msg: '', message: 'Decryption failed' },
+  ]) {
+    const client = loadTs('src/lib/renpho.ts', {}, { fetch: async () =>
+      new Response(JSON.stringify({ code: -114, ...fields, data: null })) })
+    const expected = fields.msg || fields.message
+    await assert.rejects(client.loginToRenpho('test@example.invalid', 'test-password'), error => {
+      assert.equal(error.code, -114)
+      assert.equal(error.message, `Login failed: code=-114, msg=${expected}`)
+      assert.equal(error.message.includes('test-password'), false)
+      return true
+    })
+    const diagnostic = await client.debugLoginRaw('test@example.invalid', 'test-password')
+    assert.equal(diagnostic.msg, expected)
+  }
+})
+
 test('fetch includes new legacy readings even when composition history is nonempty and count is zero', async () => {
   const client = loadTs('src/lib/renpho.ts', {}, { fetch: async (url, options) => {
     if (url.endsWith('/device/count')) return response({ scale: [{ tableName: 'scale', count: 0 }] })

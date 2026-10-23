@@ -89,8 +89,12 @@ export class RenphoAPIError extends Error {
   }
 }
 
-function checkResponse(result: { code?: unknown; msg?: string }, context: string) {
-  const msg = (result.msg ?? '').toString()
+function responseMessage(result: { msg?: string; message?: string }): string {
+  return (result.msg || result.message || '').toString()
+}
+
+function checkResponse(result: { code?: unknown; msg?: string; message?: string }, context: string) {
+  const msg = responseMessage(result)
   if (msg.toLowerCase() === 'success' || SUCCESS_CODES.has(String(result.code))) return
   throw new RenphoAPIError(context, result.code, msg)
 }
@@ -118,7 +122,8 @@ export async function loginToRenpho(email: string, password: string): Promise<Re
 
   const res = await integrationFetch(`${API_BASE_URL}/${ENDPOINTS.login}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // Renpho requires app metadata even before a session token exists.
+    headers: { 'Content-Type': 'application/json', appVersion: APP_VERSION, platform: PLATFORM },
     body: JSON.stringify(encryptRequest(payload)),
   })
   if (!res.ok) throw new Error(`Renpho login HTTP ${res.status}: ${await res.text()}`)
@@ -162,14 +167,14 @@ export async function debugLoginRaw(email: string, password: string) {
 
   const res = await integrationFetch(`${API_BASE_URL}/${ENDPOINTS.login}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', appVersion: APP_VERSION, platform: PLATFORM },
     body: JSON.stringify(encryptRequest(payload)),
   })
   const rawText = await res.text()
   if (!res.ok) return { httpStatus: res.status, httpOk: false, rawText: rawText.slice(0, 500) }
 
   const result = JSON.parse(rawText)
-  if (!result.data) return { httpStatus: res.status, code: result.code, msg: result.msg, hasDataField: false }
+  if (!result.data) return { httpStatus: res.status, code: result.code, msg: responseMessage(result), hasDataField: false }
 
   const rawDecrypted = aesDecrypt(result.data)
   const idMatch = rawDecrypted.match(/"id"\s*:\s*("?)([^,}"]+)\1/)
@@ -178,7 +183,7 @@ export async function debugLoginRaw(email: string, password: string) {
   return {
     httpStatus: res.status,
     code: result.code,
-    msg: result.msg,
+    msg: responseMessage(result),
     // The literal substring around the id field as Renpho actually sent
     // it — quoted ("123...") means it's safe; bare digits mean JSON.parse
     // is rounding it.
@@ -260,7 +265,7 @@ export async function debugDeviceInfoAttempts(token: string, userId: string) {
       if (!res.ok) {
         return { attempt: label, httpStatus: res.status, httpOk: false, rawText: rawText.slice(0, 500) }
       }
-      let parsed: { code?: unknown; msg?: string; data?: string }
+      let parsed: { code?: unknown; msg?: string; message?: string; data?: string }
       try {
         parsed = JSON.parse(rawText)
       } catch {
@@ -281,7 +286,7 @@ export async function debugDeviceInfoAttempts(token: string, userId: string) {
         httpStatus: res.status,
         httpOk: true,
         code: parsed.code,
-        msg: parsed.msg,
+        msg: responseMessage(parsed),
         hasDataField: parsed.data != null,
         decryptError,
         // Full raw scale entries as Renpho returned them — includes any
@@ -326,7 +331,7 @@ export async function debugMeasurementFetch(
       if (!res.ok) {
         return { attempt: label, httpStatus: res.status, httpOk: false, rawText: rawText.slice(0, 500) }
       }
-      let parsed: { code?: unknown; msg?: string; data?: string }
+      let parsed: { code?: unknown; msg?: string; message?: string; data?: string }
       try {
         parsed = JSON.parse(rawText)
       } catch {
@@ -348,7 +353,7 @@ export async function debugMeasurementFetch(
         httpStatus: res.status,
         httpOk: true,
         code: parsed.code,
-        msg: parsed.msg,
+        msg: responseMessage(parsed),
         hasDataField: parsed.data != null,
         decryptError,
         recordsPreview,
